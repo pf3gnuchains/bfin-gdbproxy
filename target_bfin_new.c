@@ -43,9 +43,8 @@
 #include "chain.h"
 #include "tap.h"
 #include "state.h"
-#include "detect.h"
-#include "discovery.h"
 #include "cmd.h"
+#include "jtag.h"
 
 
 /* MMRs definitions */
@@ -894,6 +893,7 @@ typedef struct _bfin_cpu
 } bfin_cpu;
 
 int big_endian = 0;
+int debug_mode = 0;
 
 static log_func bfin_log;
 static bfin_cpu *cpu = NULL;
@@ -1908,7 +1908,7 @@ core_emudat_get (int core, int runtest)
   if (runtest)
     {
       assert (tap_state (cpu->chain) & TAPSTAT_IDLE);
-      chain_clock (cpu->chain, 0, 0);
+      chain_clock (cpu->chain, 0, 0, 1);
       core_wait_emuready (core);
     }
 

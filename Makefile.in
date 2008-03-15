@@ -232,19 +232,22 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include -I../jtag/include/device
+INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include
 AUTOMAKE_OPTIONS = gnu
 gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h
 EXTRA_gdbproxy_SOURCES = getopt.h
 gdbproxy_LDADD = \
-	../jtag/src/libjtag.a \
-	../jtag/src/part/libpart.a \
 	../jtag/src/tap/libtap.a \
-	../jtag/libbrux/libbrux.a \
+	../jtag/src/part/libpart.a \
+	../jtag/src/flash/libflash.a \
+	../jtag/src/lib/libjtaglib.a \
 	../jtag/src/cmd/libcmd.a \
+	../jtag/src/tap/libtap.a \
+	../jtag/src/flash/libflash.a \
 	../jtag/src/bus/libbus.a \
-	../jtag/src/libjtag.a \
-	../jtag/libbrux/libbrux.a
+	../jtag/src/bsdl/libbsdl.a \
+	../jtag/src/svf/libsvf.a \
+	-L/usr/lib -lftdi -lusb -lrt -lm
 
 gdbproxy_DEPENDENCIES = @LIBOBJS@
 dist_pkgdata_DATA = bfin

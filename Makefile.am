@@ -31,7 +31,7 @@
 # This is a part of gdbproxy - a remote proxy server for gdb 
 #
 
-INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include -I../jtag/include/device
+INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include
 
 AUTOMAKE_OPTIONS = gnu
 
@@ -42,14 +42,17 @@ gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target
 EXTRA_gdbproxy_SOURCES = getopt.h
 
 gdbproxy_LDADD = \
-	../jtag/src/libjtag.a \
-	../jtag/src/part/libpart.a \
 	../jtag/src/tap/libtap.a \
-	../jtag/libbrux/libbrux.a \
+	../jtag/src/part/libpart.a \
+	../jtag/src/flash/libflash.a \
+	../jtag/src/lib/libjtaglib.a \
 	../jtag/src/cmd/libcmd.a \
+	../jtag/src/tap/libtap.a \
+	../jtag/src/flash/libflash.a \
 	../jtag/src/bus/libbus.a \
-	../jtag/src/libjtag.a \
-	../jtag/libbrux/libbrux.a
+	../jtag/src/bsdl/libbsdl.a \
+	../jtag/src/svf/libsvf.a \
+	-L/usr/lib -lftdi -lusb -lrt -lm
 
 gdbproxy_DEPENDENCIES = @LIBOBJS@
 

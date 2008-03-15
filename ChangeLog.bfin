@@ -1,3 +1,13 @@
+2008-03-15  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c: Don't include detect.h or discovery.h.
+	Include jtag.h.
+	(debug_mode): Define.
+	(core_emudat_get): chain_clock now accepts one more argument.
+	* Makefile.am (INCLUDES): No include/device in jtag now.
+	(gdbproxy_LDADD): Update for the new jtag from UrJTAG.
+	* Makefile.in: Regenerate.
+
 2008-01-31  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bf533_mem_map): Set default SDRAM size
