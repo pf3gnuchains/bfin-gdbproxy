@@ -1,0 +1,301 @@
+2008-01-31  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bf533_mem_map): Set default SDRAM size
+	to 64MB.
+	(bf537_mem_map): Likewise.
+	(bf54x_mem_map): Likewise.
+	(bf561_mem_map): Likewise.
+
+2008-01-31  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (PAGE_SIZE_MASK): Define.
+	(DNON_CHBL_4MB, DNON_CHBL_1MB, DNON_CHBL_4KB,
+	DNON_CHBL_1KB): Define.
+	(BFIN_DCPLB_NUM, BFIN_ICPLB_NUM): Define.
+	(struct _bfin_cplb_entry): Define.
+	(bfin_cplb_entry): Typedef.
+	(struct _bfin_core): Add dmem_control_valid_p,
+	imem_control_valid_p, dcplbs_valid_p, icplbs_valid_p,
+	dmem_control, imem_control, dcplbs, icplbs.
+	(mmr_read): Deal with cached MMRs.
+	(mmr_write): Likewise.
+	(core_dcplb_get_clobber_p0r0): New.
+	(core_dcplb_get): New.
+	(core_dcplb_set_clobber_p0r0): New.
+	(core_dcplb_set): New.
+	(core_icplb_set_clobber_p0r0): New.
+	(core_icplb_set): New.
+	(struct cplb): Define.
+	(struct mb): Define.
+	(split_mb): New.
+	(get_unused_dcplb): New.
+	(dcplb_analyze): New.
+	(mbs_free): New.
+	(dcplb_validate_clobber_p0r0): New.
+	(dcplb_restore_clobber_p0r0): New.
+	(core_dcache_enable): Rewrite with the new CPLB functions.
+	(core_icache_enable): Likewise.
+	(memory_read): Make sure not to cause CPLB exceptions.
+	(memory_write): Likewise.
+	(core_cache_status_get): Deal with cached MMRs.
+	(bfin_connect): Initialize dmem_control_valid_p,
+	imem_control_valid_p, dcplbs_valid_p, and icplbs_valid_p.
+	(bfin_read_mem): Avoid checking L1 earlier.
+	(bfin_write_mem): Likewise.
+	(bfin_resume_from_current): Clear dmem_control_valid_p,
+	imem_control_valid_p, dcplbs_valid_p, and icplbs_valid_p
+	when resume.
+
+2008-01-18  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_remove_break): Fix a typo.
+
+2008-01-18  Jie Zhang  <jie.zhang@analog.com>
+
+	* gdbproxy.texi: Document bfin target --no-auto-swith option.
+	* target_bfin_new.c (bfin_auto_switch): New.
+	(bfin_help): Print help for --no-auto-switch.
+	(bfin_open): Handle --no-auto-switch.
+	(bfin_write_single_register): Switch to the core
+	which contains the address set to PC if no
+	--no-auto-switch is given.
+
+2008-01-17  Jie Zhang  <jie.zhang@analog.com>
+
+	* version.texi: Update date.
+	* gdbproxy.texi: Document monitor commands.
+	* gdbproxy.c (rp_rcmd_set): New.
+	(rp_remote_commands): Add set command.
+	* stamp-vti: Update date.
+
+2008-01-17  Jie Zhang  <jie.zhang@analog.com>
+
+	* init.c (rp_init_check_target): Don't check remcmd.
+	* target_skeleton.c (skeleton_remcmd): Move to gdbproxy.c
+	and rename to handle_rcmd_command with slight adjust.
+	(skeleton_rcmd_help): Remove.
+	(RCMD_TABLE): Move to gdbproxy.h.
+	(skeleton_remote_commands): Declare.
+	(skeleton_target): Add skeleton_remote_commands.
+	Remove skeleton_remcmd.
+	(skeleton_wait_partial): Rename all references of
+	RP_SIGNAL_BREAKPOINT to RP_SIGNAL_TRAP.
+	(skeleton_crc_query): Fix signness warning.
+	(tohex): Remove.
+	(skeleton_rcmd_erase): Use rp_encode_string instead
+	of tohex.
+	(remote_commands): Renamed to ...
+	(skeleton_remote_commands): ... this.
+	And remove help command.
+	(remote_decode_nibble): Remove.
+	(remote_decode_byte): Remove.
+	(DEBUG_OUT): Move to gdbproxy.c.
+	* target_bfin_new.c (bfin_remcmd): Remove.
+	(bfin_rcmd_help): Remove.
+	(RCMD_TABLE): Remove.
+	(bfin_target): Add NULL for remote_commands.
+	Remove bfin_remcmd.
+	(tohex): Remove.
+	(bfin_rcmd_erase): Remove.
+	(remote_commands): Remove.
+	(bfin_rcmd_help): Remove.
+	(remote_decode_nibble): Remove.
+	(remote_decode_byte): Remove.
+	(DEBUG_OUT): Remove.
+	* gdbproxy.c: Include stdarg.h.
+	(handle_rcmd_command): Renamed from skeleton_remcmd
+	of target_skeleton.c with slight adjust.
+	(rp_rcmd_help): New.
+	(RP_RCMD): New.
+	(RP_RCMD_TABLE): New.
+	(handle_query_command): Handle Rcmd packet with
+	handle_rcmd_command.
+	(rp_encode_string): New.
+	(rp_remote_commands): New.
+	(rp_rcmd_help): New.
+	(DEBUG_OUT): Move from target_skeleton.c.
+	(handle_rcmd_command): New.
+	* gdbproxy.h (RCMD_TABLE): Move from target_skeleton.c.
+	(struct rp_target_s): Add remote_commands.
+	Remove remcmd.
+	(rp_encode_string): Declare.
+	* remote.c (remote_target): Add NULL for remote_commands.
+	Remove remote_remcmd.
+	(extended_remote_target): Likewise.
+
+2008-01-15  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_connect): Don't reset if locked.
+
+2008-01-14  Jie Zhang  <jie.zhang@analog.com>
+
+	* gdbproxy.texi (bfin target): Rename --wait to --loop-wait.
+	Document --emu-wait.
+	* target_bfin_new.c (bfin_packetsize_query): New.
+	(bfin_target): Add bfin_packetsize_query.
+	(bfin_loop_wait_first_ts): Renamed from ...
+	(bfin_wait_first_ts): ... this. And update all references.
+	(bfin_loop_wait_ts): Renamed from ...
+	(bfin_wait_ts): ... this. And update all references.
+	(bfin_emu_wait_ts): New.
+	(NOWAIT): Remove macro definition and all references.
+	(wait_emuready): Try to wait if first try fails.
+	(core_wait_emuready): Likewise.
+	(wait_in_reset): Likewise.
+	(core_wait_in_reset): Likewise.
+	(wait_reset): Likewise.
+	(core_wait_reset): Likewise.
+	(bfin_help): Rename --wait to --loop-wait. Add --emu-wait.
+	(bfin_open): Rename --wait to --loop-wait. Handle --emu-wait.
+
+2008-01-14  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_packetsize_query): New.
+	(bfin_target): Add bfin_packetsize_query.
+	(dma_sram_write): Can write up to the size of L1 Bank A
+	SRAM.
+	* gdbproxy.c (handle_query_command): Add support of
+	qSupported packet.
+	* gdbproxy.h (struct rp_target_s): Add packetsize_query.
+
+2008-01-11  Jie Zhang  <jie.zhang@analog.com>
+
+	* configure.in: Remove bfemu stuff.
+	(HAVE_TARGET_BLACKFIN_C): AC_DEFINE.
+	(CFLAGS): Remove -Wwrite-strings. Add -Wno-unused-function.
+	* configure: Regenerate.
+	* Makefile.am (INCLUDES): New.
+	(gdbproxy_SOURCES): Remove target_bfin.c.
+	Add target_bfin_new.c.
+	(gdbproxy_LDADD): Add jtag libraries.
+	(dist_pkgdata_DATA): New.
+	* Makefile.in: Regenerate.
+	* AUTHORS: Add Analog Devices, Inc. as the author of
+	Blackfin target.
+	* version.texi: Update to 0.7.2.
+	* stamp-vti: Likewise.
+	* INSTALL: Update to the one from automake 1.9.6.
+	* missing: Likewise.
+	* texinfo.tex: Update to the one from textinfo 4.11.
+	* config.h.in: Regenerate.
+	* config.h.bot: Remove.
+	* aclocal.m4: Regenerate.
+	* init.c (bf_target): Remove.
+	(bfin_target): New.
+	* target_bfin_new.c: New file.
+	* gdbproxy.texi: Document new Blackfin target.
+	* rpmisc.c (dbg_listen_sock_open): Fix warning.
+	(dbg_sock_accept): Likewise.
+	(dbg_sock_readchar): Likewise.
+	* gdbproxy.c (handle_running_commands): Fix warning.
+	(handle_query_command): Support qThreadExtraInfo,
+	qfThreadInfo, qsThreadInfo.
+	(main): Update Blackfin target copyright notice.
+	(rp_putpkt): Fix warning. Return FALSE if rp_getpkt
+	return -1.
+	(rp_decode_break): Fix warning.
+	* rpmisc.h (dbg_listen_sock_open): Declare.
+	* gdbproxy.h: Fix a comment typo.
+	(struct rp_target_s): Add two new fields:
+	threadinfo_query and threadextrainfo_query.
+	(RP_SIGNAL_TRAP): Renamed from RP_SIGNAL_BREAKPOINT.
+	* target_bfin.c: Remove.
+	* remote.c: Fix warnings.
+	* bfin: New file.
+
+2007-02-11  Jie Zhang  <jie.zhang@analog.com>
+
+	* rpmisc.c (dbg_sock_open): Listen on dbg_listen_sock.
+	(dbg_listen_sock_open): Renamed from
+	(dbg_sock_open): This.
+	(dbg_sock_accept): No need to listen on dbg_listen_sock
+	here. And don't close dbg_listen_sock after accept.
+	(dbg_sock_close): Don't close dbg_listen_sock.
+	* gdbproxy.c (handle_kill_command): Don't call target
+	close hook.
+	(handle_restart_target_command): Likewise.
+	(handle_detach_command): Likewise.
+	(main): Keep dbg_listen_sock alive during and accoss
+	debug sessions.
+	* target_bfin.c (bf_kill): Move leaving singlestep state
+	code to
+	(bf_stop): Here. And only call emulation_enter () if
+	not in emulation.
+
+2007-01-25  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (g_hwbp): Changed to type uint64_t.
+
+2007-01-25  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (bf_connect): Detect core fault and do reset if
+	necessary.
+
+2006-11-06  Jie Zhang  <jie.zhang@analog.com>
+
+	* config.h.in: Regenerate.
+	* config.sub: Update.
+	* remote.c (remote_crc_query): Fix argument type mismatch with
+	its declaration.
+
+2005-12-01  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (bf_connect): Remove duplicated emulation_config ()
+	calls.
+
+2005-11-03  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (bf_wait_partial): Set *implemented 1.
+	(bf_wait): Ditto.
+
+2005-11-03  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (g_allregs): Remove.
+	(enum gdb_regnum): New.
+	(map_gdb_bfemu): New.
+	(NUM_VALIDREGS): Remove.
+	(bf_read_registers): Read GDB registers.
+	(bf_write_registers): Write GDB registers.
+	(bf_write_single_register): Replace reference of bfemu register
+	with reference of gdb register.
+	(bf_resume_from_current): Ditto.
+	(bf_resume_from_addr): Ditto.
+	(bf_wait_partial): Ditto.
+	(bf_wait): Ditto.
+
+2005-11-02  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (BREAKPOINT_LEN, bf_swbp_insn, struct bf_swbp,
+	g_swbps): Define.
+	(bf_find_swbp_at, bf_set_swbp_at, bf_del_swbp): New.
+	(bf_add_break): Add support for Z0 packet.
+	(bf_remove_break): Add suppot for z0 packet.
+
+2005-10-28  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (bf_write_mem): Call emulation_flush () to flush
+	cache after memory write.
+
+2005-10-26  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin.c (NUM_VALIDREGS): Fixed.
+	(bf_read_registers): Correctly read all core registers.
+	(bf_write_registers): Correctly write all core registers.
+	(bf_read_single_register, bf_write_single_register): Reformat.
+
+2005-10-25  Jie Zhang  <jie.zhang@analog.com>
+
+	* config.h.bot (HAVE_TARGET_BLACKFIN_C): Define.
+	* configure.in (LIBS): Add -ltap and -lpart.
+	* aclocal.m4: Regenerate.
+	* Makefile.in: Ditto.
+	* configure: Ditto.
+	* target_bfin.c: Not include memcache.h.
+	(get_excstatus): Pass no arguments to emulation_go ().
+	(bf_connect): Do emulation_config () same as in rpoxy.
+	(bf_read_registers): Don't call save_registers ().
+	(bf_read_mem): Call get_memory () instead of get_memory_cached ().
+	(bf_write_mem): Call set_memory () instead of set_memory_queued ().
+	(bf_resume_from_current): Not call memcache_flush () nor
+	emulation_flush (). Pass no arguments to emulation_go ().
+	(bf_remcmd): Not check the return value of cpu_reset ().
