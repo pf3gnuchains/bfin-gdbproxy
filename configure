@@ -683,6 +683,8 @@ am__leading_dot
 AMTAR
 am__tar
 am__untar
+jtag_srcdir
+jtag_builddir
 CC
 CFLAGS
 LDFLAGS
@@ -1295,6 +1297,15 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-jtag-dir=<dir>   path to jtag directory
+  --with-jtag-srcdir=<dir>
+                          path to jtag source directory
+  --with-jtag-builddir=<dir>
+                          path to jtag build directory
 
 Some influential environment variables:
   CC          C compiler command
@@ -2333,6 +2344,30 @@ ac_config_headers="$ac_config_headers config.h"
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_TARGET_BLACKFIN_C 1
 _ACEOF
+
+
+# Check whether --with-jtag-dir was given.
+if test "${with_jtag_dir+set}" = set; then
+  withval=$with_jtag_dir;
+fi
+
+
+# Check whether --with-jtag-srcdir was given.
+if test "${with_jtag_srcdir+set}" = set; then
+  withval=$with_jtag_srcdir;
+fi
+
+
+# Check whether --with-jtag-builddir was given.
+if test "${with_jtag_builddir+set}" = set; then
+  withval=$with_jtag_builddir;
+fi
+
+test "x$with_jtag_srcdir" = "x" && with_jtag_srcdir=$with_jtag_dir
+test "x$with_jtag_builddir" = "x" && with_jtag_builddir=$with_jtag_dir
+jtag_srcdir=$with_jtag_srcdir
+jtag_builddir=$with_jtag_builddir
+
 
 
 # Check for programs
@@ -6859,6 +6894,8 @@ am__leading_dot!$am__leading_dot$ac_delim
 AMTAR!$AMTAR$ac_delim
 am__tar!$am__tar$ac_delim
 am__untar!$am__untar$ac_delim
+jtag_srcdir!$jtag_srcdir$ac_delim
+jtag_builddir!$jtag_builddir$ac_delim
 CC!$CC$ac_delim
 CFLAGS!$CFLAGS$ac_delim
 LDFLAGS!$LDFLAGS$ac_delim
@@ -6883,7 +6920,7 @@ LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 92; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 94; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

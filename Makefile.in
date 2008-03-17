@@ -213,6 +213,8 @@ htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
+jtag_builddir = @jtag_builddir@
+jtag_srcdir = @jtag_srcdir@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
@@ -236,18 +238,19 @@ INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include
 AUTOMAKE_OPTIONS = gnu
 gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h
 EXTRA_gdbproxy_SOURCES = getopt.h
+AM_CPPFLAGS = -I$(jtag_srcdir)/include
 gdbproxy_LDADD = \
-	../jtag/src/tap/libtap.a \
-	../jtag/src/part/libpart.a \
-	../jtag/src/flash/libflash.a \
-	../jtag/src/lib/libjtaglib.a \
-	../jtag/src/cmd/libcmd.a \
-	../jtag/src/tap/libtap.a \
-	../jtag/src/flash/libflash.a \
-	../jtag/src/bus/libbus.a \
-	../jtag/src/bsdl/libbsdl.a \
-	../jtag/src/svf/libsvf.a \
-	-L/usr/lib -lftdi -lusb -lrt -lm
+	$(jtag_builddir)/src/tap/libtap.a \
+	$(jtag_builddir)/src/part/libpart.a \
+	$(jtag_builddir)/src/flash/libflash.a \
+	$(jtag_builddir)/src/lib/libjtaglib.a \
+	$(jtag_builddir)/src/cmd/libcmd.a \
+	$(jtag_builddir)/src/tap/libtap.a \
+	$(jtag_builddir)/src/flash/libflash.a \
+	$(jtag_builddir)/src/bus/libbus.a \
+	$(jtag_builddir)/src/bsdl/libbsdl.a \
+	$(jtag_builddir)/src/svf/libsvf.a \
+	-lftdi -lusb -lrt -lm
 
 gdbproxy_DEPENDENCIES = @LIBOBJS@
 dist_pkgdata_DATA = bfin
@@ -468,13 +471,10 @@ dist-info: $(INFO_DEPS)
 	    $(srcdir)/*) base=`echo "$$base" | sed "s|^$$srcdirstrip/||"`;; \
 	  esac; \
 	  if test -f $$base; then d=.; else d=$(srcdir); fi; \
-	  base_i=`echo "$$base" | sed 's|\.info$$||;s|$$|.i|'`; \
-	  for file in $$d/$$base $$d/$$base-[0-9] $$d/$$base-[0-9][0-9] $$d/$$base_i[0-9] $$d/$$base_i[0-9][0-9]; do \
-	    if test -f $$file; then \
-	      relfile=`expr "$$file" : "$$d/\(.*\)"`; \
-	      test -f $(distdir)/$$relfile || \
-		cp -p $$file $(distdir)/$$relfile; \
-	    else :; fi; \
+	  for file in $$d/$$base*; do \
+	    relfile=`expr "$$file" : "$$d/\(.*\)"`; \
+	    test -f $(distdir)/$$relfile || \
+	      cp -p $$file $(distdir)/$$relfile; \
 	  done; \
 	done
 

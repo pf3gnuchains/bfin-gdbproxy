@@ -41,18 +41,19 @@ gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target
 
 EXTRA_gdbproxy_SOURCES = getopt.h
 
+AM_CPPFLAGS = -I$(jtag_srcdir)/include
 gdbproxy_LDADD = \
-	../jtag/src/tap/libtap.a \
-	../jtag/src/part/libpart.a \
-	../jtag/src/flash/libflash.a \
-	../jtag/src/lib/libjtaglib.a \
-	../jtag/src/cmd/libcmd.a \
-	../jtag/src/tap/libtap.a \
-	../jtag/src/flash/libflash.a \
-	../jtag/src/bus/libbus.a \
-	../jtag/src/bsdl/libbsdl.a \
-	../jtag/src/svf/libsvf.a \
-	-L/usr/lib -lftdi -lusb -lrt -lm
+	$(jtag_builddir)/src/tap/libtap.a \
+	$(jtag_builddir)/src/part/libpart.a \
+	$(jtag_builddir)/src/flash/libflash.a \
+	$(jtag_builddir)/src/lib/libjtaglib.a \
+	$(jtag_builddir)/src/cmd/libcmd.a \
+	$(jtag_builddir)/src/tap/libtap.a \
+	$(jtag_builddir)/src/flash/libflash.a \
+	$(jtag_builddir)/src/bus/libbus.a \
+	$(jtag_builddir)/src/bsdl/libbsdl.a \
+	$(jtag_builddir)/src/svf/libsvf.a \
+	-lftdi -lusb -lrt -lm
 
 gdbproxy_DEPENDENCIES = @LIBOBJS@
 
