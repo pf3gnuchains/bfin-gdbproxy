@@ -2345,6 +2345,8 @@ cat >>confdefs.h <<\_ACEOF
 #define HAVE_TARGET_BLACKFIN_C 1
 _ACEOF
 
+{ echo "$as_me:$LINENO: checking for jtag directories" >&5
+echo $ECHO_N "checking for jtag directories... $ECHO_C" >&6; }
 
 # Check whether --with-jtag-dir was given.
 if test "${with_jtag_dir+set}" = set; then
@@ -2363,12 +2365,17 @@ if test "${with_jtag_builddir+set}" = set; then
   withval=$with_jtag_builddir;
 fi
 
+if test "x$with_jtag_dir" = "x" ; then
+	test -d ../jtag && with_jtag_dir="../jtag"
+fi
 test "x$with_jtag_srcdir" = "x" && with_jtag_srcdir=$with_jtag_dir
 test "x$with_jtag_builddir" = "x" && with_jtag_builddir=$with_jtag_dir
 jtag_srcdir=$with_jtag_srcdir
 jtag_builddir=$with_jtag_builddir
 
 
+{ echo "$as_me:$LINENO: result: src:$jtag_srcdir build:$jtag_builddir" >&5
+echo "${ECHO_T}src:$jtag_srcdir build:$jtag_builddir" >&6; }
 
 # Check for programs
 { echo "$as_me:$LINENO: checking whether ${MAKE-make} sets \$(MAKE)" >&5
