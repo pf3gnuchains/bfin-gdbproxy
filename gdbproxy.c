@@ -1238,6 +1238,8 @@ static void handle_breakpoint_command(char * const in_buf,
     rp_write_retval(ret, out_buf);
 }
 
+char *jtag_argv0; /* workaround until upstream urjtag moves this into local chain */
+
 int main (int argc, char **argv)
 {
     rp_target *t;
@@ -1253,6 +1255,8 @@ int main (int argc, char **argv)
     int more;
     int implemented;
     size_t in_len;
+
+    jtag_argv0 = argv[0];
 
     /* Option descriptors */
     static struct option long_options[] =
