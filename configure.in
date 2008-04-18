@@ -99,6 +99,17 @@ if test "$host_os" = "cygwin" ; then
     LIBS="$LIBS -lws2_32"
 fi
 
+dnl Enable a relocatable gdbproxy?
+AC_ARG_ENABLE(relocatable,
+[AS_HELP_STRING([--enable-relocatable], [Enable relocatable paths])],
+[relocatable=$enableval], [relocatable=no])
+AS_IF([test "x$relocatable" = xyes], [
+  AM_CONDITIONAL(GDBPROXY_RELOCATABLE, true)
+  AC_DEFINE(GDBPROXY_RELOCATABLE, 1, [define for relocatable paths])
+],[
+  AM_CONDITIONAL(GDBPROXY_RELOCATABLE, false)
+])
+
 AC_CONFIG_FILES(Makefile)
 
 AC_OUTPUT

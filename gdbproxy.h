@@ -422,4 +422,6 @@ void rp_show_warranty(void);
 int rp_hex_nibble(char in);
 int rp_encode_string(const char *s, char *out, size_t out_size);
 
+const char *gdbproxy_get_data_dir(void);
+
 #endif /* _PROXY_H_ */

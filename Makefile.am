@@ -31,8 +31,6 @@
 # This is a part of gdbproxy - a remote proxy server for gdb 
 #
 
-INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include
-
 AUTOMAKE_OPTIONS = gnu
 
 bin_PROGRAMS = gdbproxy
@@ -41,7 +39,7 @@ gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target
 
 EXTRA_gdbproxy_SOURCES = getopt.h
 
-AM_CPPFLAGS = -I$(jtag_srcdir)/include
+AM_CPPFLAGS = -I$(jtag_srcdir)/include -DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
 gdbproxy_LDADD = \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/part/libpart.a \

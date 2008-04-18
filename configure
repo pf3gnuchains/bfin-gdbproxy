@@ -730,6 +730,8 @@ GREP
 EGREP
 LN_S
 LIBOBJS
+GDBPROXY_RELOCATABLE_TRUE
+GDBPROXY_RELOCATABLE_FALSE
 LTLIBOBJS'
 ac_subst_files=''
 ac_user_opts='
@@ -738,6 +740,7 @@ with_jtag_dir
 with_jtag_srcdir
 with_jtag_builddir
 enable_dependency_tracking
+enable_relocatable
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1379,6 +1382,7 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
+  --enable-relocatable    Enable relocatable paths
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -6607,6 +6611,47 @@ if test "$host_os" = "cygwin" ; then
     LIBS="$LIBS -lws2_32"
 fi
 
+# Check whether --enable-relocatable was given.
+if test "${enable_relocatable+set}" = set; then
+  enableval=$enable_relocatable; relocatable=$enableval
+else
+  relocatable=no
+fi
+
+if test "x$relocatable" = xyes; then
+
+
+
+if true; then
+  GDBPROXY_RELOCATABLE_TRUE=
+  GDBPROXY_RELOCATABLE_FALSE='#'
+else
+  GDBPROXY_RELOCATABLE_TRUE='#'
+  GDBPROXY_RELOCATABLE_FALSE=
+fi
+
+
+cat >>confdefs.h <<\_ACEOF
+#define GDBPROXY_RELOCATABLE 1
+_ACEOF
+
+
+else
+
+
+
+if false; then
+  GDBPROXY_RELOCATABLE_TRUE=
+  GDBPROXY_RELOCATABLE_FALSE='#'
+else
+  GDBPROXY_RELOCATABLE_TRUE='#'
+  GDBPROXY_RELOCATABLE_FALSE=
+fi
+
+
+fi
+
+
 ac_config_files="$ac_config_files Makefile"
 
 
@@ -6718,6 +6763,20 @@ if test -z "${am__fastdepCC_TRUE}" && test -z "${am__fastdepCC_FALSE}"; then
   { { $as_echo "$as_me:$LINENO: error: conditional \"am__fastdepCC\" was never defined.
 Usually this means the macro was only invoked conditionally." >&5
 $as_echo "$as_me: error: conditional \"am__fastdepCC\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${GDBPROXY_RELOCATABLE_TRUE}" && test -z "${GDBPROXY_RELOCATABLE_FALSE}"; then
+  { { $as_echo "$as_me:$LINENO: error: conditional \"GDBPROXY_RELOCATABLE\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+$as_echo "$as_me: error: conditional \"GDBPROXY_RELOCATABLE\" was never defined.
+Usually this means the macro was only invoked conditionally." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+if test -z "${GDBPROXY_RELOCATABLE_TRUE}" && test -z "${GDBPROXY_RELOCATABLE_FALSE}"; then
+  { { $as_echo "$as_me:$LINENO: error: conditional \"GDBPROXY_RELOCATABLE\" was never defined.
+Usually this means the macro was only invoked conditionally." >&5
+$as_echo "$as_me: error: conditional \"GDBPROXY_RELOCATABLE\" was never defined.
 Usually this means the macro was only invoked conditionally." >&2;}
    { (exit 1); exit 1; }; }
 fi

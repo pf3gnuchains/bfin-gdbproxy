@@ -163,6 +163,8 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+GDBPROXY_RELOCATABLE_FALSE = @GDBPROXY_RELOCATABLE_FALSE@
+GDBPROXY_RELOCATABLE_TRUE = @GDBPROXY_RELOCATABLE_TRUE@
 GREP = @GREP@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -237,11 +239,10 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-INCLUDES = -DGDBPROXY_DATA_PATH=\"$(pkgdatadir)\" -I../jtag/include
 AUTOMAKE_OPTIONS = gnu
 gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h
 EXTRA_gdbproxy_SOURCES = getopt.h
-AM_CPPFLAGS = -I$(jtag_srcdir)/include
+AM_CPPFLAGS = -I$(jtag_srcdir)/include -DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
 gdbproxy_LDADD = \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/part/libpart.a \

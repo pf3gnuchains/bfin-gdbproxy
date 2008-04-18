@@ -4740,8 +4740,8 @@ bfin_open (int argc,
   char *cmd_cable_par[5] = {"cable", "parallel", "0x378", "IGLOO", NULL};
   char *cmd_cable_usb[5] = {"cable", "BFIN-UJTAG", "ftdi-mpsse", "456:F000", NULL};
   char *cmd_detect[2] = {"detect", NULL};
-  char *cmd_script[3] = {"include", GDBPROXY_DATA_PATH "/bfin", NULL};
-
+  char *cmd_script[3] = {"include", NULL, NULL};
+  const char *gdbproxy_datapath = gdbproxy_get_data_dir();
 
   /* TODO: This example assumes a target attached to a parallel port, as many
      JTAG controlled devices are. */
@@ -4774,6 +4774,10 @@ bfin_open (int argc,
   assert (!cpu);
   assert (prog_name != NULL);
   assert (log_fn != NULL);
+
+  /* Setup datapath */
+  cmd_script[1] = malloc(strlen(gdbproxy_datapath) + 6);
+  sprintf(cmd_script[1], "%s/bfin", gdbproxy_datapath);
 
   /* Set log */
   bfin_log = log_fn;
