@@ -50,8 +50,8 @@ gdbproxy_LDADD = \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/flash/libflash.a \
 	$(jtag_builddir)/src/bus/libbus.a \
-	$(jtag_builddir)/src/bsdl/libbsdl.a \
-	$(jtag_builddir)/src/svf/libsvf.a \
+	$(jtag_libbsdl) \
+	$(jtag_libsvf) \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
 	-lftdi -lusb -lrt -lm
 

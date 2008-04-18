@@ -96,6 +96,7 @@ am_gdbproxy_OBJECTS = copying.$(OBJEXT) init.$(OBJEXT) \
 	remote.$(OBJEXT) gdbproxy.$(OBJEXT) rpmisc.$(OBJEXT) \
 	serial.$(OBJEXT) target_bfin_new.$(OBJEXT)
 gdbproxy_OBJECTS = $(am_gdbproxy_OBJECTS)
+am__DEPENDENCIES_1 =
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -214,6 +215,8 @@ includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
 jtag_builddir = @jtag_builddir@
+jtag_libbsdl = @jtag_libbsdl@
+jtag_libsvf = @jtag_libsvf@
 jtag_srcdir = @jtag_srcdir@
 libdir = @libdir@
 libexecdir = @libexecdir@
@@ -247,8 +250,8 @@ gdbproxy_LDADD = \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/flash/libflash.a \
 	$(jtag_builddir)/src/bus/libbus.a \
-	$(jtag_builddir)/src/bsdl/libbsdl.a \
-	$(jtag_builddir)/src/svf/libsvf.a \
+	$(jtag_libbsdl) \
+	$(jtag_libsvf) \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
 	-lftdi -lusb -lrt -lm
 

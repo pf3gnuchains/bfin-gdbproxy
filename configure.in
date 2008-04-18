@@ -33,6 +33,14 @@ AC_SUBST(jtag_srcdir)
 AC_SUBST(jtag_builddir)
 AC_MSG_RESULT(src=$jtag_srcdir build=$jtag_builddir)
 
+dnl handle optional bsdl/svf stuff
+jtag_libbsdl="$with_jtag_builddir/src/bsdl/libbsdl.a"
+test -e "$jtag_libbsdl" || jtag_libbsdl=""
+AC_SUBST(jtag_libbsdl)
+jtag_libsvf="$with_jtag_builddir/src/svf/libsvf.a"
+test -e "$jtag_libsvf" || jtag_libsvf=""
+AC_SUBST(jtag_libsvf)
+
 # Check for programs
 AC_PROG_MAKE_SET
 AC_PROG_CC
