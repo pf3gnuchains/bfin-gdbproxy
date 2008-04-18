@@ -4740,7 +4740,7 @@ bfin_open (int argc,
   char *cmd_cable_par[5] = {"cable", "parallel", "0x378", "IGLOO", NULL};
   char *cmd_cable_usb[5] = {"cable", "BFIN-UJTAG", "ftdi-mpsse", "456:F000", NULL};
   char *cmd_detect[2] = {"detect", NULL};
-  char *cmd_script[3] = {"script", GDBPROXY_DATA_PATH "/bfin", NULL};
+  char *cmd_script[3] = {"include", GDBPROXY_DATA_PATH "/bfin", NULL};
 
 
   /* TODO: This example assumes a target attached to a parallel port, as many
