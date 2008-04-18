@@ -4709,8 +4709,8 @@ bfin_help (const char *prog_name)
   printf (" --flash-size=BYTES      specify the size of flash\n");
   printf (" --force-range-wp        always use range watchpoint\n");
   printf (" --init-sdram            initialize SDRAM or DDR memory\n");
-  printf (" --no-auto-switch        Don't automatically switch to the core");
-  printf ("                         which contains the address set to PC");
+  printf (" --no-auto-switch        Don't automatically switch to the core\n");
+  printf ("                         which contains the address set to PC\n");
   printf (" --reset                 do a core and system reset when gdb connects\n");
   printf (" --sdram-size=BYTES      specify the size of SDRAM\n");
   printf (" --unlock-on-connect     unlock core when gdb connects\n");
