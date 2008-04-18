@@ -5070,12 +5070,12 @@ bfin_open (int argc,
     }
   else
     {
-      parts_free (chain->parts);
-      chain->parts = 0;
-      free (cpu);
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: unsupported processor '%s'",
 		bfin_target.name, chain->parts->parts[0]->part);
+      parts_free (chain->parts);
+      chain->parts = 0;
+      free (cpu);
       return RP_VAL_TARGETRET_ERR;
     }
 
