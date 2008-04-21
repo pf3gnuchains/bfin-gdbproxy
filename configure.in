@@ -99,6 +99,9 @@ if test "$host_os" = "cygwin" ; then
     LIBS="$LIBS -lws2_32"
 fi
 
+dnl newer jtag may use readline
+AC_CHECK_LIB(readline, readline)
+
 dnl Enable a relocatable gdbproxy?
 AC_ARG_ENABLE(relocatable,
 [AS_HELP_STRING([--enable-relocatable], [Enable relocatable paths])],
