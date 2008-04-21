@@ -29,15 +29,9 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdarg.h>
+#include <getopt.h>
 
 #include "gdbproxy.h"
-#if WIN32
-#include "getopt.h"
-#endif
-
-#if defined(__FreeBSD__)
-#include "getopt.h"
-#endif
 
 #include "part.h"
 #include "chain.h"
