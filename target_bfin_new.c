@@ -4693,7 +4693,7 @@ static void
 bfin_help (const char *prog_name)
 {
   printf ("This is the Blackfin target for the GDB proxy server. Usage:\n\n");
-  printf ("  %s [options] %s [blackfin-options] [port]\n",
+  printf ("  %s [options] %s [blackfin-options]\n",
 	  prog_name, bfin_target.name);
   printf ("\nOptions:\n\n");
   printf (" --usb                   use USB cable instead of parport\n");
@@ -4743,15 +4743,6 @@ bfin_open (int argc,
   char *cmd_script[3] = {"include", NULL, NULL};
   const char *gdbproxy_datapath = gdbproxy_get_data_dir();
 
-  /* TODO: This example assumes a target attached to a parallel port, as many
-     JTAG controlled devices are. */
-#if WIN32
-  const char *port = "1";
-#elif defined(__linux__)
-  const char *port = "/dev/parport0";
-#elif defined(__FreeBSD__)
-  const char *port = "/dev/ppi0";
-#endif
   /* Option descriptors */
   static struct option long_options[] = {
     {"board", required_argument, 0, 1},
@@ -4946,11 +4937,7 @@ bfin_open (int argc,
       bfin_init_sdram = 0;
     }
 
-  if (optind == (argc - 1))
-    {
-      port = argv[optind];
-    }
-  else if (optind != argc)
+  if (optind != argc)
     {
       /* Bad number of arguments.  */
       bfin_log (RP_VAL_LOGLEVEL_ERR,
