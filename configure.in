@@ -71,6 +71,7 @@ fi
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LN_S
+PKG_PROG_PKG_CONFIG
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -99,8 +100,12 @@ if test "$host_os" = "cygwin" ; then
     LIBS="$LIBS -lws2_32"
 fi
 
-dnl newer jtag may use readline
+
+dnl urjtag has optional support for fun libraries
 AC_CHECK_LIB(readline, readline)
+PKG_CHECK_MODULES(LIBFTDI, libftdi, [LIBS="$LIBS $LIBFTDI_LIBS" CFLAGS="$CFLAGS $LIBFTDI_CFLAGS"], [])
+AC_CHECK_LIB(usb, usb_get_busses)
+
 
 dnl Enable a relocatable gdbproxy?
 AC_ARG_ENABLE(relocatable,
