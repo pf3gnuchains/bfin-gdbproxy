@@ -57,7 +57,8 @@ AC_CHECK_HEADERS(syslog.h)
 AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_HEADERS(getopt.h)
 
-AC_CHECK_FILES(target_*.c)
+dnl dont actually care for Blackfin, and this breaks cross-compiling, so punt!
+dnl AC_CHECK_FILES(target_*.c)
 
 dnl add warning options if GCC
 if test "x$GCC" = "xyes"; then

@@ -78,9 +78,6 @@
 /* Define if the Blackfin JTAG target exists. */
 #undef HAVE_TARGET_BLACKFIN_C
 
-/* Define to 1 if you have the file `AC_File'. */
-#undef HAVE_TARGET_P_C
-
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 

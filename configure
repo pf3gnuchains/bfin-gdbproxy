@@ -5247,32 +5247,6 @@ fi
 done
 
 
-{ $as_echo "$as_me:$LINENO: checking for target_*.c" >&5
-$as_echo_n "checking for target_*.c... " >&6; }
-if test "${ac_cv_file_target_p_c+set}" = set; then
-  $as_echo_n "(cached) " >&6
-else
-  test "$cross_compiling" = yes &&
-  { { $as_echo "$as_me:$LINENO: error: cannot check for file existence when cross compiling" >&5
-$as_echo "$as_me: error: cannot check for file existence when cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
-if test -r "target_*.c"; then
-  ac_cv_file_target_p_c=yes
-else
-  ac_cv_file_target_p_c=no
-fi
-fi
-{ $as_echo "$as_me:$LINENO: result: $ac_cv_file_target_p_c" >&5
-$as_echo "$ac_cv_file_target_p_c" >&6; }
-if test $ac_cv_file_target_p_c = yes; then
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_TARGET_P_C 1
-_ACEOF
-
-
-fi
-
 
 if test "x$GCC" = "xyes"; then
 #  CFLAGS="$CFLAGS -Wall -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wnested-externs -Winline"
