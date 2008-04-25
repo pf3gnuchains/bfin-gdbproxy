@@ -104,7 +104,7 @@ fi
 
 dnl urjtag has optional support for fun libraries
 AC_CHECK_LIB(readline, readline)
-PKG_CHECK_MODULES(LIBFTDI, libftdi, [LIBS="$LIBS $LIBFTDI_LIBS" CFLAGS="$CFLAGS $LIBFTDI_CFLAGS"], [])
+PKG_CHECK_MODULES(LIBFTDI, libftdi, [LIBS="$LIBS $LIBFTDI_LIBS" CFLAGS="$CFLAGS $LIBFTDI_CFLAGS"], [:;])
 AC_CHECK_LIB(usb, usb_get_busses)
 
 
