@@ -5676,12 +5676,14 @@ bfin_write_single_register (unsigned int reg_no,
   int core;
   int i;
 
+  /* Read the value as little endian data.  */
+  value = buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24);
+
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_write_single_register (%d, 0x%X)",
-	    bfin_target.name, reg_no, ((uint32_t *) buf)[0]);
+	    bfin_target.name, reg_no, value);
 
   core = cpu->general_core;
-  value = ((uint32_t *) buf)[0];
 
   reg_size = sizeof (cpu->cores[core].registers[reg_no]);
 

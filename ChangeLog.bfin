@@ -1,3 +1,8 @@
+2008-04-26  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_write_single_register): Read
+	the value as little endian data.
+
 2008-04-03  Michael Hennerich  <michael.hennerich@analog.com>
 
 	* target_bfin_new.c (bfin_help): Add --usb help.
