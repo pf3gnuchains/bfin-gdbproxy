@@ -3009,6 +3009,14 @@ static int rp_rcmd_set(int argc, char *argv[], out_func of, data_func df, rp_tar
   char buf[1000 + 1];
   char buf2[1000 + 1];
 
+  if (argc == 1)
+    {
+      sprintf (buf2, "Missing argument to set command.\n");
+      rp_encode_string(buf2, buf, 1000);
+      of(buf);
+      return RP_VAL_TARGETRET_OK;
+    }
+
   if (strcmp ("debug", argv[1]) != 0)
     {
       sprintf (buf2, "Undefined set command: \"%s\"\n", argv[1]);
