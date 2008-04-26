@@ -610,6 +610,24 @@ static bfin_l1_map bf537_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
+static bfin_l1_map bf538_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff804000,
+  .l1_data_a_cache	= 0xff804000,
+  .l1_data_a_cache_end	= 0xff808000,
+  .l1_data_b		= 0xff900000,
+  .l1_data_b_end	= 0xff904000,
+  .l1_data_b_cache	= 0xff904000,
+  .l1_data_b_cache_end	= 0xff908000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa10000,
+  .l1_code_cache	= 0xffa10000,
+  .l1_code_cache_end	= 0xffa14000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb01000,
+  .l1_end		= 0xffc00000,
+};
 static bfin_l1_map bf54x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
@@ -708,6 +726,20 @@ static bfin_mem_map bf537_mem_map = {
   .async_mem_end	= 0x20400000,
   .boot_rom		= 0xef000000,
   .boot_rom_end		= 0xef000800,
+  .l1			= 0xff800000,
+  .l1_end		= 0xffc00000,
+  .sysmmr		= 0xffc00000,
+  .coremmr		= 0xffe00000,
+};
+static bfin_mem_map bf538_mem_map = {
+  .sdram		= 0,
+  .sdram_end		= 0x08000000,
+  .async_mem		= 0x20000000,
+  .flash		= 0x20000000,
+  .flash_end		= 0x20100000,
+  .async_mem_end	= 0x20400000,
+  .boot_rom		= 0xef000000,
+  .boot_rom_end		= 0xef000400,
   .l1			= 0xff800000,
   .l1_end		= 0xffc00000,
   .sysmmr		= 0xffc00000,
@@ -5035,6 +5067,15 @@ bfin_open (int argc,
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf537_mem_map;
       cpu->cores[0].l1_map = bf537_l1_map;
+    }
+  else if (!strcmp (chain->parts->parts[0]->part, "BF538"))
+    {
+      assert (chain->parts->len == 1);
+
+      cpu->mdma_d0 = 0xffc00e00;
+      cpu->mdma_s0 = 0xffc00e40;
+      cpu->mem_map = bf538_mem_map;
+      cpu->cores[0].l1_map = bf538_l1_map;
     }
   else if (!strcmp (chain->parts->parts[0]->part, "BF549"))
     {
