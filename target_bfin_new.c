@@ -6014,7 +6014,7 @@ bfin_read_mem (uint64_t addr,
     {
       if (addr + req_size > cpu->mem_map.boot_rom_end)
 	req_size = cpu->mem_map.boot_rom_end - addr;
-      ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+      ret = memory_read (core, (uint32_t) addr, buf, req_size);
     }
   else if (addr >= cpu->mem_map.l2_sram
 	   && addr < cpu->mem_map.l2_sram_end)
