@@ -1,5 +1,13 @@
 2008-04-28  Jie Zhang  <jie.zhang@analog.com>
 
+	* target_bfin_new.c (bfin_read_single_register): Utilize that
+	all registers are 4 bytes size. Cut the byte out using 0xff
+	instead of 0xf.
+	(bfin_write_single_register): Utilize that all registers are
+	4 bytes size.
+
+2008-04-28  Jie Zhang  <jie.zhang@analog.com>
+
 	* target_bfin_new.c (bfin_read_single_register): Store
 	the value as little endian data.
 

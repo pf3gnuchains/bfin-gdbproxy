@@ -5619,14 +5619,14 @@ bfin_read_single_register (unsigned int reg_no,
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_read_single_register (%d)", bfin_target.name, reg_no);
 
-  core = cpu->general_core;
-
-  reg_size = sizeof (cpu->cores[core].registers[reg_no]);
-
   assert (cpu);
+
+  core = cpu->general_core;
+  reg_size = sizeof (cpu->cores[core].registers[reg_no]);
 
   assert (data_buf != NULL);
   assert (avail_buf != NULL);
+  assert (reg_size == 4);
   assert (buf_size >= reg_size);
   assert (read_size != NULL);
 
@@ -5658,18 +5658,10 @@ bfin_read_single_register (unsigned int reg_no,
     {
       cpu->cores[core].registers[reg_no]
 	= core_register_get (core, map_gdb_core[reg_no]);
-      if (reg_size == 2)
-	{
-	  data_buf[0] = cpu->cores[core].registers[reg_no] & 0xf;
-	  data_buf[1] = (cpu->cores[core].registers[reg_no] >> 8) & 0xf;
-	}
-      else if (reg_size == 4)
-	{
-	  data_buf[0] = cpu->cores[core].registers[reg_no] & 0xf;
-	  data_buf[1] = (cpu->cores[core].registers[reg_no] >> 8) & 0xf;
-	  data_buf[2] = (cpu->cores[core].registers[reg_no] >> 16) & 0xf;
-	  data_buf[3] = (cpu->cores[core].registers[reg_no] >> 24) & 0xf;
-	}
+      data_buf[0] = cpu->cores[core].registers[reg_no] & 0xff;
+      data_buf[1] = (cpu->cores[core].registers[reg_no] >> 8) & 0xff;
+      data_buf[2] = (cpu->cores[core].registers[reg_no] >> 16) & 0xff;
+      data_buf[3] = (cpu->cores[core].registers[reg_no] >> 24) & 0xff;
       memset (avail_buf, 1, reg_size);
     }
   *read_size = reg_size;
@@ -5686,6 +5678,14 @@ bfin_write_single_register (unsigned int reg_no,
   int core;
   int i;
 
+  assert (cpu);
+
+  core = cpu->general_core;
+  reg_size = sizeof (cpu->cores[core].registers[reg_no]);
+
+  assert (reg_size == 4);
+  assert (buf != NULL);
+
   /* Read the value as little endian data.  */
   value = buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24);
 
@@ -5693,13 +5693,6 @@ bfin_write_single_register (unsigned int reg_no,
 	    "%s: bfin_write_single_register (%d, 0x%X)",
 	    bfin_target.name, reg_no, value);
 
-  core = cpu->general_core;
-
-  reg_size = sizeof (cpu->cores[core].registers[reg_no]);
-
-  assert (cpu);
-
-  assert (buf != NULL);
   assert (write_size == reg_size);
 
   if (reg_no < 0 || reg_no >= BFIN_NUM_REGS)
