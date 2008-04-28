@@ -5658,8 +5658,18 @@ bfin_read_single_register (unsigned int reg_no,
     {
       cpu->cores[core].registers[reg_no]
 	= core_register_get (core, map_gdb_core[reg_no]);
-      memcpy (data_buf,
-	      &cpu->cores[core].registers[reg_no], reg_size);
+      if (reg_size == 2)
+	{
+	  data_buf[0] = cpu->cores[core].registers[reg_no] & 0xf;
+	  data_buf[1] = (cpu->cores[core].registers[reg_no] >> 8) & 0xf;
+	}
+      else if (reg_size == 4)
+	{
+	  data_buf[0] = cpu->cores[core].registers[reg_no] & 0xf;
+	  data_buf[1] = (cpu->cores[core].registers[reg_no] >> 8) & 0xf;
+	  data_buf[2] = (cpu->cores[core].registers[reg_no] >> 16) & 0xf;
+	  data_buf[3] = (cpu->cores[core].registers[reg_no] >> 24) & 0xf;
+	}
       memset (avail_buf, 1, reg_size);
     }
   *read_size = reg_size;
