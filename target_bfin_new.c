@@ -544,6 +544,7 @@ rp_target bfin_target = {
   bfin_threadextrainfo_query,
   bfin_packetsize_query,
 };
+static char default_jtag_connect[] = "cable BFIN-UJTAG ftdi-mpsse 0456:F000";
 
 typedef struct _bfin_swbp
 {
@@ -4731,13 +4732,14 @@ bfin_help (const char *prog_name)
   printf ("  %s [options] %s [blackfin-options]\n",
 	  prog_name, bfin_target.name);
   printf ("\nOptions:\n\n");
-  printf (" --usb                   use USB cable instead of parport\n");
   printf (" --debug                 run proxy in debug mode\n");
-
   printf (" --help                  `%s --help %s'  prints this message\n",
 	  prog_name, bfin_target.name);
   printf (" --port=PORT             use specified port\n");
+
   printf ("\nBlackfin-options:\n\n");
+  printf (" --connect=STRING        JTAG connection string\n");
+  printf ("                         (default %s)\n", default_jtag_connect);
   printf (" --board=BOARD           specify the board\n");
   printf (" --enable-dcache=METHOD  enable all data SRAM caches\n");
   printf (" --enable-icache         enable all instruction SRAM caches\n");
@@ -4770,10 +4772,8 @@ bfin_open (int argc,
   int sdram_size;
   int flash_size;
   int usec;
-  int usb = 0;
 
-  char *cmd_cable_par[5] = {"cable", "parallel", "0x378", "IGLOO", NULL};
-  char *cmd_cable_usb[5] = {"cable", "BFIN-UJTAG", "ftdi-mpsse", "456:F000", NULL};
+  char *connect_string = default_jtag_connect;
   char *cmd_detect[2] = {"detect", NULL};
   char *cmd_script[3] = {"include", NULL, NULL};
   const char *gdbproxy_datapath = gdbproxy_get_data_dir();
@@ -4793,7 +4793,7 @@ bfin_open (int argc,
     {"reset", no_argument, 0, 11},
     {"emu-wait", required_argument, 0, 12},
     {"no-switch-on-load", no_argument, 0, 13},
-    {"usb", no_argument, 0, 14},
+    {"connect", required_argument, 0, 14},
     {NULL, 0, 0, 0}
   };
 
@@ -4877,7 +4877,6 @@ bfin_open (int argc,
 	  break;
 
 	case 6:
-	  
 	  bfin_unlock_on_load = 1;
 	  break;
 
@@ -4955,7 +4954,7 @@ bfin_open (int argc,
 	  break;
 
 	case 14:
-	  usb++;
+	  connect_string = optarg;
 	  break;
 
 	default:
@@ -4993,10 +4992,7 @@ bfin_open (int argc,
       return RP_VAL_TARGETRET_ERR;
     }
 
-  if (usb)
-    cmd_run (chain, cmd_cable_usb);
-  else
-    cmd_run (chain, cmd_cable_par);
+  jtag_parse_line (chain, connect_string);
 
   if (!chain->cable)
     {
