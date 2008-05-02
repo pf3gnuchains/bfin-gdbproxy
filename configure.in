@@ -105,7 +105,15 @@ fi
 dnl urjtag has optional support for fun libraries
 AC_CHECK_LIB(readline, readline)
 PKG_CHECK_MODULES(LIBFTDI, libftdi, [LIBS="$LIBS $LIBFTDI_LIBS" CFLAGS="$CFLAGS $LIBFTDI_CFLAGS"], [:;])
-AC_CHECK_LIB(usb, usb_get_busses)
+PKG_CHECK_MODULES(LIBUSB, libusb, [LIBS="$LIBS $LIBUSB_LIBS" CFLAGS="$CFLAGS $LIBUSB_CFLAGS"], [
+  AC_PATH_TOOL(LIBUSB_CONFIG, libusb-config, no)
+  AS_IF([test "x$LIBUSB_CONFIG" != "xno"], [
+    LIBS="$LIBS `$LIBUSB_CONFIG --libs`"
+  ],[
+    AC_CHECK_LIB(usb, usb_get_busses)
+  ])
+])
+AC_CHECK_FUNC(clock_gettime, [], [ AC_CHECK_LIB(rt, clock_gettime) ])
 
 
 dnl Enable a relocatable gdbproxy?
