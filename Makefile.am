@@ -51,9 +51,7 @@ gdbproxy_LDADD = \
 	$(jtag_libbsdl) \
 	$(jtag_libsvf) \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
-	-lm
-
-gdbproxy_DEPENDENCIES = @LIBOBJS@
+	-lm $(LIBOBJS)
 
 dist_pkgdata_DATA = bfin
 
