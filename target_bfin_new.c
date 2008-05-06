@@ -4174,6 +4174,7 @@ dma_copy (int core, uint32_t dest, uint32_t src, size_t size)
   uint32_t p0, r0;
   uint16_t s0_irq_status, d0_irq_status;
   int ret;
+  struct timespec dma_wait = {0, 50000000};
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -4194,7 +4195,7 @@ dma_copy (int core, uint32_t dest, uint32_t src, size_t size)
 		"%s: wait DMA done: S0 [0x%04X] D0 [0x%04X]",
 		bfin_target.name, s0_irq_status, d0_irq_status);
 
-      usleep (50000);
+      nanosleep (&dma_wait, NULL);
 
       core_register_set (core, REG_P0, cpu->mdma_s0);
       s0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
@@ -4296,7 +4297,7 @@ wait_dma:
       bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 		"%s: MDMA_S0 wait for done: IRQ_STATUS [0x%04X]",
 		bfin_target.name, s0_irq_status);
-      usleep (50000);
+      nanosleep (&dma_wait, NULL);
       goto wait_dma;
     }
   else if (!(d0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
@@ -4304,7 +4305,7 @@ wait_dma:
       bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 		"%s: MDMA_D0 wait for done: IRQ_STATUS [0x%04X]",
 		bfin_target.name, d0_irq_status);
-      usleep (50000);
+      nanosleep (&dma_wait, NULL);
       goto wait_dma;
     }
   else
@@ -6597,14 +6598,10 @@ bfin_wait_partial (int first,
 	return RP_VAL_TARGETRET_OK;
       }
 
-#ifdef WIN32
-  sleep ((first) ? 500 : 100);
-#else
   if (first)
     nanosleep (&bfin_loop_wait_first_ts, NULL);
   else
     nanosleep (&bfin_loop_wait_ts, NULL);
-#endif
 
   dbgstat_get ();
 
