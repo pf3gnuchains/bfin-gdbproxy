@@ -31,6 +31,10 @@
 # This is a part of gdbproxy - a remote proxy server for gdb 
 #
 
+SUBDIRS = gnulib/lib
+
+ACLOCAL_AMFLAGS = -I gnulib/m4
+
 AUTOMAKE_OPTIONS = gnu
 
 bin_PROGRAMS = gdbproxy
@@ -39,7 +43,10 @@ gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target
 
 EXTRA_gdbproxy_SOURCES = getopt.h
 
-AM_CPPFLAGS = -I$(jtag_srcdir)/include -DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
+AM_CPPFLAGS = \
+	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
+	-I$(jtag_srcdir)/include \
+	-DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
 gdbproxy_LDADD = \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/part/libpart.a \
@@ -51,7 +58,9 @@ gdbproxy_LDADD = \
 	$(jtag_libbsdl) \
 	$(jtag_libsvf) \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
-	-lm $(LIBOBJS)
+	-lm \
+	$(top_builddir)/gnulib/lib/libgnu.a \
+	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP)
 
 dist_pkgdata_DATA = bfin
 

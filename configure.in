@@ -44,6 +44,8 @@ AC_SUBST(jtag_libsvf)
 # Check for programs
 AC_PROG_MAKE_SET
 AC_PROG_CC
+gl_EARLY
+gl_INIT
 
 # Checks for libraries.
 
@@ -87,11 +89,6 @@ AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS(gettimeofday select socket getopt_long_only)
 
-if test "$ac_cv_func_getopt_long_only" != "yes" ; then 
-    AC_LIBOBJ(getopt)
-    AC_LIBOBJ(getopt1)
-fi
-
 if test "$host_os" = "mingw32" ; then
     LIBS="$LIBS -lws2_32"
 fi
@@ -113,7 +110,6 @@ PKG_CHECK_MODULES(LIBUSB, libusb, [LIBS="$LIBS $LIBUSB_LIBS" CFLAGS="$CFLAGS $LI
     AC_CHECK_LIB(usb, usb_get_busses)
   ])
 ])
-AC_CHECK_FUNC(clock_gettime, [], [ AC_CHECK_LIB(rt, clock_gettime) ])
 
 
 dnl Enable a relocatable gdbproxy?
@@ -127,7 +123,7 @@ AS_IF([test "x$relocatable" = xyes], [
   AM_CONDITIONAL(GDBPROXY_RELOCATABLE, false)
 ])
 
-AC_CONFIG_FILES(Makefile)
+AC_CONFIG_FILES(Makefile gnulib/lib/Makefile)
 
 AC_OUTPUT
 
