@@ -93,7 +93,7 @@ if test "$ac_cv_func_getopt_long_only" != "yes" ; then
 fi
 
 if test "$host_os" = "mingw32" ; then
-    LIBS="$LIBS -lws2_32 -liberty"
+    LIBS="$LIBS -lws2_32"
 fi
 
 if test "$host_os" = "cygwin" ; then
