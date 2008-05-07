@@ -1,3 +1,11 @@
+2008-05-07  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (enum _bfin_board): Add BF527_EZKIT.
+	(bf527_l1_map): Define.
+	(bf527_mem_map): Define.
+	(bf527_ezkit_sdram_config): Define.
+	(bfin_open): Handle bf527 ezkit.
+
 2008-04-28  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_read_single_register): Utilize that

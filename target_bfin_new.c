@@ -257,6 +257,7 @@ const static char *emucause_infos[] = {
 typedef enum _bfin_board
 {
   UNKNOWN_BOARD,
+  BF527_EZKIT,
   BF533_EZKIT,
   BF533_STAMP,
   BF537_EZKIT,
@@ -576,6 +577,24 @@ typedef struct _bfin_l1_map
   uint32_t l1_end;
 } bfin_l1_map;
 
+static bfin_l1_map bf527_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff804000,
+  .l1_data_a_cache	= 0xff804000,
+  .l1_data_a_cache_end	= 0xff808000,
+  .l1_data_b		= 0xff900000,
+  .l1_data_b_end	= 0xff904000,
+  .l1_data_b_cache	= 0xff904000,
+  .l1_data_b_cache_end	= 0xff908000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa0c000,
+  .l1_code_cache	= 0xffa10000,
+  .l1_code_cache_end	= 0xffa14000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb01000,
+  .l1_end		= 0xffc00000,
+};
 static bfin_l1_map bf533_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
@@ -705,6 +724,20 @@ typedef struct _bfin_mem_map
   uint32_t coremmr;
 } bfin_mem_map;
 
+static bfin_mem_map bf527_mem_map = {
+  .sdram		= 0,
+  .sdram_end		= 0x08000000,
+  .async_mem		= 0x20000000,
+  .flash		= 0x20000000,
+  .flash_end		= 0x20100000,
+  .async_mem_end	= 0x20400000,
+  .boot_rom		= 0xef000000,
+  .boot_rom_end		= 0xef004000,
+  .l1			= 0xff800000,
+  .l1_end		= 0xffc00000,
+  .sysmmr		= 0xffc00000,
+  .coremmr		= 0xffe00000,
+};
 static bfin_mem_map bf533_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x04000000,
@@ -864,6 +897,12 @@ typedef struct _bfin_sdram_config
   uint16_t sdbctl;
   uint32_t sdgctl;
 } bfin_sdram_config;
+
+static bfin_sdram_config bf527_ezkit_sdram_config = {
+  .sdrrc = 0x0407,
+  .sdbctl = 0x0025,
+  .sdgctl = 0x0091998d,
+};
 
 static bfin_sdram_config bf533_ezkit_sdram_config = {
   .sdrrc = 0x01a0,
@@ -4828,7 +4867,9 @@ bfin_open (int argc,
       switch (c)
 	{
 	case 1:
-	  if (strcmp (optarg, "bf533-stamp") == 0)
+	  if (strcmp (optarg, "bf527-ezkit") == 0)
+	    board = BF527_EZKIT;
+	  else if (strcmp (optarg, "bf533-stamp") == 0)
 	    board = BF533_STAMP;
 	  else if (strcmp (optarg, "bf533-ezkit") == 0)
 	    board = BF533_EZKIT;
@@ -5036,7 +5077,7 @@ bfin_open (int argc,
   cpu->board = board;
   cpu->swbps = NULL;
 
-  /* BF52x BF531/2/3
+  /* BF531/2/3
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00E00
 
@@ -5056,7 +5097,16 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[0]->part, "BF533"))
+  if (!strcmp (chain->parts->parts[0]->part, "BF527C"))
+    {
+      assert (chain->parts->len == 1);
+
+      cpu->mdma_d0 = 0xffc00f00;
+      cpu->mdma_s0 = 0xffc00f40;
+      cpu->mem_map = bf527_mem_map;
+      cpu->cores[0].l1_map = bf527_l1_map;
+    }
+  else if (!strcmp (chain->parts->parts[0]->part, "BF533"))
     {
       assert (chain->parts->len == 1);
 
@@ -5115,6 +5165,20 @@ bfin_open (int argc,
 
   switch (board)
     {
+    case BF527_EZKIT:
+      if (strcmp (chain->parts->parts[0]->part, "BF527C") != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %s on BF527 EZKIT board",
+		    bfin_target.name, chain->parts->parts[0]->part);
+	  exit (1);
+	}
+      cpu->mem_map.sdram_end = 0x4000000;
+      cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
+      cpu->sdram_config = &bf527_ezkit_sdram_config;
+      cpu->ddr_config = NULL;
+      break;
+
     case BF533_EZKIT:
       if (strcmp (chain->parts->parts[0]->part, "BF533") != 0)
 	{
