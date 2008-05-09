@@ -1,3 +1,8 @@
+2008-05-09  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_connect): Initialize the mode of
+	hardware watchpoint data structure of each core.
+
 2008-05-07  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (enum _bfin_board): Add BF527_EZKIT.

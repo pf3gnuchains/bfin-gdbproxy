@@ -5379,6 +5379,7 @@ bfin_connect (char *status_string, size_t status_string_len, int *can_restart)
 	{
 	  cpu->cores[i].hwwps[j].addr = -1;
 	  cpu->cores[i].hwwps[j].len = 0;
+	  cpu->cores[i].hwwps[j].mode = WPDA_DISABLE;
 	}
     }
 
