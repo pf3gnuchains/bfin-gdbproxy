@@ -1,3 +1,8 @@
+2008-05-21  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (chain_shift_instructions_2): Use
+	EXITMODE_UPDATE and EXITMODE_SHIFT instead of plain number.
+
 2008-05-09  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_connect): Initialize the mode of

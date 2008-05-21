@@ -1280,7 +1280,8 @@ chain_shift_instructions_2 (chain_t *chain)
   for (i = 0; i < ps->len; i++)
     tap_shift_register (chain,
 			ps->parts[i]->active_instruction->value,
-			NULL, (i + 1) == ps->len ? 2 : 0);
+			NULL,
+			(i + 1) == ps->len ? EXITMODE_UPDATE : EXITMODE_SHIFT);
 }
 
 static void
@@ -1316,7 +1317,7 @@ chain_shift_data_registers_2 (chain_t *chain, int capture_output)
 			ps->parts[i]->active_instruction->data_register->in,
 			capture_output ? ps->parts[i]->active_instruction->
 			data_register->out : NULL,
-			(i + 1) == ps->len ? 2 : 0);
+			(i + 1) == ps->len ? EXITMODE_UPDATE : EXITMODE_SHIFT);
 }
 
 static void
