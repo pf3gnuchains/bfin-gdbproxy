@@ -577,7 +577,7 @@ typedef struct _bfin_l1_map
   uint32_t l1_end;
 } bfin_l1_map;
 
-static bfin_l1_map bf527_l1_map = {
+static bfin_l1_map bf52x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -724,7 +724,7 @@ typedef struct _bfin_mem_map
   uint32_t coremmr;
 } bfin_mem_map;
 
-static bfin_mem_map bf527_mem_map = {
+static bfin_mem_map bf52x_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x08000000,
   .async_mem		= 0x20000000,
@@ -5104,8 +5104,8 @@ bfin_open (int argc,
 
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
-      cpu->mem_map = bf527_mem_map;
-      cpu->cores[0].l1_map = bf527_l1_map;
+      cpu->mem_map = bf52x_mem_map;
+      cpu->cores[0].l1_map = bf52x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[0]->part, "BF533"))
     {
