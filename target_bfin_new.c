@@ -5098,7 +5098,8 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[0]->part, "BF527C"))
+  if (!strcmp (chain->parts->parts[0]->part, "BF526")) ||
+      !strcmp (chain->parts->parts[0]->part, "BF527"))
     {
       assert (chain->parts->len == 1);
 
@@ -5167,7 +5168,7 @@ bfin_open (int argc,
   switch (board)
     {
     case BF527_EZKIT:
-      if (strcmp (chain->parts->parts[0]->part, "BF527C") != 0)
+      if (strcmp (chain->parts->parts[0]->part, "BF527") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: found %s on BF527 EZKIT board",
