@@ -5098,7 +5098,7 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[0]->part, "BF526")) ||
+  if (!strcmp (chain->parts->parts[0]->part, "BF526") ||
       !strcmp (chain->parts->parts[0]->part, "BF527"))
     {
       assert (chain->parts->len == 1);
