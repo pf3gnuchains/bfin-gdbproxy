@@ -7070,7 +7070,7 @@ bfin_packetsize_query (char *out_buf, size_t out_buf_size)
   if (size > 0x4000)
     size = 0x4000;
 
-  sprintf (out_buf, "PacketSize=%x", size);
+  sprintf (out_buf, "PacketSize=%zx", size);
 
   if (strlen (out_buf) >= out_buf_size)
     return RP_VAL_TARGETRET_ERR;

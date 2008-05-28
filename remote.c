@@ -953,7 +953,7 @@ static int remote_read_mem (uint64_t addr,
     assert(buf != NULL);
     assert(actual_size != NULL);
 
-    sprintf(remote_out_buf,"m%Lx,%x", addr, req_size);
+    sprintf(remote_out_buf,"m%Lx,%zx", addr, req_size);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -980,7 +980,7 @@ static int remote_write_mem(uint64_t addr,
 
     assert(buf != NULL);
 
-    off = sprintf(remote_out_buf, "M%Lx,%x:", addr, write_size);
+    off = sprintf(remote_out_buf, "M%Lx,%zx:", addr, write_size);
 
     if (write_size > 0)
     {
@@ -1305,7 +1305,7 @@ static int remote_list_query(int first,
     int ret;
 
     off = sprintf(remote_out_buf,
-                  "qL%c%02x%016Lx",
+                  "qL%c%02zx%016Lx",
                   first  ?  '1'  :  '0',
                   max_num,
                   arg->val);
@@ -1469,7 +1469,7 @@ static int remote_crc_query(uint64_t addr,
 
     assert(val != NULL);
 
-    sprintf(remote_out_buf, "qCRC:%Lx,%x", addr, len);
+    sprintf(remote_out_buf, "qCRC:%Lx,%zx", addr, len);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
