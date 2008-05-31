@@ -1,3 +1,10 @@
+2008-06-01  Jie Zhang  <jie.zhang@analog.com>
+	
+	* target_bfin_new.c (chain_shift_instructions_2): Remove.
+	Update all its callers to use chain_shift_instructions_mode.
+	(chain_shift_data_registers_2): Remove.
+	Update all its callers to use chain_shift_data_registers_mode.
+
 2008-05-30  Jie Zhang  <jie.zhang@analog.com>
 
 	* Makefile.am (gdbproxy_LDADD): Reorder.

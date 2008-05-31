@@ -1256,71 +1256,6 @@ register_value (tap_register *tr)
 }
 
 static void
-chain_shift_instructions_2 (chain_t *chain)
-{
-  int i;
-  parts_t *ps;
-
-  if (!chain || !chain->parts)
-    return;
-
-  ps = chain->parts;
-
-  for (i = 0; i < ps->len; i++)
-    {
-      if (ps->parts[i]->active_instruction == NULL)
-	{
-	  printf ("%s(%d) Part %d without active instruction\n",
-		  __FILE__, __LINE__, i);
-	  return;
-	}
-    }
-
-  tap_capture_ir (chain);
-  for (i = 0; i < ps->len; i++)
-    tap_shift_register (chain,
-			ps->parts[i]->active_instruction->value,
-			NULL,
-			(i + 1) == ps->len ? EXITMODE_UPDATE : EXITMODE_SHIFT);
-}
-
-static void
-chain_shift_data_registers_2 (chain_t *chain, int capture_output)
-{
-  int i;
-  parts_t *ps;
-
-  if (!chain || !chain->parts)
-    return;
-
-  ps = chain->parts;
-
-  for (i = 0; i < ps->len; i++)
-    {
-      if (ps->parts[i]->active_instruction == NULL)
-	{
-	  printf ("%s(%d) Part %d without active instruction\n",
-		  __FILE__, __LINE__, i);
-	  return;
-	}
-      if (ps->parts[i]->active_instruction->data_register == NULL)
-	{
-	  printf ("%s(%d) Part %d without data register\n",
-		  __FILE__, __LINE__, i);
-	  return;
-	}
-    }
-
-  tap_capture_dr (chain);
-  for (i = 0; i < ps->len; i++)
-    tap_shift_register (chain,
-			ps->parts[i]->active_instruction->data_register->in,
-			capture_output ? ps->parts[i]->active_instruction->
-			data_register->out : NULL,
-			(i + 1) == ps->len ? EXITMODE_UPDATE : EXITMODE_SHIFT);
-}
-
-static void
 scan_select (int scan)
 {
   int i;
@@ -1336,7 +1271,7 @@ scan_select (int scan)
       }
 
   if (changed)
-    chain_shift_instructions_2 (cpu->chain);
+    chain_shift_instructions_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 }
 
 static void
@@ -1365,7 +1300,7 @@ core_scan_select (int core, int scan)
       }
 
   if (changed)
-    chain_shift_instructions_2 (cpu->chain);
+    chain_shift_instructions_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 }
 
 static void
@@ -1384,10 +1319,8 @@ dbgctl_set (uint16_t v, int runtest)
 			   cpu->cores[i].dbgctl);
     }
 
-  if (runtest)
-    chain_shift_data_registers (cpu->chain, 0);
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static void
@@ -1404,10 +1337,8 @@ core_dbgctl_set (int core, uint16_t v, int runtest)
   register_init_value (part->active_instruction->data_register->in,
 		       cpu->cores[core].dbgctl);
 
-  if (runtest)
-    chain_shift_data_registers (cpu->chain, 0);
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static void
@@ -1426,10 +1357,8 @@ dbgctl_clear (uint16_t v, int runtest)
 			   cpu->cores[i].dbgctl);
     }
 
-  if (runtest)
-    chain_shift_data_registers (cpu->chain, 0);
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static void
@@ -1446,10 +1375,8 @@ core_dbgctl_clear (int core, uint16_t v, int runtest)
   register_init_value (part->active_instruction->data_register->in,
 		       cpu->cores[core].dbgctl);
 
-  if (runtest)
-    chain_shift_data_registers (cpu->chain, 0);
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static void
@@ -1460,7 +1387,7 @@ dbgstat_get (void)
 
   scan_select (DBGSTAT_SCAN);
 
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       r = cpu->chain->parts->parts[i]->active_instruction->data_register->out;
@@ -1477,7 +1404,7 @@ core_dbgstat_get (int core)
 
   core_scan_select (core, DBGSTAT_SCAN);
 
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
 
   r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
   cpu->cores[core].dbgstat = register_value (r);
@@ -1491,7 +1418,7 @@ emupc_get (void)
 
   scan_select (EMUPC_SCAN);
 
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       r = cpu->chain->parts->parts[i]->active_instruction->data_register->out;
@@ -1508,7 +1435,7 @@ core_emupc_get (int core)
 
   core_scan_select (core, EMUPC_SCAN);
 
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
 
   r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
   cpu->cores[core].emupc = register_value (r);
@@ -1532,7 +1459,7 @@ dbgstat_clear_ovfs (void)
       cpu->cores[i].dbgstat &= ~(DBGSTAT_EMUDIOVF | DBGSTAT_EMUDOOVF);
     }
 
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 }
 
 static void
@@ -1549,7 +1476,7 @@ core_dbgstat_clear_ovfs (int core)
   register_init_value (r, cpu->cores[core].dbgstat);
   cpu->cores[core].dbgstat &= ~(DBGSTAT_EMUDIOVF | DBGSTAT_EMUDOOVF);
 
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 }
 
 static void
@@ -1732,13 +1659,10 @@ emuir_set (uint32_t *insn, int runtest)
       cpu->cores[i].emuir_a = insn[i];
     }
 
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      wait_emuready ();
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    wait_emuready ();
 }
 
 static void
@@ -1756,13 +1680,10 @@ emuir_set_same (uint32_t insn, int runtest)
       cpu->cores[i].emuir_a = insn;
     }
 
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      wait_emuready ();
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    wait_emuready ();
 }
 
 static void
@@ -1808,7 +1729,7 @@ core_emuir_set (int core, uint32_t insn, int runtest)
       }
 
   if (scan_changed)
-    chain_shift_instructions_2 (cpu->chain);
+    chain_shift_instructions_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (changed[i])
@@ -1820,13 +1741,10 @@ core_emuir_set (int core, uint32_t insn, int runtest)
 
   free (changed);
 
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      core_wait_emuready (core);
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    core_wait_emuready (core);
 }
 
 static void
@@ -1845,7 +1763,7 @@ emuir_set_2 (uint32_t *insn1, uint32_t *insn2, int runtest)
       cpu->cores[i].emuir_b = insn2[i];
     }
 
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
@@ -1855,13 +1773,10 @@ emuir_set_2 (uint32_t *insn1, uint32_t *insn2, int runtest)
       cpu->cores[i].emuir_a = insn1[i];
     }
 
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      wait_emuready ();
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    wait_emuready ();
 }
 
 static void
@@ -1880,7 +1795,7 @@ emuir_set_same_2 (uint32_t insn1, uint32_t insn2, int runtest)
       cpu->cores[i].emuir_b = insn2;
     }
 
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
@@ -1890,13 +1805,10 @@ emuir_set_same_2 (uint32_t insn1, uint32_t insn2, int runtest)
       cpu->cores[i].emuir_a = insn1;
     }
 
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      wait_emuready ();
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    wait_emuready ();
 }
 
 static void
@@ -1944,7 +1856,7 @@ core_emuir_set_2 (int core, uint32_t insn1, uint32_t insn2, int runtest)
       }
 
   if (scan_changed)
-    chain_shift_instructions_2 (cpu->chain);
+    chain_shift_instructions_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (changed[i] && i == core)
@@ -1952,7 +1864,7 @@ core_emuir_set_2 (int core, uint32_t insn1, uint32_t insn2, int runtest)
 	part = cpu->chain->parts->parts[i];
 	register_init_value (part->active_instruction->data_register->in,
 			     insn2);
-	chain_shift_data_registers_2 (cpu->chain, 0);
+	chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
 	register_init_value (part->active_instruction->data_register->in,
 			     insn1);
@@ -1966,13 +1878,10 @@ core_emuir_set_2 (int core, uint32_t insn1, uint32_t insn2, int runtest)
 
   free (changed);
 
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      core_wait_emuready (core);
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    core_wait_emuready (core);
 }
 
 
@@ -1990,7 +1899,7 @@ core_emudat_get (int core, int runtest)
 
   core_scan_select (core, EMUDAT_SCAN);
 
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
   return register_value (r);
 }
@@ -2004,13 +1913,10 @@ core_emudat_set (int core, uint32_t value, int runtest)
 
   r = cpu->chain->parts->parts[core]->active_instruction->data_register->in;
   register_init_value (r, value);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1,
+				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
-    {
-      chain_shift_data_registers (cpu->chain, 0);
-      core_wait_emuready (core);
-    }
-  else
-    chain_shift_data_registers_2 (cpu->chain, 0);
+    core_wait_emuready (core);
 }
 
 /* Forward declarations */
@@ -2041,7 +1947,7 @@ register_get (enum core_regnum reg, uint32_t *value)
     }
 
   scan_select (EMUDAT_SCAN);
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       r = cpu->chain->parts->parts[i]->active_instruction->data_register->out;
@@ -2073,7 +1979,7 @@ core_register_get (int core, enum core_regnum reg)
     }
 
   core_scan_select (core, EMUDAT_SCAN);
-  chain_shift_data_registers_2 (cpu->chain, 1);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
 
   if (!DREG_P (reg) && !PREG_P (reg) && reg != REG_USP)
@@ -2104,7 +2010,7 @@ register_set (enum core_regnum reg, uint32_t *value)
       r = cpu->chain->parts->parts[i]->active_instruction->data_register->in;
       register_init_value (r, value[i]);
     }
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
     emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
@@ -2141,7 +2047,7 @@ register_set_same (enum core_regnum reg, uint32_t value)
       r = cpu->chain->parts->parts[i]->active_instruction->data_register->in;
       register_init_value (r, value);
     }
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
     emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
@@ -2171,7 +2077,7 @@ core_register_set (int core, enum core_regnum reg, uint32_t value)
   r = cpu->chain->parts->parts[core]->active_instruction->data_register->in;
   register_init_value (r, value);
 
-  chain_shift_data_registers_2 (cpu->chain, 0);
+  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
   if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
     core_emuir_set (core, gen_move (reg, REG_EMUDAT), RUNTEST);
