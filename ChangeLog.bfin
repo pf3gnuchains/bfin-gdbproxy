@@ -1,3 +1,9 @@
+2008-05-30  Jie Zhang  <jie.zhang@analog.com>
+
+	* Makefile.am (gdbproxy_LDADD): Reorder.
+	* Makefile.in: Regenerate.
+	* bfin: Remove all lines.
+
 2008-05-21  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (chain_shift_instructions_2): Use

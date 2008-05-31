@@ -48,10 +48,10 @@ AM_CPPFLAGS = \
 	-I$(jtag_srcdir)/include \
 	-DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
 gdbproxy_LDADD = \
+	$(jtag_builddir)/src/cmd/libcmd.a \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/part/libpart.a \
 	$(jtag_builddir)/src/flash/libflash.a \
-	$(jtag_builddir)/src/cmd/libcmd.a \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/flash/libflash.a \
 	$(jtag_builddir)/src/bus/libbus.a \
