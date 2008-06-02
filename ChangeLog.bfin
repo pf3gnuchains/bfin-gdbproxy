@@ -1,3 +1,8 @@
+2008-06-02  Michael Hennerich  <michael.hennerich@analog.com>
+
+	* target_bfin_new.c (default_jtag_connect): Replace BFIN-UJTAG
+	with gnICE. 
+
 2008-06-01  Jie Zhang  <jie.zhang@analog.com>
 	
 	* target_bfin_new.c (chain_shift_instructions_2): Remove.
