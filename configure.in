@@ -89,14 +89,18 @@ AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS(gettimeofday select socket getopt_long_only)
 
+USE_RC_SOURCES="false"
 if test "$host_os" = "mingw32" ; then
+    AC_CHECK_TOOL([WINDRES], [windres], :)
     LIBS="$LIBS -lws2_32"
+    USE_RC_SOURCES="true"
 fi
 
 if test "$host_os" = "cygwin" ; then
     CFLAGS="$CFLAGS -mno-cygwin"
     LIBS="$LIBS -lws2_32"
 fi
+AM_CONDITIONAL(USE_RC_SOURCES, $USE_RC_SOURCES)
 
 
 dnl urjtag has optional support for fun libraries

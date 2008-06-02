@@ -106,9 +106,13 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(infodir)" \
 	"$(DESTDIR)$(man1dir)" "$(DESTDIR)$(pkgdatadir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
+am__gdbproxy_SOURCES_DIST = copying.c init.c remote.c gdbproxy.c \
+	rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h \
+	serial.h gdbproxy-icon.rc
+@USE_RC_SOURCES_TRUE@am__objects_1 = gdbproxy-icon.$(OBJEXT)
 am_gdbproxy_OBJECTS = copying.$(OBJEXT) init.$(OBJEXT) \
 	remote.$(OBJEXT) gdbproxy.$(OBJEXT) rpmisc.$(OBJEXT) \
-	serial.$(OBJEXT) target_bfin_new.$(OBJEXT)
+	serial.$(OBJEXT) target_bfin_new.$(OBJEXT) $(am__objects_1)
 gdbproxy_OBJECTS = $(am_gdbproxy_OBJECTS)
 am__DEPENDENCIES_1 =
 gdbproxy_DEPENDENCIES = $(jtag_builddir)/src/cmd/libcmd.a \
@@ -128,8 +132,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(gdbproxy_SOURCES) $(EXTRA_gdbproxy_SOURCES)
-DIST_SOURCES = $(gdbproxy_SOURCES) $(EXTRA_gdbproxy_SOURCES)
+SOURCES = $(gdbproxy_SOURCES)
+DIST_SOURCES = $(am__gdbproxy_SOURCES_DIST)
 INFO_DEPS = $(srcdir)/gdbproxy.info
 am__TEXINFO_TEX_DIR = $(srcdir)
 DVIS = gdbproxy.dvi
@@ -279,7 +283,10 @@ STRIP = @STRIP@
 SYS_TIME_H = @SYS_TIME_H@
 SYS_TIME_H_DEFINES_STRUCT_TIMESPEC = @SYS_TIME_H_DEFINES_STRUCT_TIMESPEC@
 TIME_H_DEFINES_STRUCT_TIMESPEC = @TIME_H_DEFINES_STRUCT_TIMESPEC@
+USE_RC_SOURCES_FALSE = @USE_RC_SOURCES_FALSE@
+USE_RC_SOURCES_TRUE = @USE_RC_SOURCES_TRUE@
 VERSION = @VERSION@
+WINDRES = @WINDRES@
 ac_ct_CC = @ac_ct_CC@
 am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
 am__fastdepCC_TRUE = @am__fastdepCC_TRUE@
@@ -338,8 +345,9 @@ target_vendor = @target_vendor@
 SUBDIRS = gnulib/lib
 ACLOCAL_AMFLAGS = -I gnulib/m4
 AUTOMAKE_OPTIONS = gnu
-gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h
-EXTRA_gdbproxy_SOURCES = getopt.h
+@USE_RC_SOURCES_FALSE@RC_SOURCES = 
+@USE_RC_SOURCES_TRUE@RC_SOURCES = gdbproxy-icon.rc
+gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
 	-I$(jtag_srcdir)/include \
@@ -363,14 +371,14 @@ gdbproxy_LDADD = \
 dist_pkgdata_DATA = bfin
 info_TEXINFOS = gdbproxy.texi
 man_MANS = gdbproxy.1
-EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap getopt.c getopt1.c
+EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap
 CLEANFILES = configure.scan res tmp.tmp
 MAINTAINERCLEANFILES = aclocal.m4 configure config.h.in stamp-h.in Makefile.in
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .c .dvi .html .info .o .obj .pdf .ps .texi
+.SUFFIXES: .c .dvi .html .info .o .obj .pdf .ps .rc .texi
 am--refresh:
 	@:
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
@@ -578,13 +586,10 @@ dist-info: $(INFO_DEPS)
 	    $(srcdir)/*) base=`echo "$$base" | sed "s|^$$srcdirstrip/||"`;; \
 	  esac; \
 	  if test -f $$base; then d=.; else d=$(srcdir); fi; \
-	  base_i=`echo "$$base" | sed 's|\.info$$||;s|$$|.i|'`; \
-	  for file in $$d/$$base $$d/$$base-[0-9] $$d/$$base-[0-9][0-9] $$d/$$base_i[0-9] $$d/$$base_i[0-9][0-9]; do \
-	    if test -f $$file; then \
-	      relfile=`expr "$$file" : "$$d/\(.*\)"`; \
-	      test -f $(distdir)/$$relfile || \
-		cp -p $$file $(distdir)/$$relfile; \
-	    else :; fi; \
+	  for file in $$d/$$base*; do \
+	    relfile=`expr "$$file" : "$$d/\(.*\)"`; \
+	    test -f $(distdir)/$$relfile || \
+	      cp -p $$file $(distdir)/$$relfile; \
 	  done; \
 	done
 
@@ -1086,6 +1091,11 @@ uninstall-man: uninstall-man1
 	uninstall-dist_pkgdataDATA uninstall-info-am uninstall-man \
 	uninstall-man1
 
+
+.rc.o:
+	$(WINDRES) $< -o $@
+%.o : %.rc
+	$(WINDRES) $^ -o $@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -39,7 +39,12 @@ AUTOMAKE_OPTIONS = gnu
 
 bin_PROGRAMS = gdbproxy
 
-gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h
+if USE_RC_SOURCES
+RC_SOURCES = gdbproxy-icon.rc
+else
+RC_SOURCES =
+endif
+gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
 
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
@@ -72,3 +77,7 @@ CLEANFILES = configure.scan res tmp.tmp
 
 MAINTAINERCLEANFILES = aclocal.m4 configure config.h.in stamp-h.in Makefile.in
 
+.rc.o:
+	$(WINDRES) $< -o $@
+%.o : %.rc
+	$(WINDRES) $^ -o $@
