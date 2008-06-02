@@ -41,8 +41,6 @@ bin_PROGRAMS = gdbproxy
 
 gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h
 
-EXTRA_gdbproxy_SOURCES = getopt.h
-
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
 	-I$(jtag_srcdir)/include \
@@ -68,7 +66,7 @@ info_TEXINFOS = gdbproxy.texi
 
 man_MANS = gdbproxy.1
 
-EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap getopt.c getopt1.c
+EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap
 
 CLEANFILES = configure.scan res tmp.tmp
 
