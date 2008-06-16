@@ -1,5 +1,10 @@
 2008-06-16  Jie Zhang  <jie.zhang@analog.com>
 
+	* target_bfin_new.c (bfin_is_thread_alive): Threads are
+	always alive.
+
+2008-06-16  Jie Zhang  <jie.zhang@analog.com>
+
 	* gdbproxy.c: Include inttypes.h.
 	(handle_query_command): Fix sprintf warnings.
 	(rp_encode_process_query_response): Likewise.

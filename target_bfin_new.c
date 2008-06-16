@@ -5576,6 +5576,8 @@ bfin_is_thread_alive (rp_thread_ref *thread, int *alive)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_is_thread_alive ()", bfin_target.name);
 
+  *alive = 1;
+
   return RP_VAL_TARGETRET_OK;
 }
 
