@@ -66,6 +66,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #ifdef  HAVE_GETOPT_LONG_ONLY
 #ifndef HAVE_GETOPT_H
@@ -630,7 +631,7 @@ static int remote_set_gen_thread(rp_thread_ref *thread)
 
     assert(thread != NULL);
 
-    sprintf(buf, "Hg%Lx", thread->val);
+    sprintf(buf, "Hg%"PRIu64"x", thread->val);
 
     if (!(ret = remote_putpkt(buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -653,7 +654,7 @@ static int remote_set_ctrl_thread(rp_thread_ref *thread)
     int  ret;
     char buf[40];
 
-    sprintf(buf, "Hc%Lx", thread->val);
+    sprintf(buf, "Hc%"PRIu64"x", thread->val);
 
     if (!(ret = remote_putpkt(buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -679,7 +680,7 @@ static int remote_is_thread_alive(rp_thread_ref *thread, int *alive)
     assert(thread != NULL);
     assert(alive != NULL);
 
-    sprintf(buf, "T%Lx", thread->val);
+    sprintf(buf, "T%"PRIu64"x", thread->val);
 
     if (!(ret = remote_putpkt(buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -953,7 +954,7 @@ static int remote_read_mem (uint64_t addr,
     assert(buf != NULL);
     assert(actual_size != NULL);
 
-    sprintf(remote_out_buf,"m%Lx,%zx", addr, req_size);
+    sprintf(remote_out_buf,"m%"PRIu64"x,%zx", addr, req_size);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -980,7 +981,7 @@ static int remote_write_mem(uint64_t addr,
 
     assert(buf != NULL);
 
-    off = sprintf(remote_out_buf, "M%Lx,%zx:", addr, write_size);
+    off = sprintf(remote_out_buf, "M%"PRIu64"x,%zx:", addr, write_size);
 
     if (write_size > 0)
     {
@@ -1038,9 +1039,9 @@ static int remote_resume_from_addr(int step, int sig, uint64_t addr)
     assert(remote_connected);
 
     if (sig == RP_VAL_TARGETSIG_0)
-        sprintf(remote_out_buf, "%c%Lx", step ? 's' : 'c', addr);
+        sprintf(remote_out_buf, "%c%"PRIu64"x", step ? 's' : 'c', addr);
     else
-        sprintf(remote_out_buf, "%c%02x;%Lx", step ? 'S' : 'C', sig, addr);
+        sprintf(remote_out_buf, "%c%02x;%"PRIu64"x", step ? 'S' : 'C', sig, addr);
 
     ret = remote_putpkt(remote_out_buf);
 
@@ -1269,7 +1270,7 @@ static int remote_process_query(unsigned int *mask,
     assert(arg != NULL);
     assert(info != NULL);
 
-    off = sprintf(remote_out_buf, "qP%08x%016Lx", *mask, arg->val);
+    off = sprintf(remote_out_buf, "qP%08x%016"PRIu64"x", *mask, arg->val);
 
     assert(off < sizeof(remote_out_buf));
 
@@ -1305,7 +1306,7 @@ static int remote_list_query(int first,
     int ret;
 
     off = sprintf(remote_out_buf,
-                  "qL%c%02zx%016Lx",
+                  "qL%c%02zx%016"PRIu64"x",
                   first  ?  '1'  :  '0',
                   max_num,
                   arg->val);
@@ -1469,7 +1470,7 @@ static int remote_crc_query(uint64_t addr,
 
     assert(val != NULL);
 
-    sprintf(remote_out_buf, "qCRC:%Lx,%zx", addr, len);
+    sprintf(remote_out_buf, "qCRC:%"PRIu64"x,%zx", addr, len);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -1591,7 +1592,7 @@ static int remote_add_break(int type, uint64_t addr, unsigned int len)
     size_t in_len;
     int ret;
 
-    sprintf(remote_out_buf, "Z%d,%Lx,%x", type, addr, len);
+    sprintf(remote_out_buf, "Z%d,%"PRIu64"x,%x", type, addr, len);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -1613,7 +1614,7 @@ static int remote_remove_break(int type, uint64_t addr, unsigned int len)
     size_t in_len;
     int ret;
 
-    sprintf(remote_out_buf, "z%d,%Lx,%x", type, addr, len);
+    sprintf(remote_out_buf, "z%d,%"PRIu64"x,%x", type, addr, len);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;

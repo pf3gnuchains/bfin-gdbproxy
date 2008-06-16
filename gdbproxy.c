@@ -73,6 +73,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <inttypes.h>
 
 #ifdef  HAVE_GETOPT_LONG_ONLY
 #ifndef HAVE_GETOPT_H
@@ -939,7 +940,7 @@ static void handle_query_command(char * const in_buf,
         if (ret == RP_VAL_TARGETRET_OK)
         {
             sprintf(out_buf,
-                    "Text=%Lx;Data=%Lx;Bss=%Lx",
+                    "Text=%"PRIu64"x;Data=%"PRIu64"x;Bss=%"PRIu64"x",
                     text,
                     data,
                     bss);
@@ -1130,7 +1131,7 @@ static void handle_query_command(char * const in_buf,
         ret = t->current_thread_query(&ref);
 
         if (ret == RP_VAL_TARGETRET_OK)
-            sprintf(out_buf, "QC%Lx", ref.val);
+            sprintf(out_buf, "QC%"PRIu64"x", ref.val);
         else
             rp_write_retval(ret, out_buf);
         break;
@@ -2571,7 +2572,7 @@ static int rp_encode_process_query_response(unsigned int mask,
     out_size -= 8;
 
     /* Encode reference thread */
-    sprintf(out, "%016Lx", ref->val);
+    sprintf(out, "%016"PRIu64"x", ref->val);
 
     out += 16;
     out_size -= 16;
@@ -2604,7 +2605,7 @@ static int rp_encode_process_query_response(unsigned int mask,
             out_size -= 2;
 
             /* Encode value */
-            sprintf(out, "%016Lx", info->thread_id.val);
+            sprintf(out, "%016"PRIu64"x", info->thread_id.val);
 
             out += 16;
             out_size -= 16;
@@ -2720,7 +2721,7 @@ static int rp_encode_list_query_response(size_t count,
     *out++ = (done)  ?  '1'  :  '0';
     out_size--;
 
-    sprintf(out, "%016Lx", arg->val);
+    sprintf(out, "%016"PRIu64"x", arg->val);
 
     out += 16;
     out_size -= 16;
@@ -2731,7 +2732,7 @@ static int rp_encode_list_query_response(size_t count,
         if (out_size <= 16)
             return  FALSE;
 
-        sprintf(out, "%016Lx", found->val);
+        sprintf(out, "%016"PRIu64"x", found->val);
 
         out += 16;
         out_size -= 16;

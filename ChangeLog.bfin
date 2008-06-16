@@ -1,3 +1,22 @@
+2008-06-16  Jie Zhang  <jie.zhang@analog.com>
+
+	* gdbproxy.c: Include inttypes.h.
+	(handle_query_command): Fix sprintf warnings.
+	(rp_encode_process_query_response): Likewise.
+	(rp_encode_list_query_response): Likewise.
+	* remote.c: Include inttypes.h.
+	(remote_set_gen_thread): Fix sprintf warnings.
+	(remote_set_ctrl_thread): Likewise.
+	(remote_is_thread_alive): Likewise.
+	(remote_read_mem): Likewise.
+	(remote_write_mem): Likewise.
+	(remote_resume_from_addr): Likewise.
+	(remote_process_query): Likewise.
+	(remote_list_query): Likewise.
+	(remote_crc_query): Likewise.
+	(remote_add_break): Likewise.
+	(remote_remove_break): Likewise.
+
 2008-06-02  Michael Hennerich  <michael.hennerich@analog.com>
 
 	* target_bfin_new.c (default_jtag_connect): Replace BFIN-UJTAG
