@@ -1,3 +1,11 @@
+2008-06-17  Jie Zhang  <jie.zhang@analog.com>
+
+	* gdbproxy.c (rp_decode_process_query): Remove.
+	(rp_decode_list_query): Remove.
+	(rp_decode_4bytes): Remove.
+	(rp_decode_8bytes): Remove.
+	(handle_query_command): Do not handle qL and qP.
+
 2008-06-16  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_is_thread_alive): Threads are

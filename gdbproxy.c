@@ -123,17 +123,10 @@ static int rp_decode_reg_assignment(const char *in,
 static int rp_decode_mem(const char *in,
                          uint64_t *addr,
                          size_t *len);
-static int rp_decode_process_query(const char *in,
-                                   unsigned int *mask,
-                                   rp_thread_ref *ref);
 static int rp_decode_break(const char *in,
                            int *type,
                            uint64_t *addr,
                            unsigned int *len);
-static int rp_decode_list_query(const char *in,
-                                int *first,
-                                size_t *max,
-                                rp_thread_ref *arg);
 static int rp_encode_regs(const unsigned char *data,
                           const unsigned char *avail,
                           size_t data_len,
@@ -156,8 +149,6 @@ static int rp_encode_list_query_response(size_t count,
                                          size_t out_size);
 static int rp_decode_nibble(const char *in, unsigned int *nibble);
 static int rp_decode_byte(const char *in, unsigned int *byte_ptr);
-static int rp_decode_4bytes(const char *in, uint32_t *val);
-static int rp_decode_8bytes(const char *in, uint64_t *val);
 static int rp_decode_uint32(char const **in, uint32_t *val, char break_char);
 static int rp_decode_uint64(char const **in, uint64_t *val, char break_char);
 static void rp_encode_byte(unsigned int val, char *out);
@@ -909,14 +900,6 @@ static void handle_query_command(char * const in_buf,
 {
     int  ret;
     rp_thread_ref ref;
-    rp_thread_info info;
-    unsigned int mask;
-    rp_thread_ref arg;
-    rp_thread_ref *found;
-    size_t max_found;
-    size_t count;
-    int done;
-    int first;
     unsigned int len;
     uint32_t val;
     uint64_t addr;
@@ -1134,76 +1117,6 @@ static void handle_query_command(char * const in_buf,
             sprintf(out_buf, "QC%"PRIu64"x", ref.val);
         else
             rp_write_retval(ret, out_buf);
-        break;
-    case 'L':
-        /* Thread list query */
-        ret = rp_decode_list_query(&in_buf[2],
-                                   &first,
-                                   &max_found,
-                                   &arg);
-        if (!ret  ||  max_found > 255)
-        {
-            rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
-            break;
-        }
-
-        if ((found = malloc(max_found*sizeof(rp_thread_ref))) == NULL)
-        {
-            rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
-            break;
-        }
-
-        ret = t->list_query(first,
-                            &arg,
-                            found,
-                            max_found,
-                            &count,
-                            &done);
-        if (ret != RP_VAL_TARGETRET_OK  ||  count > max_found)
-        {
-            free(found);
-            rp_write_retval(ret, out_buf);
-            break;
-        }
-
-        ret = rp_encode_list_query_response(count,
-                                            done,
-                                            &arg,
-                                            found,
-                                            out_buf,
-                                            out_buf_len);
-
-        free(found);
-
-        if (!ret)
-            rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
-        break;
-    case 'P':
-        /* Thread info query */
-        if (!(ret = rp_decode_process_query(&in_buf[2], &mask, &ref)))
-        {
-            rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
-            break;
-        }
-
-        info.thread_id.val = 0;
-        info.display[0] = 0;
-        info.thread_name[0] = 0;
-        info.more_display[0] = 0;
-
-        if ((ret = t->process_query(&mask, &ref, &info)) != RP_VAL_TARGETRET_OK)
-        {
-            rp_write_retval(ret, out_buf);
-            break;
-        }
-
-        ret = rp_encode_process_query_response(mask,
-                                               &ref,
-                                               &info,
-                                               out_buf,
-                                               out_buf_len);
-        if (!ret)
-            rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
         break;
     default:
         /* Raw Query is a universal fallback */
@@ -2336,72 +2249,6 @@ static int rp_decode_mem(const char *in, uint64_t *addr, size_t *len)
 
     return  rp_decode_uint32(&in, len, '\0');
 }
-
-/* Decode process query. Format: 'MMMMMMMMRRRRRRRRRRRRRRRR'
-   where: 
-      M represents mask
-      R represents thread reference */
-static int rp_decode_process_query(const char *in,
-                                   unsigned int *mask,
-                                   rp_thread_ref *ref)
-{
-    unsigned int tmp_mask;
-    uint64_t tmp_val;
-
-    assert(in != NULL);
-    assert(mask != NULL);
-    assert(ref != NULL);
-
-    if (!rp_decode_4bytes(in, &tmp_mask))
-        return  FALSE;
-    in += 8;
-
-    if (!rp_decode_8bytes(in, &tmp_val))
-        return  FALSE;
-
-    *mask = tmp_mask;
-    ref->val = tmp_val;
-
-    return  TRUE;
-}
-
-/* Decode thread list list query. Format 'FMMAAAAAAAAAAAAAAAA'
-   where:
-      F represents first flag
-      M represents max count
-      A represents argument thread reference */
-static int rp_decode_list_query(const char *in,
-                                int *first,
-                                size_t *max,
-                                rp_thread_ref *arg)
-{
-    unsigned int first_flag;
-    size_t tmp_max;
-    uint64_t tmp_val;
-
-    assert(in != NULL);
-    assert(first != NULL);
-    assert(max != NULL);
-    assert(arg != NULL);
-
-    if (!rp_decode_nibble(in, &first_flag))
-        return  FALSE;
-    in++;
-
-    if (!rp_decode_byte(in, &tmp_max))
-        return  FALSE;
-    in += 2;
-
-    if (!rp_decode_8bytes(in, &tmp_val))
-        return  FALSE;
-
-    *first = (first_flag)  ?  TRUE  :  FALSE;
-    *max = tmp_max;
-    arg->val = tmp_val;
-
-    return  TRUE;
-}
-
 /* Decode a breakpoint (z or Z) packet */
 static int rp_decode_break(const char *in,
                            int *type,
@@ -2786,42 +2633,6 @@ static int rp_decode_byte(const char *in, unsigned int *byte_ptr)
         return  FALSE;
 
     *byte_ptr = (ms_nibble << 4) + ls_nibble;
-    return  TRUE;
-}
-
-/* Decode exactly 4 bytes of hex from a longer string, and return the result
-   as an unsigned 32-bit value */
-static int rp_decode_4bytes(const char *in, uint32_t *val)
-{
-    unsigned int nibble;
-    uint32_t tmp;
-    int count;
-
-    for (tmp = 0, count = 0;  count < 8;  count++, in++)
-    {
-        if (!rp_decode_nibble(in, &nibble))
-            break;
-        tmp = (tmp << 4) + nibble;
-    }
-    *val = tmp;
-    return  TRUE;
-}
-
-/* Decode exactly 8 bytes of hex from a longer string, and return the result
-   as an unsigned 64-bit value */
-static int rp_decode_8bytes(const char *in, uint64_t *val)
-{
-    unsigned int nibble;
-    uint64_t tmp;
-    int count;
-
-    for (tmp = 0, count = 0;  count < 16;  count++, in++)
-    {
-        if (!rp_decode_nibble(in, &nibble))
-            break;
-        tmp = (tmp << 4) + nibble;
-    }
-    *val = tmp;
     return  TRUE;
 }
 
