@@ -1,5 +1,10 @@
 2008-06-18  Jie Zhang  <jie.zhang@analog.com>
 
+	* gdbproxy.c (rp_decode_mem): Use rp_decode_uint64 instead
+	of rp_decode_uint32.
+
+2008-06-18  Jie Zhang  <jie.zhang@analog.com>
+
 	* gdbproxy.c (rp_encode_process_query_response): Remove.
 	(rp_encode_list_query_response): Remove.
 

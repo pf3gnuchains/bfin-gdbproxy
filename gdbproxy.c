@@ -2236,7 +2236,7 @@ static int rp_decode_mem(const char *in, uint64_t *addr, size_t *len)
     if (!rp_decode_uint64(&in, addr, ','))
         return  FALSE;
 
-    return  rp_decode_uint32(&in, len, '\0');
+    return  rp_decode_uint64(&in, len, '\0');
 }
 /* Decode a breakpoint (z or Z) packet */
 static int rp_decode_break(const char *in,
