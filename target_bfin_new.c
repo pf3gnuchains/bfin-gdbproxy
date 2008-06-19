@@ -3858,7 +3858,8 @@ core_dcache_enable (int core, int method)
   cpu->cores[core].dcplbs_valid_p = 1;
 
   cpu->cores[core].dmem_control = ACACHE_BCACHE | ENDCPLB;
-  mmr_write_clobber_p0r0 (core, DMEM_CONTROL - DCPLB_ADDR0,
+  core_register_set (core, REG_P0, DMEM_CONTROL);
+  mmr_write_clobber_p0r0 (core, 0,
 			  cpu->cores[core].dmem_control, 4);
   cpu->cores[core].dmem_control_valid_p = 1;
 
@@ -3930,7 +3931,8 @@ core_icache_enable (int core)
   cpu->cores[core].icplbs_valid_p = 1;
 
   cpu->cores[core].imem_control = IMC | ENICPLB;
-  mmr_write_clobber_p0r0 (core, IMEM_CONTROL - ICPLB_ADDR0,
+  core_register_set (core, REG_P0, IMEM_CONTROL);
+  mmr_write_clobber_p0r0 (core, 0,
 			  cpu->cores[core].imem_control, 4);
   cpu->cores[core].imem_control_valid_p = 1;
 
