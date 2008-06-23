@@ -1,3 +1,13 @@
+2008-06-23  Jie Zhang  <jie.zhang@analog.com>
+
+	Revert
+	2008-06-18  Jie Zhang  <jie.zhang@analog.com>
+	* gdbproxy.c (rp_decode_mem): Use rp_decode_uint64 instead
+	of rp_decode_uint32.
+
+	* gdbproxy.c (rp_decode_mem): Initialize length as 0 before
+	decoding it.
+
 2008-06-19  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (core_dcache_enable): Always set base
