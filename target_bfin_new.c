@@ -969,6 +969,7 @@ typedef struct _bfin_cpu
 
 int big_endian = 0;
 int debug_mode = 0;
+int reject_invalid_mem = 0;
 
 static log_func bfin_log;
 static bfin_cpu *cpu = NULL;
@@ -4704,6 +4705,7 @@ bfin_help (const char *prog_name)
   printf (" --loop-wait=USEC        wait USEC microseconds in wait loop (default 10000)\n");
   printf (" --emu-wait=USEC         wait USEC microseconds in emulator operations\n");
   printf ("                         (default 5000)\n");
+  printf (" --reject-invalid-mem    make invalid memory addresses a hard error\n");
   printf ("\n");
 
   return;
@@ -4743,6 +4745,7 @@ bfin_open (int argc,
     {"emu-wait", required_argument, 0, 12},
     {"no-switch-on-load", no_argument, 0, 13},
     {"connect", required_argument, 0, 14},
+    {"reject-invalid-mem", no_argument, 0, 15},
     {NULL, 0, 0, 0}
   };
 
@@ -4906,6 +4909,10 @@ bfin_open (int argc,
 
 	case 14:
 	  connect_string = optarg;
+	  break;
+
+	case 15:
+	  reject_invalid_mem = 1;
 	  break;
 
 	default:
@@ -5977,6 +5984,15 @@ bfin_read_mem (uint64_t addr,
       else if (addr >= cpu->cores[i].l1_map.l1
 	       && addr < cpu->cores[i].l1_map.l1_end)
 	{
+	  if (!reject_invalid_mem)
+	    {
+	      /* fill with invalid bytes */
+	      buf[0] = 0xad;
+	      req_size = 1;
+	      ret = 0;
+	      goto done;
+	    }
+
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] cannot read reserved L1 [0x%08llX]",
 		    bfin_target.name, i, addr);
@@ -6070,6 +6086,15 @@ bfin_read_mem (uint64_t addr,
     }
   else
     {
+      if (!reject_invalid_mem)
+	{
+	  /* fill with invalid bytes */
+	  buf[0] = 0xad;
+	  req_size = 1;
+	  ret = 0;
+	  goto done;
+	}
+
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] cannot read reserved memory [0x%08llX]",
 		bfin_target.name, core, addr);
