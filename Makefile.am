@@ -71,7 +71,7 @@ info_TEXINFOS = gdbproxy.texi
 
 man_MANS = gdbproxy.1
 
-EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap
+EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap gnulib/m4/gnulib-cache.m4
 
 CLEANFILES = configure.scan res tmp.tmp
 
