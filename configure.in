@@ -104,7 +104,13 @@ AM_CONDITIONAL(USE_RC_SOURCES, $USE_RC_SOURCES)
 
 
 dnl urjtag has optional support for fun libraries
-AC_CHECK_LIB(readline, readline)
+AC_CHECK_LIB(readline, readline, [], [
+    unset ac_cv_lib_readline_readline
+    AC_CHECK_LIB(readline, readline, [LIBS="$LIBS -lreadline -lcurses"], [
+        unset ac_cv_lib_readline_readline
+        AC_CHECK_LIB(readline, readline, [LIBS="$LIBS -lreadline -lncurses"], [], [-lncurses])
+    ], [-lcurses])
+])
 PKG_CHECK_MODULES(LIBFTDI, libftdi, [LIBS="$LIBS $LIBFTDI_LIBS" CFLAGS="$CFLAGS $LIBFTDI_CFLAGS"], [:;])
 PKG_CHECK_MODULES(LIBUSB, libusb, [LIBS="$LIBS $LIBUSB_LIBS" CFLAGS="$CFLAGS $LIBUSB_CFLAGS"], [
   AC_PATH_TOOL(LIBUSB_CONFIG, libusb-config, no)

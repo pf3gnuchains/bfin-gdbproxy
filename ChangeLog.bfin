@@ -7,6 +7,8 @@
 	(bfin_read_mem): Return 0xAD for invalid memory regions when
 	reject_invalid_mem is non-zero.
 
+	* configure.in (readline): Add fallback checks for libcurses.
+
 2008-06-23  Jie Zhang  <jie.zhang@analog.com>
 
 	Revert
