@@ -78,6 +78,6 @@ CLEANFILES = configure.scan res tmp.tmp
 MAINTAINERCLEANFILES = aclocal.m4 configure config.h.in stamp-h.in Makefile.in
 
 .rc.o:
-	$(WINDRES) $< -o $@
+	$(WINDRES) -I $(srcdir) $< -o $@
 %.o : %.rc
-	$(WINDRES) $^ -o $@
+	$(WINDRES) -I $(srcdir) $^ -o $@

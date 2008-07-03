@@ -2,6 +2,8 @@
 
 	* target_bfin_new.c (bfin_open): Change BF549 to BF548.
 
+	* Makefile.am (%.rc): Add -I $(srcdir) when running $(WINDRES).
+
 2008-07-02  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (reject_invalid_mem): New variable.
