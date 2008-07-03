@@ -1,3 +1,7 @@
+2008-07-03  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bfin_open): Change BF549 to BF548.
+
 2008-07-02  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (reject_invalid_mem): New variable.
