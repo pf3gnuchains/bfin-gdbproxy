@@ -1,3 +1,11 @@
+2008-07-21  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bf52x_mem_map): Set sdram_end to 0x20000000 512MB.
+	(bf533_mem_map): Set sdram_end to 0x08000000 128MB.
+	(bf537_mem_map): Set sdram_end to 0x20000000 512MB.
+	(bf54x_mem_map): Set sdram_end to 0x10000000 256MB.
+	(bf561_mem_map): Set sdram_end to 0x20000000 512MB.
+
 2008-07-03  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bfin_open): Change BF549 to BF548.

@@ -726,7 +726,7 @@ typedef struct _bfin_mem_map
 
 static bfin_mem_map bf52x_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0x08000000,
+  .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
   .flash		= 0x20000000,
   .flash_end		= 0x20100000,
@@ -740,7 +740,7 @@ static bfin_mem_map bf52x_mem_map = {
 };
 static bfin_mem_map bf533_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0x04000000,
+  .sdram_end		= 0x08000000,
   .async_mem		= 0x20000000,
   .flash		= 0x20000000,
   .flash_end		= 0x20100000,
@@ -754,7 +754,7 @@ static bfin_mem_map bf533_mem_map = {
 };
 static bfin_mem_map bf537_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0x04000000,
+  .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
   .flash		= 0x20000000,
   .flash_end		= 0x20100000,
@@ -782,7 +782,7 @@ static bfin_mem_map bf538_mem_map = {
 };
 static bfin_mem_map bf54x_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0x04000000,
+  .sdram_end		= 0x10000000,
   .async_mem		= 0x20000000,
   .flash		= 0x20000000,
   .flash_end		= 0x24000000,
@@ -798,7 +798,7 @@ static bfin_mem_map bf54x_mem_map = {
 };
 static bfin_mem_map bf561_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0x04000000,
+  .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
   .flash		= 0x20000000,
   .flash_end		= 0x24000000,
