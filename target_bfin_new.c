@@ -782,7 +782,7 @@ static bfin_mem_map bf538_mem_map = {
 };
 static bfin_mem_map bf54x_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0x10000000,
+  .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
   .flash		= 0x20000000,
   .flash_end		= 0x24000000,
