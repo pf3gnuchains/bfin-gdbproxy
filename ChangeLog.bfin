@@ -1,3 +1,7 @@
+2008-09-05  Mike Frysinger  <michael.frysinger@analog.com>
+
+    * gdbproxy.c (rp_rcmd_set): Check argc is 3.
+
 2008-07-21  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bf52x_mem_map): Set sdram_end to 0x20000000 512MB.

@@ -2620,6 +2620,14 @@ static int rp_rcmd_set(int argc, char *argv[], out_func of, data_func df, rp_tar
       return RP_VAL_TARGETRET_OK;
     }
 
+  if (argc != 3)
+    {
+      sprintf (buf2, "Wrong arguments for debug command.\n");
+      rp_encode_string(buf2, buf, 1000);
+      of(buf);
+      return RP_VAL_TARGETRET_OK;
+    }
+
   if (strcmp ("0", argv[2]) == 0)
     rp_debug_level = 0;
   else if (strcmp ("1", argv[2]) == 0)
