@@ -95,10 +95,10 @@ static int   remote_open(int agrc,
                          const char *prog_name,
                          log_func log_fn);
 static void  remote_close(void);
-static int   remote_connect(char *status_string, size_t status_string_size,
+static int   remote_connect(char *status_string, int status_string_size,
                             int *can_restart);
 static int   extended_remote_connect(char *status_string,
-                                     size_t status_string_size,
+                                     int status_string_size,
                                      int *can_restart);
 static int   remote_disconnect(void);
 static void  remote_kill(void);
@@ -110,48 +110,48 @@ static int   remote_set_ctrl_thread(rp_thread_ref *thread);
 static int   remote_is_thread_alive(rp_thread_ref *thread, int *alive);
 static int   remote_read_registers(unsigned char *data_buf,
                                    unsigned char *avail_buf,
-                                   size_t buf_size,
-                                   size_t *read_size);
-static int   remote_write_registers(unsigned char *data_buf, size_t write_size);
+                                   int buf_size,
+                                   int *read_size);
+static int   remote_write_registers(unsigned char *data_buf, int write_size);
 static int   remote_read_single_register(unsigned int reg_no,
                                          unsigned char *data_buf,
                                          unsigned char *avail_buf,
-                                         size_t buf_size,
-                                         size_t *read_size);
+                                         int buf_size,
+                                         int *read_size);
 static int   remote_write_single_register(unsigned int reg_no,
                                           unsigned char *data_buf,
-                                          size_t write_size);
+                                          int write_size);
 static int   remote_read_mem(uint64_t addr, unsigned char *data_buf,
-                             size_t req_size, size_t *actual_size);
+                             int req_size, int *actual_size);
 static int   remote_write_mem(uint64_t addr, unsigned char *data_buf,
-                              size_t req_sise);
+                              int req_sise);
 static int   remote_resume_from_current(int step, int sig);
 static int   remote_resume_from_addr(int step, int sig,
                                      uint64_t addr);
 static int   remote_go_waiting(int sig);
 static int   remote_wait_partial(int first, char *status_string,
-                                 size_t status_string_len, out_func out,
+                                 int status_string_len, out_func out,
                                  int *implemented, int *more);
-static int   remote_wait(char *status_string, size_t status_string_len,
+static int   remote_wait(char *status_string, int status_string_len,
                          out_func out, int *implemented);
 static int   remote_process_query(unsigned int *mask, rp_thread_ref *arg,
                                   rp_thread_info *info);
 static int   remote_list_query(int first, rp_thread_ref *arg,
                                rp_thread_ref *result,
-                               size_t max_num, size_t *num, int *done);
+                               int max_num, int *num, int *done);
 static int   remote_current_thread_query(rp_thread_ref *thread);
 static int   remote_offsets_query(uint64_t *text,
                                   uint64_t *data,
                                   uint64_t *bss);
 static int   remote_crc_query(uint64_t addr,
-                              size_t len,
+                              int len,
                               uint32_t *val);
 static int   remote_raw_query(char *in_buf,
                               char *out_buf,
-                              size_t out_buf_size);
+                              int out_buf_size);
 static int   remote_remcmd(char *in_buf, out_func of, data_func df);
-static int   remote_add_break(int type, uint64_t adddr, unsigned int len);
-static int   remote_remove_break(int type, uint64_t, unsigned int len);
+static int   remote_add_break(int type, uint64_t adddr, int len);
+static int   remote_remove_break(int type, uint64_t, int len);
 
 
 /*
@@ -255,23 +255,23 @@ static char remote_out_buf[RP_PARAM_INOUTBUF_SIZE];
 /* Local functions */
 static int  remote_connect_worker(int extended,
                                   char *status_string,
-                                  size_t status_string_size,
+                                  int status_string_size,
                                   int *can_restart);
 static int  remote_decode_data(const char *in,
                                unsigned char *out,
-                               size_t out_size,
-                               size_t *len);
+                               int out_size,
+                               int *len);
 static int  remote_encode_data(const unsigned char *data,
-                               size_t data_len,
+                               int data_len,
                                char *out,
-                               size_t out_size);
+                               int out_size);
 static int  remote_decode_process_query_response(const char *in,
                                                  unsigned int *mask,
                                                  rp_thread_ref *ref,
                                                  rp_thread_info *info);
 static int  remote_decode_list_query_response(const char *in,
-                                              size_t max_num,
-                                              size_t *num, int *done,
+                                              int max_num,
+                                              int *num, int *done,
                                               rp_thread_ref *arg,
                                               rp_thread_ref *result);
 static int  remote_decode_byte(const char *in, unsigned int *byte);
@@ -281,7 +281,7 @@ static int  remote_decode_8bytes(const char *in, uint64_t *val);
 static void remote_encode_byte(unsigned int val, char *out);
 
 static int  remote_putpkt(const char *buf);
-static int  remote_getpkt(char *buf, size_t buf_len, size_t *len, int timeout);
+static int  remote_getpkt(char *buf, int buf_len, int *len, int timeout);
 
 /* Target method */
 static void remote_help(const char *prog_name)
@@ -507,7 +507,7 @@ static void remote_close(void)
 
 /* Target method */
 static int remote_connect(char *status_string,
-                          size_t status_string_len,
+                          int status_string_len,
                           int *can_restart)
 {
     return remote_connect_worker(FALSE,
@@ -518,7 +518,7 @@ static int remote_connect(char *status_string,
 
 /* Target method */
 static int extended_remote_connect(char *status_string,
-		                   size_t status_string_len,
+		                   int status_string_len,
                                    int *can_restart)
 {
     return remote_connect_worker(TRUE,
@@ -532,7 +532,7 @@ static int remote_disconnect(void)
 {
     int ret;
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
 
     assert(remote_is_open);
     assert(remote_connected);
@@ -562,7 +562,7 @@ static int remote_disconnect(void)
 static void remote_kill(void)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
 
     assert(remote_is_open);
 
@@ -627,7 +627,7 @@ static int remote_set_gen_thread(rp_thread_ref *thread)
     int  ret;
     char buf[40];
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
 
     assert(thread != NULL);
 
@@ -650,8 +650,8 @@ static int remote_set_gen_thread(rp_thread_ref *thread)
 static int remote_set_ctrl_thread(rp_thread_ref *thread)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
-    int  ret;
+    int in_len;
+    int ret;
     char buf[40];
 
     sprintf(buf, "Hc%"PRIu64"x", thread->val);
@@ -673,8 +673,8 @@ static int remote_set_ctrl_thread(rp_thread_ref *thread)
 static int remote_is_thread_alive(rp_thread_ref *thread, int *alive)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
-    int  ret;
+    int in_len;
+    int ret;
     char buf[40];
 
     assert(thread != NULL);
@@ -708,13 +708,13 @@ static int remote_is_thread_alive(rp_thread_ref *thread, int *alive)
 /* Target method */
 static int remote_read_registers(unsigned char *data_buf,
 		                 unsigned char *avail_buf,
-                                 size_t buf_size,
-                                 size_t *read_size)
+                                 int buf_size,
+                                 int *read_size)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
-    size_t count;
+    int count;
     char *in;
     unsigned int val;
 
@@ -786,10 +786,10 @@ static int remote_read_registers(unsigned char *data_buf,
 }
 
 /* Target method */
-static int remote_write_registers(unsigned char *buf, size_t write_size)
+static int remote_write_registers(unsigned char *buf, int write_size)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     assert(buf != NULL);
@@ -824,16 +824,16 @@ static int remote_write_registers(unsigned char *buf, size_t write_size)
 static int remote_read_single_register(unsigned int reg_no,
                                        unsigned char *data_buf,
 	                               unsigned char *avail_buf,
-                                       size_t buf_size,
-                                       size_t *read_size)
+                                       int buf_size,
+                                       int *read_size)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
-    size_t count;
+    int count;
     char  *in;
     unsigned int val;
-    size_t len;
+    int len;
 
     assert(data_buf != NULL);
     assert(avail_buf != NULL);
@@ -906,12 +906,12 @@ static int remote_read_single_register(unsigned int reg_no,
 /* Target method */
 static int remote_write_single_register(unsigned int reg_no,
 		                        unsigned char *buf,
-                                        size_t write_size)
+                                        int write_size)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
-    size_t len;
+    int len;
 
     assert(buf != NULL);
     assert(write_size > 0);
@@ -944,17 +944,17 @@ static int remote_write_single_register(unsigned int reg_no,
 /* Target method */
 static int remote_read_mem (uint64_t addr,
 		            unsigned char *buf,
-		            size_t req_size,
-                            size_t *actual_size)
+		            int req_size,
+			    int *actual_size)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     assert(buf != NULL);
     assert(actual_size != NULL);
 
-    sprintf(remote_out_buf,"m%"PRIu64"x,%zx", addr, req_size);
+    sprintf(remote_out_buf,"m%"PRIu64"x,%x", addr, req_size);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -972,16 +972,16 @@ static int remote_read_mem (uint64_t addr,
 /* Target method */
 static int remote_write_mem(uint64_t addr,
                             unsigned char *buf,
-                            size_t write_size)
+                            int write_size)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
-    size_t off;
+    int off;
 
     assert(buf != NULL);
 
-    off = sprintf(remote_out_buf, "M%"PRIu64"x,%zx:", addr, write_size);
+    off = sprintf(remote_out_buf, "M%"PRIu64"x,%x:", addr, write_size);
 
     if (write_size > 0)
     {
@@ -1069,13 +1069,13 @@ static int remote_go_waiting(int sig)
 /* Target method */
 static int remote_wait_partial(int first,
                                char *status_string,
-	 	               size_t status_string_len,
+	 	               int status_string_len,
                                out_func of,
 		               int *implemented,
 		               int *more)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     assert(status_string != NULL);
@@ -1169,12 +1169,12 @@ static int remote_wait_partial(int first,
 
 /* Target method */
 static int remote_wait(char *status_string,
-                       size_t status_string_len,
+                       int status_string_len,
 	               out_func of,
                        int *implemented)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     assert(status_string != NULL);
@@ -1262,7 +1262,7 @@ static int remote_process_query(unsigned int *mask,
                                 rp_thread_info *info)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int off;
     int ret;
 
@@ -1296,17 +1296,17 @@ static int remote_process_query(unsigned int *mask,
 static int remote_list_query(int first,
 		             rp_thread_ref *arg,
 		             rp_thread_ref *result,
-                             size_t max_num,
-		             size_t *num,
+                             int max_num,
+		             int *num,
 		             int *done)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int off;
     int ret;
 
     off = sprintf(remote_out_buf,
-                  "qL%c%02zx%016"PRIu64"x",
+                  "qL%c%02x%016"PRIu64"x",
                   first  ?  '1'  :  '0',
                   max_num,
                   arg->val);
@@ -1337,7 +1337,7 @@ static int remote_list_query(int first,
 static int remote_current_thread_query(rp_thread_ref *thread)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int  i;
     int ret;
     char *in;
@@ -1380,7 +1380,7 @@ static int remote_offsets_query(uint64_t *text,
                                 uint64_t *bss)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     uint64_t addr;
     unsigned int val;
     unsigned int i;
@@ -1457,11 +1457,11 @@ static int remote_offsets_query(uint64_t *text,
 
 /* Target method */
 static int remote_crc_query(uint64_t addr,
-                            size_t len,
+                            int len,
                             uint32_t *val)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int32_t crc;
     unsigned int tmp;
     unsigned int i;
@@ -1470,7 +1470,7 @@ static int remote_crc_query(uint64_t addr,
 
     assert(val != NULL);
 
-    sprintf(remote_out_buf, "qCRC:%"PRIu64"x,%zx", addr, len);
+    sprintf(remote_out_buf, "qCRC:%"PRIu64"x,%x", addr, len);
 
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
@@ -1502,9 +1502,9 @@ static int remote_crc_query(uint64_t addr,
 }
 
 /* Target method */
-static int remote_raw_query(char *in_buf, char *out_buf, size_t out_buf_size)
+static int remote_raw_query(char *in_buf, char *out_buf, int out_buf_size)
 {
-    size_t out_len;
+    int out_len;
     int ret;
 
     assert(strlen(in_buf) < sizeof(remote_out_buf));
@@ -1525,7 +1525,7 @@ static int remote_raw_query(char *in_buf, char *out_buf, size_t out_buf_size)
 /* Target method */
 static int remote_remcmd(char *in_buf, out_func of, data_func df)
 {
-    size_t in_len;
+    int in_len;
     int ret;
 
     assert(strlen(in_buf) < (sizeof(remote_out_buf) - 6));
@@ -1586,10 +1586,10 @@ static int remote_remcmd(char *in_buf, out_func of, data_func df)
     /* NOTREACHED */
 }
 
-static int remote_add_break(int type, uint64_t addr, unsigned int len)
+static int remote_add_break(int type, uint64_t addr, int len)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     sprintf(remote_out_buf, "Z%d,%"PRIu64"x,%x", type, addr, len);
@@ -1608,10 +1608,10 @@ static int remote_add_break(int type, uint64_t addr, unsigned int len)
     return RP_VAL_TARGETRET_OK;
 }
 
-static int remote_remove_break(int type, uint64_t addr, unsigned int len)
+static int remote_remove_break(int type, uint64_t addr, int len)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     sprintf(remote_out_buf, "z%d,%"PRIu64"x,%x", type, addr, len);
@@ -1633,11 +1633,11 @@ static int remote_remove_break(int type, uint64_t addr, unsigned int len)
 /* Implementation of target method */
 static int remote_connect_worker(int extended,
 		                 char *status_string,
-                                 size_t status_string_len,
+                                 int status_string_len,
 		                 int *can_restart)
 {
     char in_buf[RP_PARAM_INOUTBUF_SIZE];
-    size_t in_len;
+    int in_len;
     int ret;
 
     assert(status_string != NULL);
@@ -1700,11 +1700,11 @@ static int remote_connect_worker(int extended,
 
 /* Encode data bin -> ascii */
 static int remote_encode_data(const unsigned char *data,
-		              size_t data_len,
+		              int data_len,
 	               	      char *out,
-                              size_t out_size)
+                              int out_size)
 {
-    size_t i;
+    int i;
 
     assert(data != NULL);
     assert(data_len > 0);
@@ -1728,10 +1728,10 @@ static int remote_encode_data(const unsigned char *data,
 /* Decode data ascii -> bin */
 static int remote_decode_data(const char *in,
 		              unsigned char *out,
-		              size_t out_size,
-                              size_t *len)
+		              int out_size,
+                              int *len)
 {
-    size_t count;
+    int count;
     unsigned int byte;
 
     assert(in != NULL);
@@ -1874,15 +1874,15 @@ static int remote_decode_process_query_response(const char *in,
       A   represents arg thread reference
       F   represents found thread reference(s) */
 static int remote_decode_list_query_response(const char *in,
-                                             size_t max_num,
-                                             size_t *num,
+                                             int max_num,
+                                             int *num,
                                              int *done,
                                              rp_thread_ref *arg,
                                              rp_thread_ref *found)
 {
     int ret;
     int unsigned val;
-    size_t count, i;
+    unsigned int count, i;
 
     assert(num != NULL);
     assert(done != NULL);
@@ -2017,8 +2017,8 @@ static int remote_putpkt(const char *buf)
 {
     int i;
     int ret;
-    size_t len;
-    size_t in_len;
+    int len;
+    int in_len;
     unsigned char csum;
     char *d;
     const char *s;
@@ -2095,7 +2095,7 @@ static int remote_putpkt(const char *buf)
 
 /* Read a packet from the remote machine, with error checking,
    and store it in buf. */
-static int remote_getpkt(char *buf, size_t buf_len, size_t *len, int timeout)
+static int remote_getpkt(char *buf, int buf_len, int *len, int timeout)
 {
     char seq[2];
     char seq_valid;
@@ -2103,7 +2103,7 @@ static int remote_getpkt(char *buf, size_t buf_len, size_t *len, int timeout)
     unsigned char calc_csum;
     int c;
     int nib;
-    size_t pkt_len;
+    int pkt_len;
     int esc_found;
     int state;
     static const char hex[] = "0123456789abcdef";

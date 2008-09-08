@@ -453,7 +453,7 @@ static int bfin_open (int argc,
 		      const char *prog_name, log_func log_fn);
 static void bfin_close (void);
 static int bfin_connect (char *status_string,
-			 size_t status_string_size, int *can_restart);
+			 int status_string_size, int *can_restart);
 static int bfin_disconnect (void);
 static void bfin_kill (void);
 static int bfin_restart (void);
@@ -463,47 +463,47 @@ static int bfin_set_ctrl_thread (rp_thread_ref *thread);
 static int bfin_is_thread_alive (rp_thread_ref *thread, int *alive);
 static int bfin_read_registers (uint8_t *data_buf,
 				uint8_t *avail_buf,
-				size_t buf_size, size_t *read_size);
-static int bfin_write_registers (uint8_t *data_buf, size_t write_size);
+				int buf_size, int *read_size);
+static int bfin_write_registers (uint8_t *data_buf, int write_size);
 static int bfin_read_single_register (unsigned int reg_no,
 				      uint8_t *data_buf,
 				      uint8_t *avail_buf,
-				      size_t buf_size, size_t *read_size);
+				      int buf_size, int *read_size);
 static int bfin_write_single_register (unsigned int reg_no,
-				       uint8_t *data_buf, size_t write_size);
+				       uint8_t *data_buf, int write_size);
 static int bfin_read_mem (uint64_t addr,
 			  uint8_t *data_buf,
-			  size_t req_size, size_t *actual_size);
+			  int req_size, int *actual_size);
 static int bfin_write_mem (uint64_t addr,
-			   uint8_t *data_buf, size_t req_sise);
+			   uint8_t *data_buf, int req_sise);
 static int bfin_resume_from_current (int step, int sig);
 static int bfin_resume_from_addr (int step, int sig, uint64_t addr);
 static int bfin_go_waiting (int sig);
 static int bfin_wait_partial (int first,
 			      char *status_string,
-			      size_t status_string_len,
+			      int status_string_len,
 			      out_func out, int *implemented, int *more);
 static int bfin_wait (char *status_string,
-		      size_t status_string_len,
+		      int status_string_len,
 		      out_func out, int *implemented);
 static int bfin_process_query (unsigned int *mask,
 			       rp_thread_ref *arg, rp_thread_info *info);
 static int bfin_list_query (int first,
 			    rp_thread_ref *arg,
 			    rp_thread_ref *result,
-			    size_t max_num, size_t *num, int *done);
+			    int max_num, int *num, int *done);
 static int bfin_current_thread_query (rp_thread_ref *thread);
 static int bfin_offsets_query (uint64_t *text,
 			       uint64_t *data, uint64_t *bss);
-static int bfin_crc_query (uint64_t addr, size_t len, uint32_t *val);
-static int bfin_raw_query (char *in_buf, char *out_buf, size_t out_buf_size);
+static int bfin_crc_query (uint64_t addr, int len, uint32_t *val);
+static int bfin_raw_query (char *in_buf, char *out_buf, int out_buf_size);
 static int bfin_threadinfo_query (int first,
-				  char *out_buf, size_t out_buf_size);
+				  char *out_buf, int out_buf_size);
 static int bfin_threadextrainfo_query (rp_thread_ref *thread,
-				       char *out_buf, size_t out_buf_size);
-static int bfin_packetsize_query (char *out_buf, size_t out_buf_size);
-static int bfin_add_break (int type, uint64_t addr, unsigned int len);
-static int bfin_remove_break (int type, uint64_t addr, unsigned int len);
+				       char *out_buf, int out_buf_size);
+static int bfin_packetsize_query (char *out_buf, int out_buf_size);
+static int bfin_add_break (int type, uint64_t addr, int len);
+static int bfin_remove_break (int type, uint64_t addr, int len);
 
 /* Global target descriptor */
 rp_target bfin_target = {
@@ -833,7 +833,7 @@ typedef struct _bfin_dma
 typedef struct _bfin_hwwps
 {
   uint32_t addr;
-  size_t len;
+  int len;
   int mode;
 } bfin_hwwps;
 
@@ -2674,7 +2674,7 @@ core_reset (void)
 }
 
 static uint32_t
-mmr_read_clobber_p0r0 (int core, int32_t offset, size_t size)
+mmr_read_clobber_p0r0 (int core, int32_t offset, int size)
 {
   uint32_t value;
 
@@ -2710,7 +2710,7 @@ mmr_read_clobber_p0r0 (int core, int32_t offset, size_t size)
 }
 
 static uint32_t
-mmr_read (int core, uint32_t addr, size_t size)
+mmr_read (int core, uint32_t addr, int size)
 {
   uint32_t p0, r0;
   uint32_t value;
@@ -2830,7 +2830,7 @@ mmr_read (int core, uint32_t addr, size_t size)
 }
 
 static void
-mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, size_t size)
+mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, int size)
 {
   assert (size == 2 || size == 4);
 
@@ -2863,7 +2863,7 @@ mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, size_t size)
 }
 
 static void
-mmr_write (int core, uint32_t addr, uint32_t data, size_t size)
+mmr_write (int core, uint32_t addr, uint32_t data, int size)
 {
   uint32_t p0, r0;
 
@@ -3228,7 +3228,7 @@ struct mb
 
 /* Split the memory block into two. The first one has NEW_SIZE bytes.  */
 static void
-split_mb (struct mb *p, size_t new_size, int *used)
+split_mb (struct mb *p, int new_size, int *used)
 {
   struct mb *p2;
   struct cplb *c, *c2;
@@ -3278,7 +3278,7 @@ get_unused_dcplb (int *used, int *clobbered)
 }
 
 static struct mb *
-dcplb_analyze (int core, uint32_t addr, size_t size, int *used)
+dcplb_analyze (int core, uint32_t addr, int size, int *used)
 {
   uint32_t p0, r0;
   struct mb *mbs, *p;
@@ -3328,7 +3328,7 @@ dcplb_analyze (int core, uint32_t addr, size_t size, int *used)
     {
       uint32_t cplb_addr;
       uint32_t cplb_data;
-      size_t page_size;
+      int page_size;
       struct cplb *c;
 
       cplb_data = cpu->cores[core].dcplbs[i].data;
@@ -3469,7 +3469,7 @@ mbs_free (struct mb *mbs)
 static void
 dcplb_validate_clobber_p0r0 (int core,
 			     uint32_t addr,
-			     size_t size,
+			     int size,
 			     int *clobbered)
 {
   struct mb *mbs, *p;
@@ -3510,7 +3510,7 @@ dcplb_validate_clobber_p0r0 (int core,
 	{
 	  uint32_t cplb_addr;
 	  uint32_t cplb_end;
-	  size_t page_size;
+	  int page_size;
 
 	  cplb_addr = p->addr;
 	  cplb_end = p->end;
@@ -3681,7 +3681,7 @@ dcplb_validate_clobber_p0r0 (int core,
     {
       uint32_t cplb_addr;
       uint32_t cplb_end;
-      size_t page_size;
+      int page_size;
 
       for (i = 0; i < BFIN_DCPLB_NUM; i++)
 	if (used2[i])
@@ -3963,7 +3963,7 @@ icache_enable (void)
 }
 
 static void
-icache_flush (int core, uint32_t addr, size_t size)
+icache_flush (int core, uint32_t addr, int size)
 {
   uint32_t p0;
   int i;
@@ -3981,7 +3981,7 @@ icache_flush (int core, uint32_t addr, size_t size)
 }
 
 static void
-cache_flush (int core, uint32_t addr, size_t size)
+cache_flush (int core, uint32_t addr, int size)
 {
   uint32_t p0;
   int i;
@@ -4002,7 +4002,7 @@ cache_flush (int core, uint32_t addr, size_t size)
 }
 
 static int
-memory_read (int core, uint32_t addr, uint8_t *buf, size_t size)
+memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint32_t p0, r0;
   int clobbered[BFIN_DCPLB_NUM];
@@ -4116,7 +4116,7 @@ bfin_log_dma (uint32_t base, bfin_dma *dma)
 }
 
 static int
-dma_copy (int core, uint32_t dest, uint32_t src, size_t size)
+dma_copy (int core, uint32_t dest, uint32_t src, int size)
 {
   bfin_dma mdma_s0_save, mdma_d0_save;
   bfin_dma mdma_s0, mdma_d0;
@@ -4302,7 +4302,7 @@ finish_dma_copy:
 
 
 static int
-memory_write (int core, uint32_t addr, uint8_t *buf, size_t size)
+memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint32_t p0, r0;
   int clobbered[BFIN_DCPLB_NUM];
@@ -4377,7 +4377,7 @@ finish_write:
 
 
 static int
-dma_sram_read (int core, uint32_t addr, uint8_t *buf, size_t size)
+dma_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint8_t *tmp;
   int ret;
@@ -4403,7 +4403,7 @@ dma_sram_read (int core, uint32_t addr, uint8_t *buf, size_t size)
 }
 
 static int
-dma_sram_write (int core, uint32_t addr, uint8_t *buf, size_t size)
+dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint8_t *tmp;
   int ret;
@@ -4444,7 +4444,7 @@ static bfin_swbp *
 add_swbp_at (uint32_t addr)
 {
   bfin_swbp *bp;
-  size_t actual_size;
+  int actual_size;
   int ret;
 
   bp = (bfin_swbp *) malloc (sizeof (bfin_swbp));
@@ -5236,7 +5236,7 @@ bfin_close (void)
 
 /* Target method */
 static int
-bfin_connect (char *status_string, size_t status_string_len, int *can_restart)
+bfin_connect (char *status_string, int status_string_len, int *can_restart)
 {
   int i, j;
   char *cp;
@@ -5593,7 +5593,7 @@ bfin_is_thread_alive (rp_thread_ref *thread, int *alive)
 /* Target method */
 static int
 bfin_read_registers (uint8_t *data_buf,
-		     uint8_t *avail_buf, size_t buf_size, size_t *read_size)
+		     uint8_t *avail_buf, int buf_size, int *read_size)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_read_registers ()", bfin_target.name);
@@ -5603,7 +5603,7 @@ bfin_read_registers (uint8_t *data_buf,
 
 /* Target method */
 static int
-bfin_write_registers (uint8_t *buf, size_t write_size)
+bfin_write_registers (uint8_t *buf, int write_size)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_write_registers ()", bfin_target.name);
@@ -5616,9 +5616,9 @@ static int
 bfin_read_single_register (unsigned int reg_no,
 			   uint8_t *data_buf,
 			   uint8_t *avail_buf,
-			   size_t buf_size, size_t *read_size)
+			   int buf_size, int *read_size)
 {
-  size_t reg_size;
+  int reg_size;
   int core;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -5627,6 +5627,10 @@ bfin_read_single_register (unsigned int reg_no,
   assert (cpu);
 
   core = cpu->general_core;
+
+  /* This is not the right way to get the size of register.  We should
+     create a REGISTER type which has a SIZE field indicating the size
+     of that register.  */
   reg_size = sizeof (cpu->cores[core].registers[reg_no]);
 
   assert (data_buf != NULL);
@@ -5676,9 +5680,9 @@ bfin_read_single_register (unsigned int reg_no,
 /* Target method */
 static int
 bfin_write_single_register (unsigned int reg_no,
-			    uint8_t *buf, size_t write_size)
+			    uint8_t *buf, int write_size)
 {
-  size_t reg_size;
+  int reg_size;
   uint32_t value;
   int core;
   int i;
@@ -5686,6 +5690,10 @@ bfin_write_single_register (unsigned int reg_no,
   assert (cpu);
 
   core = cpu->general_core;
+
+  /* This is not the right way to get the size of register.  We should
+     create a REGISTER type which has a SIZE field indicating the size
+     of that register.  */
   reg_size = sizeof (cpu->cores[core].registers[reg_no]);
 
   assert (reg_size == 4);
@@ -5794,7 +5802,7 @@ bfin_write_single_register (unsigned int reg_no,
 /* Target method */
 static int
 bfin_read_mem (uint64_t addr,
-	       uint8_t *buf, size_t req_size, size_t *actual_size)
+	       uint8_t *buf, int req_size, int *actual_size)
 {
   int i, ret;
   int avail_core, core;
@@ -6117,7 +6125,7 @@ done:
 
 /* Target method */
 static int
-bfin_write_mem (uint64_t addr, uint8_t *buf, size_t write_size)
+bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 {
   int i, ret;
   int avail_core, core;
@@ -6416,7 +6424,7 @@ bfin_resume_from_current (int step, int sig)
 {
   int i, ret;
   uint8_t buf[2];
-  size_t size;
+  int size;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_resume_from_current (%s, %d)",
@@ -6542,7 +6550,7 @@ bfin_log_emucause (int core, uint16_t cause, uint32_t rete, uint32_t fp)
 static int
 bfin_wait_partial (int first,
 		   char *status_string,
-		   size_t status_string_len,
+		   int status_string_len,
 		   out_func of, int *implemented, int *more)
 {
   uint16_t cause;
@@ -6851,7 +6859,7 @@ bfin_wait_partial (int first,
 /* Target method */
 static int
 bfin_wait (char *status_string,
-	   size_t status_string_len, out_func of, int *implemented)
+	   int status_string_len, out_func of, int *implemented)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_wait()", bfin_target.name);
 
@@ -6884,7 +6892,7 @@ static int
 bfin_list_query (int first,
 		 rp_thread_ref *arg,
 		 rp_thread_ref *result,
-		 size_t max_num, size_t *num, int *done)
+		 int max_num, int *num, int *done)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_list_query()", bfin_target.name);
   /* TODO: Does your target support threads? Is so, implement this function.
@@ -6915,7 +6923,7 @@ bfin_offsets_query (uint64_t *text, uint64_t *data, uint64_t *bss)
 
 /* Target method */
 static int
-bfin_crc_query (uint64_t addr, size_t len, uint32_t *val)
+bfin_crc_query (uint64_t addr, int len, uint32_t *val)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_crc_query()", bfin_target.name);
 
@@ -6924,7 +6932,7 @@ bfin_crc_query (uint64_t addr, size_t len, uint32_t *val)
 
 /* Target method */
 static int
-bfin_raw_query (char *in_buf, char *out_buf, size_t out_buf_size)
+bfin_raw_query (char *in_buf, char *out_buf, int out_buf_size)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_raw_query ()", bfin_target.name);
 
@@ -6933,7 +6941,7 @@ bfin_raw_query (char *in_buf, char *out_buf, size_t out_buf_size)
 
 /* Target method */
 static int
-bfin_threadinfo_query (int first, char *out_buf, size_t out_buf_size)
+bfin_threadinfo_query (int first, char *out_buf, int out_buf_size)
 {
   static int i;
 
@@ -6959,7 +6967,7 @@ bfin_threadinfo_query (int first, char *out_buf, size_t out_buf_size)
 /* Target method */
 static int
 bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
-			    size_t out_buf_size)
+			    int out_buf_size)
 {
   int core;
   char *cp;
@@ -6989,10 +6997,10 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
 
 /* Target method */
 static int
-bfin_packetsize_query (char *out_buf, size_t out_buf_size)
+bfin_packetsize_query (char *out_buf, int out_buf_size)
 {
   int i;
-  size_t size;
+  int size;
 
   size = RP_PARAM_INOUTBUF_SIZE - 1;
   for (i = 0; i < cpu->chain->parts->len; i++)
@@ -7005,7 +7013,7 @@ bfin_packetsize_query (char *out_buf, size_t out_buf_size)
   if (size > 0x4000)
     size = 0x4000;
 
-  sprintf (out_buf, "PacketSize=%zx", size);
+  sprintf (out_buf, "PacketSize=%x", size);
 
   if (strlen (out_buf) >= out_buf_size)
     return RP_VAL_TARGETRET_ERR;
@@ -7015,7 +7023,7 @@ bfin_packetsize_query (char *out_buf, size_t out_buf_size)
 
 /* Target method */
 static int
-bfin_add_break (int type, uint64_t addr, unsigned int len)
+bfin_add_break (int type, uint64_t addr, int len)
 {
   int mode;
   int i, j;
@@ -7205,7 +7213,7 @@ bfin_add_break (int type, uint64_t addr, unsigned int len)
 
 /* Target method */
 static int
-bfin_remove_break (int type, uint64_t addr, unsigned int len)
+bfin_remove_break (int type, uint64_t addr, int len)
 {
   int mode;
   int i, j;

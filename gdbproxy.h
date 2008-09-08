@@ -157,7 +157,7 @@ struct rp_target_s
 
     /* Actually connect to a target and return status string; */
     int (*connect)(char *status_string,
-                   size_t status_string_size,
+                   int status_string_size,
                    int *can_restart);
 
     /* Disconnect from a target a leave it running */
@@ -213,12 +213,12 @@ struct rp_target_s
        avail buf is 1 */
     int (*read_registers)(unsigned char *data_buf,
                           unsigned char *avail_buf,
-                          size_t buf_size,
-                          size_t *read_size);
+                          int buf_size,
+                          int *read_size);
 
     /* Write all registers. buf is 4-byte aligned and it is in target
        byte order */
-    int (*write_registers)(unsigned char *buf, size_t write_size);
+    int (*write_registers)(unsigned char *buf, int write_size);
 
     /* Read one register. buf is 4-byte aligned and it is in
        target byte order. If  register is not available
@@ -227,14 +227,14 @@ struct rp_target_s
     int (*read_single_register)(unsigned int reg_no,
                                 unsigned char *buf,
                                 unsigned char *avail_buf,
-                                size_t buf_size,
-                                size_t *read_size);
+                                int buf_size,
+                                int *read_size);
 
     /* Write one register. buf is 4-byte aligned and it is in target byte
        order */
     int (*write_single_register)(unsigned int reg_no,
                                  unsigned char *buf,
-                                 size_t write_size);
+                                 int write_size);
 
     /*=================== Memory Access =====================*/
 
@@ -242,14 +242,14 @@ struct rp_target_s
        byte order */
     int (*read_mem)(uint64_t addr,
                     unsigned char *buf,
-                    size_t req_size,
-                    size_t *actual_size);
+                    int req_size,
+                    int *actual_size);
 
     /* Write memory, buf is 4-bytes aligned and it is in target
        byte order */
     int (*write_mem)(uint64_t addr,
                      unsigned char *buf,
-                     size_t req_size);
+                     int req_size);
 
     /*================ Resume/Wait  ============================*/
 
@@ -283,7 +283,7 @@ struct rp_target_s
        implemented is non 0 */
     int (*wait_partial)(int first,
                         char *status_string,
-                        size_t status_string_len,
+                        int status_string_len,
                         out_func out,
                         int *implemented,
                         int *more);
@@ -300,7 +300,7 @@ struct rp_target_s
        status_string is unchanged unless return value is OK and 
        implemented is non 0 */
     int (*wait)(char *status_string,
-                size_t status_string_len,
+                int status_string_len,
                 out_func out,
                 int *implemented);
 
@@ -320,8 +320,8 @@ struct rp_target_s
     int (*list_query)(int first,
                       rp_thread_ref *arg,
                       rp_thread_ref *result,
-                      size_t max_num,
-                      size_t *num,
+                      int max_num,
+                      int *num,
                       int *done);
 
     /* Query current thread id */
@@ -331,7 +331,7 @@ struct rp_target_s
     int (*offsets_query)(uint64_t *text, uint64_t *data, uint64_t *bss);
 
     /* Query crc32 of memory area */
-    int (*crc_query)(uint64_t addr, size_t len, uint32_t *val);
+    int (*crc_query)(uint64_t addr, int len, uint32_t *val);
 
     /* Raw query, see gdb-XXXX/gdb/remote.c. we got buffer
        call this function. It is a responsibility of the target
@@ -339,21 +339,21 @@ struct rp_target_s
       
        It is planned to have more more specific queries in 
        the nearest future.  */
-    int (*raw_query)(char *in_buf, char *out_buf, size_t out_buf_size);
+    int (*raw_query)(char *in_buf, char *out_buf, int out_buf_size);
 
     /*============ Breakpoints ===========================*/
 
-    int (*add_break)(int type, uint64_t addr, unsigned int length);
-    int (*remove_break)(int type, uint64_t addr, unsigned int length);
+    int (*add_break)(int type, uint64_t addr, int length);
+    int (*remove_break)(int type, uint64_t addr, int length);
 
     /* Query thread info */
-    int (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);
+    int (*threadinfo_query)(int first, char *out_buf, int out_buf_size);
 
     /* Query thread extra info */
-    int (*threadextrainfo_query)(rp_thread_ref *thread, char *out_buf, size_t out_buf_size);
+    int (*threadextrainfo_query)(rp_thread_ref *thread, char *out_buf, int out_buf_size);
 
     /* Query packet size */
-    int (*packetsize_query)(char *out_buf, size_t out_buf_size);
+    int (*packetsize_query)(char *out_buf, int out_buf_size);
 };
 
 
@@ -420,7 +420,7 @@ void rp_show_copying(void);
 void rp_show_warranty(void);
 
 int rp_hex_nibble(char in);
-int rp_encode_string(const char *s, char *out, size_t out_size);
+int rp_encode_string(const char *s, char *out, int out_size);
 
 const char *gdbproxy_get_data_dir(void);
 

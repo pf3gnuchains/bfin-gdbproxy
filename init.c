@@ -132,8 +132,8 @@ rp_target *rp_init(void)
             else
             {
                 fprintf(stderr,
-		        "initial check failed for target 0x%08x\n",
-                        (unsigned int) t);
+		        "initial check failed for target %p\n",
+                        t);
             }
             assert(0);
             return NULL;

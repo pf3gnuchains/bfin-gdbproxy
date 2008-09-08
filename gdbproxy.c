@@ -103,39 +103,39 @@ static log_func rp_log = NULL;
 
 /* Connection to debugger */
 static int rp_putpkt(const char *buf);
-static int rp_getpkt(char *buf, size_t buf_len, size_t *in_len, int timeout);
+static int rp_getpkt(char *buf, int buf_len, int *in_len, int timeout);
 static void rp_console_output(const char *buf);
 static void rp_data_output(const char *buf);
 
 /* Decode/encode functions */
 static int rp_decode_data(const char *in,
                           unsigned char *out,
-                          size_t out_size,
-                          size_t *len);
+                          int out_size,
+                          int *len);
 
 static int rp_decode_reg(const char *in, unsigned int *reg_no);
 
 static int rp_decode_reg_assignment(const char *in,
                                     unsigned int *reg_no,
                                     unsigned char *out,
-                                    size_t out_size,
-                                    size_t *len);
+                                    int out_size,
+                                    int *len);
 static int rp_decode_mem(const char *in,
                          uint64_t *addr,
-                         size_t *len);
+                         uint32_t *len);
 static int rp_decode_break(const char *in,
                            int *type,
                            uint64_t *addr,
                            unsigned int *len);
 static int rp_encode_regs(const unsigned char *data,
                           const unsigned char *avail,
-                          size_t data_len,
+                          int data_len,
                           char *out,
-                          size_t out_size);
+                          int out_size);
 static int rp_encode_data(const unsigned char *data,
-                          size_t data_len,
+                          int data_len,
                           char *out,
-                          size_t out_size);
+                          int out_size);
 static int rp_decode_nibble(const char *in, unsigned int *nibble);
 static int rp_decode_byte(const char *in, unsigned int *byte_ptr);
 static int rp_decode_uint32(char const **in, uint32_t *val, char break_char);
@@ -348,7 +348,7 @@ static void handle_read_registers_command(char * const in_buf,
                                           rp_target *t)
 {
     int ret;
-    size_t len;
+    int len;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
     unsigned char avail_buf[RP_PARAM_DATABYTES_MAX];
 
@@ -385,7 +385,7 @@ static void handle_write_registers_command(char * const in_buf,
                                            rp_target *t)
 {
     int ret;
-    size_t len;
+    int len;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
 
     /* Write all registers. Format: 'GXXXXXXXXXX' */
@@ -408,7 +408,7 @@ static void handle_read_single_register_command(char * const in_buf,
 {
     int ret;
     unsigned int reg_no;
-    size_t len;
+    int len;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
     unsigned char avail_buf[RP_PARAM_DATABYTES_MAX];
 
@@ -458,7 +458,7 @@ static void handle_write_single_register_command(char * const in_buf,
 {
     int ret;
     unsigned int reg_no;
-    size_t len;
+    int len;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
 
     /* Write a single register. Format: 'PNN=XXXXX' */
@@ -486,7 +486,8 @@ static void handle_read_memory_command(char * const in_buf,
                                        rp_target *t)
 {
     int ret;
-    size_t len;
+    uint32_t len;
+    int actual_len;
     uint64_t addr;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
 
@@ -501,12 +502,12 @@ static void handle_read_memory_command(char * const in_buf,
     if (len > ((RP_VAL_DBG_PBUFSIZ - 32)/2))
         len = (RP_VAL_DBG_PBUFSIZ - 32)/2;
 
-    ret = t->read_mem(addr, data_buf, len, &len);
+    ret = t->read_mem(addr, data_buf, len, &actual_len);
     switch (ret)
     {
     case RP_VAL_TARGETRET_OK:
         assert(len <= RP_PARAM_DATABYTES_MAX);
-        rp_encode_data(data_buf, len, out_buf, out_buf_len);
+        rp_encode_data(data_buf, actual_len, out_buf, out_buf_len);
         break;
     case RP_VAL_TARGETRET_ERR:
         rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
@@ -526,8 +527,8 @@ static void handle_write_memory_command(char * const in_buf,
 {
     int ret;
     char *cp;
-    size_t len;
-    size_t len1;
+    uint32_t len;
+    int len1;
     uint64_t addr;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
 
@@ -1185,7 +1186,7 @@ int main (int argc, char **argv)
     int input_error;
     int more;
     int implemented;
-    size_t in_len;
+    int in_len;
     int quiet;
 
     jtag_argv0 = argv[0];
@@ -1718,8 +1719,8 @@ static int rp_putpkt(const char *buf)
 {
     int i;
     int ret;
-    size_t len;
-    size_t dummy_len;
+    int len;
+    int dummy_len;
     unsigned char csum;
     unsigned char *d;
     const char *s;
@@ -1795,7 +1796,7 @@ static int rp_putpkt(const char *buf)
 
 /* Read a packet from the remote machine, with error checking,
    and store it in buf. */
-static int rp_getpkt(char *buf, size_t buf_len, size_t *len, int timeout)
+static int rp_getpkt(char *buf, int buf_len, int *len, int timeout)
 {
     char seq[2];
     char seq_valid;
@@ -1803,7 +1804,7 @@ static int rp_getpkt(char *buf, size_t buf_len, size_t *len, int timeout)
     unsigned char calc_csum;
     int c;
     int nib;
-    size_t pkt_len;
+    int pkt_len;
     int esc_found;
     int state;
     static const char hex[] = "0123456789abcdef";
@@ -2079,8 +2080,8 @@ static void rp_console_output(const char *s)
 {
     int ret;
     char *d;
-    size_t count;
-    size_t lim;
+    int count;
+    int lim;
     static char buf[RP_VAL_DBG_PBUFSIZ - 6];
 
 #if RP_VAL_DBG_PBUFSIZ < 10
@@ -2120,8 +2121,8 @@ static void rp_data_output(const char *s)
 {
     int ret;
     char *d;
-    size_t count;
-    size_t lim;
+    int count;
+    int lim;
     static char buf[RP_VAL_DBG_PBUFSIZ - 6];
 
 #if RP_VAL_DBG_PBUFSIZ < 10
@@ -2158,10 +2159,10 @@ static void rp_data_output(const char *s)
 /* Convert stream of chars into data */
 static int rp_decode_data(const char *in,
                           unsigned char *out,
-                          size_t out_size,
-                          size_t *len)
+                          int out_size,
+                          int *len)
 {
-    size_t count;
+    int count;
     unsigned int bytex;
 
     assert(in != NULL);
@@ -2210,8 +2211,8 @@ static int rp_decode_reg(const char *in, unsigned int *reg_no)
 static int rp_decode_reg_assignment(const char *in,
 		                    unsigned int *reg_no,
                                     unsigned char *out,
-			            size_t out_size,
-                                    size_t *out_len)
+			            int out_size,
+				    int *out_len)
 {
     assert(in != NULL);
     assert(reg_no != NULL);
@@ -2228,7 +2229,7 @@ static int rp_decode_reg_assignment(const char *in,
 }
 
 /* Decode memory transfer parameter in the form of AA..A,LL..L */
-static int rp_decode_mem(const char *in, uint64_t *addr, size_t *len)
+static int rp_decode_mem(const char *in, uint64_t *addr, uint32_t *len)
 {
     assert(in != NULL);
     assert(addr != NULL);
@@ -2236,7 +2237,6 @@ static int rp_decode_mem(const char *in, uint64_t *addr, size_t *len)
     if (!rp_decode_uint64(&in, addr, ','))
         return  FALSE;
 
-    *len = 0;
     return  rp_decode_uint32(&in, len, '\0');
 }
 /* Decode a breakpoint (z or Z) packet */
@@ -2280,11 +2280,11 @@ static int rp_decode_break(const char *in,
    encoded as 'xx', otherwise it is encoded in normal way */
 static int rp_encode_regs(const unsigned char *data,
 	                  const unsigned char *avail,
-                          size_t data_len,
+                          int data_len,
                           char *out,
-	                  size_t out_size)
+	                  int out_size)
 {
-    size_t i;
+    int i;
 
     assert(data != NULL);
     assert(avail != NULL);
@@ -2318,11 +2318,11 @@ static int rp_encode_regs(const unsigned char *data,
 
 /* Convert an array of bytes into an array of characters */
 static int rp_encode_data(const unsigned char *data,
-	                  size_t data_len,
+	                  int data_len,
                           char *out,
-                          size_t out_size)
+                          int out_size)
 {
-    size_t i;
+    int i;
 
     assert(data != NULL);
     assert(data_len > 0);
@@ -2344,7 +2344,7 @@ static int rp_encode_data(const unsigned char *data,
 }
 
 /* Encode string into an array of characters */
-int rp_encode_string(const char *s, char *out, size_t out_size)
+int rp_encode_string(const char *s, char *out, int out_size)
 {
     int i;
     static const char hex[] = "0123456789abcdef";
@@ -2420,10 +2420,10 @@ static int rp_decode_byte(const char *in, unsigned int *byte_ptr)
 }
 
 /* Decode a hex string to an unsigned 32-bit value */
-static int rp_decode_uint32(char const **in, uint32_t *val, char break_char)
+static int rp_decode_uint32(char const **in, unsigned int *val, char break_char)
 {
     unsigned int nibble;
-    uint32_t tmp;
+    unsigned int tmp;
     int count;
 
     assert(in != NULL);
