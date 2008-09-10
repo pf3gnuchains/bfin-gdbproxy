@@ -113,20 +113,20 @@ static int rp_decode_data(const char *in,
                           int out_size,
                           int *len);
 
-static int rp_decode_reg(const char *in, unsigned int *reg_no);
+static int rp_decode_reg(const char *in, int *reg_no);
 
 static int rp_decode_reg_assignment(const char *in,
-                                    unsigned int *reg_no,
+                                    int *reg_no,
                                     unsigned char *out,
                                     int out_size,
                                     int *len);
 static int rp_decode_mem(const char *in,
                          uint64_t *addr,
-                         uint32_t *len);
+                         int *len);
 static int rp_decode_break(const char *in,
                            int *type,
                            uint64_t *addr,
-                           unsigned int *len);
+                           int *len);
 static int rp_encode_regs(const unsigned char *data,
                           const unsigned char *avail,
                           int data_len,
@@ -136,11 +136,11 @@ static int rp_encode_data(const unsigned char *data,
                           int data_len,
                           char *out,
                           int out_size);
-static int rp_decode_nibble(const char *in, unsigned int *nibble);
-static int rp_decode_byte(const char *in, unsigned int *byte_ptr);
+static int rp_decode_nibble(const char *in, unsigned char *nibble);
+static int rp_decode_byte(const char *in, unsigned char *byte_ptr);
 static int rp_decode_uint32(char const **in, uint32_t *val, char break_char);
 static int rp_decode_uint64(char const **in, uint64_t *val, char break_char);
-static void rp_encode_byte(unsigned int val, char *out);
+static void rp_encode_byte(unsigned char val, char *out);
 
 /* Usage */
 static void rp_usage(void);
@@ -407,7 +407,7 @@ static void handle_read_single_register_command(char * const in_buf,
                                                 rp_target *t)
 {
     int ret;
-    unsigned int reg_no;
+    int reg_no;
     int len;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
     unsigned char avail_buf[RP_PARAM_DATABYTES_MAX];
@@ -457,7 +457,7 @@ static void handle_write_single_register_command(char * const in_buf,
                                                  rp_target *t)
 {
     int ret;
-    unsigned int reg_no;
+    int reg_no;
     int len;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
 
@@ -486,7 +486,7 @@ static void handle_read_memory_command(char * const in_buf,
                                        rp_target *t)
 {
     int ret;
-    uint32_t len;
+    int len;
     int actual_len;
     uint64_t addr;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
@@ -527,7 +527,7 @@ static void handle_write_memory_command(char * const in_buf,
 {
     int ret;
     char *cp;
-    uint32_t len;
+    int len;
     int len1;
     uint64_t addr;
     unsigned char data_buf[RP_PARAM_DATABYTES_MAX];
@@ -567,7 +567,7 @@ static void handle_running_commands(char * const in_buf,
                                     rp_target *t)
 {
     int step;
-    uint32_t sig;
+    int sig;
     int go;
     int more;
     int implemented;
@@ -591,6 +591,8 @@ static void handle_running_commands(char * const in_buf,
 
     if (in_buf[0] == 'C'  ||  in_buf[0] == 'S'  ||  in_buf[0] == 'W')
     {
+        uint32_t tmp;
+
         /*
          * Resume with signal.
          * Format Csig[;AA..AA], Ssig[;AA..AA], or Wsig[;AA..AA]
@@ -599,20 +601,22 @@ static void handle_running_commands(char * const in_buf,
         in = &in_buf[1];
         if (strchr(in, ';'))
         {
-            if (!rp_decode_uint32(&in, &sig, ';'))
+            if (!rp_decode_uint32(&in, &tmp, ';'))
             {
                 rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
                 return;
             }
             addr_ptr = in;
+	    sig = tmp;
         }
         else
         {
-            if (!rp_decode_uint32(&in, &sig, '\0'))
+            if (!rp_decode_uint32(&in, &tmp, '\0'))
             {
                 rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
                 return;
             }
+	    sig = tmp;
         }
     }
     else
@@ -927,6 +931,8 @@ static void handle_query_command(char * const in_buf,
 
     if (strncmp(in_buf + 1, "CRC:", 4) == 0)
     {
+        uint32_t tmp;
+
         /* Find the CRC32 value of the specified memory area */
         cp = &in_buf[5];
         if (!rp_decode_uint64(&cp, &addr, ','))
@@ -935,11 +941,12 @@ static void handle_query_command(char * const in_buf,
             return;
         }
 
-        if (!rp_decode_uint32(&cp, &len, '\0'))
+        if (!rp_decode_uint32(&cp, &tmp, '\0'))
         {
             rp_write_retval(RP_VAL_TARGETRET_ERR, out_buf);
             return;
         }
+	len = tmp;
         ret = t->crc_query(addr, len, &val);
         if (ret == RP_VAL_TARGETRET_OK)
             sprintf(out_buf, "C%x", val);
@@ -1124,7 +1131,7 @@ static void handle_breakpoint_command(char * const in_buf,
                                       rp_target *t)
 {
     uint64_t addr;
-    unsigned int len;
+    int len;
     int type;
     int ret;
 
@@ -2163,7 +2170,7 @@ static int rp_decode_data(const char *in,
                           int *len)
 {
     int count;
-    unsigned int bytex;
+    unsigned char bytex;
 
     assert(in != NULL);
     assert(out != NULL);
@@ -2199,53 +2206,66 @@ static int rp_decode_data(const char *in,
     return  TRUE;
 }
 
-static int rp_decode_reg(const char *in, unsigned int *reg_no)
+static int rp_decode_reg(const char *in, int *reg_no)
 {
-    if (!rp_decode_uint32(&in, reg_no, '\0'))
+    uint32_t tmp;
+
+    if (!rp_decode_uint32(&in, &tmp, '\0'))
         return  FALSE;
 
-	return TRUE;
+    *reg_no = tmp;
+    return TRUE;
 }
 
 /* Decode reg_no=XXXXXX */
 static int rp_decode_reg_assignment(const char *in,
-		                    unsigned int *reg_no,
+		                    int *reg_no,
                                     unsigned char *out,
 			            int out_size,
 				    int *out_len)
 {
+    uint32_t tmp;
+
     assert(in != NULL);
     assert(reg_no != NULL);
     assert(out != NULL);
     assert(out_size > 0);
     assert(out_len != NULL);
 
-    if (!rp_decode_uint32(&in, reg_no, '='))
+    if (!rp_decode_uint32(&in, &tmp, '='))
         return  FALSE;
 
+    *reg_no = tmp;
     out_size -= 8;
 
     return rp_decode_data(in, out, out_size - 1, out_len);
 }
 
 /* Decode memory transfer parameter in the form of AA..A,LL..L */
-static int rp_decode_mem(const char *in, uint64_t *addr, uint32_t *len)
+static int rp_decode_mem(const char *in, uint64_t *addr, int *len)
 {
+    uint32_t tmp;
+
     assert(in != NULL);
     assert(addr != NULL);
     assert(len != 0);
     if (!rp_decode_uint64(&in, addr, ','))
         return  FALSE;
 
-    return  rp_decode_uint32(&in, len, '\0');
+    if (!rp_decode_uint32(&in, &tmp, '\0'))
+        return  FALSE;
+    *len = tmp;
+
+    return TRUE;
 }
 /* Decode a breakpoint (z or Z) packet */
 static int rp_decode_break(const char *in,
                            int *type,
                            uint64_t *addr,
-                           unsigned int *len)
+                           int *len)
 {
-    unsigned int val;
+    unsigned char val;
+    uint32_t tmp;
 
     assert(in != NULL);
     assert(*in != '\0');
@@ -2269,8 +2289,9 @@ static int rp_decode_break(const char *in,
     if (!rp_decode_uint64(&in, addr, ','))
         return  FALSE;
 
-    if (!rp_decode_uint32(&in, len, '\0'))
+    if (!rp_decode_uint32(&in, &tmp, '\0'))
         return  FALSE;
+    *len = tmp;
 
     return  TRUE;
 }
@@ -2390,7 +2411,7 @@ int rp_hex_nibble(char in)
 }
 
 /* Decode a single nibble */
-static int rp_decode_nibble(const char *in, unsigned int *nibble)
+static int rp_decode_nibble(const char *in, unsigned char *nibble)
 {
     int nib;
 
@@ -2404,10 +2425,10 @@ static int rp_decode_nibble(const char *in, unsigned int *nibble)
 }
 
 /* Decode byte */
-static int rp_decode_byte(const char *in, unsigned int *byte_ptr)
+static int rp_decode_byte(const char *in, unsigned char *byte_ptr)
 {
-    unsigned int ls_nibble;
-    unsigned int ms_nibble;
+    unsigned char ls_nibble;
+    unsigned char ms_nibble;
 
     if (!rp_decode_nibble(in, &ms_nibble))
         return  FALSE;
@@ -2420,10 +2441,10 @@ static int rp_decode_byte(const char *in, unsigned int *byte_ptr)
 }
 
 /* Decode a hex string to an unsigned 32-bit value */
-static int rp_decode_uint32(char const **in, unsigned int *val, char break_char)
+static int rp_decode_uint32(char const **in, uint32_t *val, char break_char)
 {
-    unsigned int nibble;
-    unsigned int tmp;
+    unsigned char nibble;
+    uint32_t tmp;
     int count;
 
     assert(in != NULL);
@@ -2456,7 +2477,7 @@ static int rp_decode_uint32(char const **in, unsigned int *val, char break_char)
 /* Decode a hex string to an unsigned 64-bit value */
 static int rp_decode_uint64(char const **in, uint64_t *val, char break_char)
 {
-    unsigned int nibble;
+    unsigned char nibble;
     uint64_t tmp;
     int count;
 
@@ -2488,7 +2509,7 @@ static int rp_decode_uint64(char const **in, uint64_t *val, char break_char)
 }
 
 /* Encode byte */
-static void rp_encode_byte(unsigned int val, char *out)
+static void rp_encode_byte(unsigned char val, char *out)
 {
     static const char hex[] = "0123456789abcdef";
 
@@ -2669,7 +2690,7 @@ static int handle_rcmd_command(char *in_buf, out_func of, data_func df, rp_targe
     int i;
     char *args[MAXARGS];
     char *ptr;
-    unsigned int ch;
+    unsigned char ch;
     char buf[1000 + 1];
     char *s;
 

@@ -1,3 +1,25 @@
+2008-09-10  Jie Zhang  <jie.zhang@analog.com>
+
+	* gdbproxy.c (rp_decode_reg): Use int for the type of
+	reg_no parameter. And adjust all callers.
+	(rp_decode_reg_assignment): Likewise.
+	(rp_decode_mem): Use int for the type of len parameter. And
+	adjust all callers.
+	(rp_decode_break): Likewise.
+	(rp_decode_nibble): use unsigned char for the type of
+	nibble parameter. And adjust all callers.
+	(rp_decode_byte): Likewise.
+	(rp_encode_byte): Likewise.
+
+	(handle_running_commands): Pass address of an uint32_t to
+	rp_decode_uint32.
+	(handle_query_command): Likewise.
+	(rp_decode_reg): Likewise.
+	(rp_decode_reg_assignment): Likewise.
+	(rp_decode_mem): Likewise.
+	(rp_decode_break): Likewise.
+	(rp_decode_uint32): The type of val parameter is uint32_t *.
+
 2008-09-08  Jie Zhang  <jie.zhang@analog.com>
 
 	* init.c (rp_init): Fix fprintf warning.
