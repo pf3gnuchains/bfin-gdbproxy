@@ -3,6 +3,8 @@
 	* configure.in: Change $host_os test to "case".
 	* configure: Regenerated.
 
+	* target_bfin_new.c (default_jtag_connect): Set to "cable gnICE".
+
 2008-09-11  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (dbgctl_bit_clear_and_set): New.

@@ -545,7 +545,7 @@ rp_target bfin_target = {
   bfin_threadextrainfo_query,
   bfin_packetsize_query,
 };
-static char default_jtag_connect[] = "cable gnICE ftdi-mpsse 0456:F000";
+static char default_jtag_connect[] = "cable gnICE";
 
 typedef struct _bfin_swbp
 {
