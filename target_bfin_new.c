@@ -1305,7 +1305,7 @@ core_scan_select (int core, int scan)
 }
 
 static void
-dbgctl_set (uint16_t v, int runtest)
+dbgctl_bit_clear_and_set (uint16_t m, uint16_t v, int runtest)
 {
   part_t *part;
   int i;
@@ -1315,6 +1315,7 @@ dbgctl_set (uint16_t v, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
+      cpu->cores[i].dbgctl &= ~m;
       cpu->cores[i].dbgctl |= v;
       register_init_value (part->active_instruction->data_register->in,
 			   cpu->cores[i].dbgctl);
@@ -1325,7 +1326,19 @@ dbgctl_set (uint16_t v, int runtest)
 }
 
 static void
-core_dbgctl_set (int core, uint16_t v, int runtest)
+dbgctl_bit_set (uint16_t v, int runtest)
+{
+  dbgctl_bit_clear_and_set (0, v, runtest);
+}
+
+static void
+dbgctl_bit_clear (uint16_t v, int runtest)
+{
+  dbgctl_bit_clear_and_set (v, 0, runtest);
+}
+
+static void
+core_dbgctl_bit_clear_and_set (int core, uint16_t m, uint16_t v, int runtest)
 {
   part_t *part;
 
@@ -1334,6 +1347,7 @@ core_dbgctl_set (int core, uint16_t v, int runtest)
   core_scan_select (core, DBGCTL_SCAN);
 
   part = cpu->chain->parts->parts[core];
+  cpu->cores[core].dbgctl &= ~m;
   cpu->cores[core].dbgctl |= v;
   register_init_value (part->active_instruction->data_register->in,
 		       cpu->cores[core].dbgctl);
@@ -1343,41 +1357,15 @@ core_dbgctl_set (int core, uint16_t v, int runtest)
 }
 
 static void
-dbgctl_clear (uint16_t v, int runtest)
+core_dbgctl_bit_set (int core, uint16_t v, int runtest)
 {
-  part_t *part;
-  int i;
-
-  scan_select (DBGCTL_SCAN);
-
-  for (i = 0; i < cpu->chain->parts->len; i++)
-    {
-      part = cpu->chain->parts->parts[i];
-      cpu->cores[i].dbgctl &= ~v;
-      register_init_value (part->active_instruction->data_register->in,
-			   cpu->cores[i].dbgctl);
-    }
-
-  chain_shift_data_registers_mode (cpu->chain, 0, 1,
-				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+  core_dbgctl_bit_clear_and_set (core, 0, v, runtest);
 }
 
 static void
-core_dbgctl_clear (int core, uint16_t v, int runtest)
+core_dbgctl_bit_clear (int core, uint16_t v, int runtest)
 {
-  part_t *part;
-
-  assert (core >= 0 && core < cpu->chain->parts->len);
-
-  core_scan_select (core, DBGCTL_SCAN);
-
-  part = cpu->chain->parts->parts[core];
-  cpu->cores[core].dbgctl &= ~v;
-  register_init_value (part->active_instruction->data_register->in,
-		       cpu->cores[core].dbgctl);
-
-  chain_shift_data_registers_mode (cpu->chain, 0, 1,
-				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+  core_dbgctl_bit_clear_and_set (core, v, 0, runtest);
 }
 
 static void
@@ -1941,10 +1929,10 @@ register_get (enum core_regnum reg, uint32_t *value)
 	abort ();
 
       register_get (REG_R0, r0);
-      dbgctl_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
       emuir_set_same_2 (gen_move (REG_R0, reg),
 			gen_move (REG_EMUDAT, REG_R0), RUNTEST);
-      dbgctl_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
     }
 
   scan_select (EMUDAT_SCAN);
@@ -1973,10 +1961,10 @@ core_register_get (int core, enum core_regnum reg)
   else
     {
       r0 = core_register_get (core, REG_R0);
-      core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
       core_emuir_set_2 (core, gen_move (REG_R0, reg),
 			gen_move (REG_EMUDAT, REG_R0), RUNTEST);
-      core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
     }
 
   core_scan_select (core, EMUDAT_SCAN);
@@ -2017,10 +2005,10 @@ register_set (enum core_regnum reg, uint32_t *value)
     emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
   else
     {
-      dbgctl_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
       emuir_set_same_2 (gen_move (REG_R0, REG_EMUDAT),
 			gen_move (reg, REG_R0), RUNTEST);
-      dbgctl_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
       register_set (REG_R0, r0);
       free (r0);
     }
@@ -2054,10 +2042,10 @@ register_set_same (enum core_regnum reg, uint32_t value)
     emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
   else
     {
-      dbgctl_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
       emuir_set_same_2 (gen_move (REG_R0, REG_EMUDAT),
 			gen_move (reg, REG_R0), RUNTEST);
-      dbgctl_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
       register_set (REG_R0, r0);
       free (r0);
     }
@@ -2084,10 +2072,10 @@ core_register_set (int core, enum core_regnum reg, uint32_t value)
     core_emuir_set (core, gen_move (reg, REG_EMUDAT), RUNTEST);
   else
     {
-      core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
       core_emuir_set_2 (core, gen_move (REG_R0, REG_EMUDAT),
 			gen_move (reg, REG_R0), RUNTEST);
-      core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
       core_register_set (core, REG_R0, r0);
     }
 }
@@ -2542,11 +2530,11 @@ emulation_enable (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: emulation_enable ()", bfin_target.name);
 
-  dbgctl_set (DBGCTL_EMPWR, UPDATE);
+  dbgctl_bit_set (DBGCTL_EMPWR, UPDATE);
   dbgstat_show ("EMPWR");
-  dbgctl_set (DBGCTL_EMFEN, UPDATE);
+  dbgctl_bit_set (DBGCTL_EMFEN, UPDATE);
   dbgstat_show ("EMFEN");
-  dbgctl_set (DBGCTL_EMUIRSZ_32 | DBGCTL_EMUDATSZ_32, UPDATE);
+  dbgctl_bit_set (DBGCTL_EMUIRSZ_32 | DBGCTL_EMUDATSZ_32, UPDATE);
   dbgstat_show ("EMUIRSZ|EMUDATSZ");
 }
 
@@ -2556,11 +2544,11 @@ core_emulation_enable (int core)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: [%d] core_emulation_enable ()", bfin_target.name, core);
 
-  core_dbgctl_set (core, DBGCTL_EMPWR, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMPWR, UPDATE);
   core_dbgstat_show (core, "EMPWR");
-  core_dbgctl_set (core, DBGCTL_EMFEN, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMFEN, UPDATE);
   core_dbgstat_show (core, "EMFEN");
-  core_dbgctl_set (core, DBGCTL_EMUIRSZ_32 | DBGCTL_EMUDATSZ_32, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRSZ_32 | DBGCTL_EMUDATSZ_32, UPDATE);
   core_dbgstat_show (core, "EMUIRSZ|EMUDATSZ");
 }
 
@@ -2572,7 +2560,7 @@ emulation_trigger (void)
 
   emuir_set_same (INSN_NOP, UPDATE);
   dbgstat_show ("before");
-  dbgctl_set (DBGCTL_EMEEN | DBGCTL_EMPEN | DBGCTL_WAKEUP, RUNTEST);
+  dbgctl_bit_set (DBGCTL_EMEEN | DBGCTL_EMPEN | DBGCTL_WAKEUP, RUNTEST);
   dbgstat_show ("after");
 }
 
@@ -2584,7 +2572,7 @@ core_emulation_trigger (int core)
 
   core_emuir_set (core, INSN_NOP, UPDATE);
   core_dbgstat_show (core, "before");
-  core_dbgctl_set (core, DBGCTL_EMEEN | DBGCTL_EMPEN | DBGCTL_WAKEUP,
+  core_dbgctl_bit_set (core, DBGCTL_EMEEN | DBGCTL_EMPEN | DBGCTL_WAKEUP,
 		   RUNTEST);
   core_dbgstat_show (core, "after");
 }
@@ -2597,7 +2585,7 @@ emulation_return (void)
 
   emuir_set_same (INSN_RTE, UPDATE);
   dbgstat_show ("before");
-  dbgctl_clear (DBGCTL_EMEEN | DBGCTL_WAKEUP, RUNTEST);
+  dbgctl_bit_clear (DBGCTL_EMEEN | DBGCTL_WAKEUP, RUNTEST);
   dbgstat_show ("after");
 }
 
@@ -2609,7 +2597,7 @@ core_emulation_return (int core)
 
   core_emuir_set (core, INSN_RTE, UPDATE);
   core_dbgstat_show (core, "before");
-  core_dbgctl_clear (core, DBGCTL_EMEEN | DBGCTL_WAKEUP, RUNTEST);
+  core_dbgctl_bit_clear (core, DBGCTL_EMEEN | DBGCTL_WAKEUP, RUNTEST);
   core_dbgstat_show (core, "after");
 }
 
@@ -2619,7 +2607,7 @@ emulation_disable (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: emulation_disable ()", bfin_target.name);
 
-  dbgctl_clear (DBGCTL_EMPWR, UPDATE);
+  dbgctl_bit_clear (DBGCTL_EMPWR, UPDATE);
 }
 
 static void
@@ -2628,7 +2616,7 @@ core_emulation_disable (int core)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: [%d] core_emulation_disable ()", bfin_target.name, core);
 
-  core_dbgctl_clear (core, DBGCTL_EMPWR, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMPWR, UPDATE);
 }
 
 static void
@@ -2661,16 +2649,16 @@ core_reset (void)
   emulation_disable ();
 
   core_emuir_set (cpu->core_a, INSN_NOP, UPDATE);
-  dbgctl_set (DBGCTL_SRAM_INIT, UPDATE);
-  core_dbgctl_set (cpu->core_a, DBGCTL_SYSRST, RUNTEST);
+  dbgctl_bit_set (DBGCTL_SRAM_INIT, UPDATE);
+  core_dbgctl_bit_set (cpu->core_a, DBGCTL_SYSRST, RUNTEST);
   wait_in_reset ();
-  core_dbgctl_clear (cpu->core_a, DBGCTL_SYSRST, UPDATE);
+  core_dbgctl_bit_clear (cpu->core_a, DBGCTL_SYSRST, UPDATE);
   wait_reset ();
 
   emulation_enable ();
   emulation_trigger ();
 
-  dbgctl_clear (DBGCTL_SRAM_INIT, UPDATE);
+  dbgctl_bit_clear (DBGCTL_SRAM_INIT, UPDATE);
 }
 
 static uint32_t
@@ -2682,7 +2670,7 @@ mmr_read_clobber_p0r0 (int core, int32_t offset, int size)
 
   if (offset == 0)
     {
-      core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
       if (size == 2)
 	core_emuir_set_2 (core,
@@ -2704,7 +2692,7 @@ mmr_read_clobber_p0r0 (int core, int32_t offset, int size)
   value = core_emudat_get (core, RUNTEST);
 
   if (offset == 0)
-    core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+    core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   return value;
 }
@@ -2838,7 +2826,7 @@ mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, int size)
 
   if (offset == 0)
     {
-      core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
       if (size == 2)
 	core_emuir_set_2 (core,
@@ -2859,7 +2847,7 @@ mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, int size)
     }
 
   if (offset == 0)
-    core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+    core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 }
 
 static void
@@ -3094,22 +3082,22 @@ core_dcplb_get_clobber_p0r0 (int core)
   int i;
 
   core_register_set (core, REG_P0, DCPLB_ADDR0);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   core_emuir_set_2 (core,
 		    gen_load32pi (REG_R0, REG_P0),
 		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     cpu->cores[core].dcplbs[i].addr = core_emudat_get (core, RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   core_register_set (core, REG_P0, DCPLB_DATA0);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   core_emuir_set_2 (core,
 		    gen_load32pi (REG_R0, REG_P0),
 		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     cpu->cores[core].dcplbs[i].data = core_emudat_get (core, RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 }
 
 static void
@@ -3132,22 +3120,22 @@ core_dcplb_set_clobber_p0r0 (int core)
   int i;
 
   core_register_set (core, REG_P0, DCPLB_ADDR0);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].dcplbs[i].addr, RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   core_register_set (core, REG_P0, DCPLB_DATA0);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].dcplbs[i].data, RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 }
 
 static void
@@ -3170,22 +3158,22 @@ core_icplb_set_clobber_p0r0 (int core)
   int i;
 
   core_register_set (core, REG_P0, ICPLB_ADDR0);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_ICPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].icplbs[i].addr, RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   core_register_set (core, REG_P0, ICPLB_DATA0);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_ICPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].icplbs[i].data, RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 }
 
 static void
@@ -3991,12 +3979,12 @@ cache_flush (int core, uint32_t addr, int size)
   p0 = core_register_get (core, REG_P0);
 
   core_register_set (core, REG_P0, addr);
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
   for (i = (size + addr % CACHE_LINE_BYTES - 1) / CACHE_LINE_BYTES + 1;
        i > 0; i--)
     core_emuir_set_2 (core, gen_flush (REG_P0),
 		      gen_iflush_pm (REG_P0), RUNTEST);
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   core_register_set (core, REG_P0, p0);
 }
@@ -4020,7 +4008,7 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 
   core_register_set (core, REG_P0, addr);
 
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   if ((addr & 0x3) != 0)
     core_emuir_set_2 (core,
@@ -4064,7 +4052,7 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 
 finish_read:
 
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   dcplb_restore_clobber_p0r0 (core, clobbered);
 
@@ -4320,7 +4308,7 @@ memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 
   core_register_set (core, REG_P0, addr);
 
-  core_dbgctl_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   if ((addr & 0x3) != 0)
     core_emuir_set_2 (core,
@@ -4364,7 +4352,7 @@ memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 
 finish_write:
 
-  core_dbgctl_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
 
   dcplb_restore_clobber_p0r0 (core, clobbered);
 
@@ -4558,11 +4546,11 @@ core_single_step (int core)
 	    "%s: [%d] core_single_step ()", bfin_target.name, core);
 
   if (!cpu->cores[core].is_stepping)
-    core_dbgctl_set (core, DBGCTL_ESSTEP, UPDATE);
+    core_dbgctl_bit_set (core, DBGCTL_ESSTEP, UPDATE);
   core_emuir_set (core, INSN_RTE, RUNTEST);
   core_wait_emuready (core);
   if (!cpu->cores[core].is_stepping)
-    core_dbgctl_clear (core, DBGCTL_ESSTEP, UPDATE);
+    core_dbgctl_bit_clear (core, DBGCTL_ESSTEP, UPDATE);
 }
 
 static void
@@ -5451,7 +5439,7 @@ bfin_disconnect (void)
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (cpu->cores[i].is_stepping)
       {
-	core_dbgctl_clear (i, DBGCTL_ESSTEP, UPDATE);
+	core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
 	cpu->cores[i].is_stepping = 0;
       }
 
@@ -5497,7 +5485,7 @@ bfin_stop (void)
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (cpu->cores[i].is_stepping)
       {
-	core_dbgctl_clear (i, DBGCTL_ESSTEP, UPDATE);
+	core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
 	cpu->cores[i].is_stepping = 0;
       }
 
@@ -6476,12 +6464,12 @@ bfin_resume_from_current (int step, int sig)
 	{
 	  if (step && !cpu->cores[i].is_stepping)
 	    {
-	      core_dbgctl_set (i, DBGCTL_ESSTEP, UPDATE);
+	      core_dbgctl_bit_set (i, DBGCTL_ESSTEP, UPDATE);
 	      cpu->cores[i].is_stepping = 1;
 	    }
 	  else if (!step && cpu->cores[i].is_stepping)
 	    {
-	      core_dbgctl_clear (i, DBGCTL_ESSTEP, UPDATE);
+	      core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
 	      cpu->cores[i].is_stepping = 0;
 	    }
 
@@ -6497,7 +6485,7 @@ bfin_resume_from_current (int step, int sig)
 	{
 	  if (cpu->cores[i].is_stepping)
 	    {
-	      core_dbgctl_clear (i, DBGCTL_ESSTEP, UPDATE);
+	      core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
 	      cpu->cores[i].is_stepping = 0;
 	    }
 

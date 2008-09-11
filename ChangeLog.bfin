@@ -1,3 +1,19 @@
+2008-09-11  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (dbgctl_bit_clear_and_set): New.
+	(dbgctl_bit_set): New.
+	(core_dbgctl_bit_set): New.
+	(dbgctl_bit_clear): New.
+	(core_dbgctl_bit_clear): New.
+	(dbgctl_set): Remove. Call dbgctl_bit_set instead on
+	its all call sites.
+	(core_dbgctl_set): Remove. Call core_dbgctl_bit_set instead
+	on its all call sites.
+	(dbgctl_clear): Remove. Call dbgctl_bit_clear instead on
+	its all call sites.
+	(core_dbgctl_clear): Remove. Call core_dbgctl_bit_clear instead
+	on its all call sites.
+
 2008-09-10  Jie Zhang  <jie.zhang@analog.com>
 
 	* gdbproxy.c (rp_decode_reg): Use int for the type of
