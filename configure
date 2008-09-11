@@ -13006,8 +13006,9 @@ done
 
 
 USE_RC_SOURCES="false"
-if test "$host_os" = "mingw32" ; then
-    if test -n "$ac_tool_prefix"; then
+case $host_os in
+       *mingw32*)
+           if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}windres", so it can be a program name with args.
 set dummy ${ac_tool_prefix}windres; ac_word=$2
 { $as_echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -13103,14 +13104,14 @@ else
   WINDRES="$ac_cv_prog_WINDRES"
 fi
 
-    LIBS="$LIBS -lws2_32"
-    USE_RC_SOURCES="true"
-fi
-
-if test "$host_os" = "cygwin" ; then
-    CFLAGS="$CFLAGS -mno-cygwin"
-    LIBS="$LIBS -lws2_32"
-fi
+           LIBS="$LIBS -lws2_32"
+           USE_RC_SOURCES="true"
+               ;;
+       *cygwin*)
+       CFLAGS="$CFLAGS -mno-cygwin"
+       LIBS="$LIBS -lws2_32"
+               ;;
+esac
 
 
 if $USE_RC_SOURCES; then
