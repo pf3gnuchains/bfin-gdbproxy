@@ -6056,11 +6056,11 @@ bfin_read_mem (uint64_t addr,
 
       ret = memory_read (core, (uint32_t) addr, buf, req_size);
     }
-  else if (addr >= cpu->mem_map.flash
-	   && addr < cpu->mem_map.flash_end)
+  else if (addr >= cpu->mem_map.async_mem
+	   && addr < cpu->mem_map.async_mem_end)
     {
-      if (addr + req_size > cpu->mem_map.flash_end)
-	req_size = cpu->mem_map.flash_end - addr;
+      if (addr + req_size > cpu->mem_map.async_mem_end)
+	req_size = cpu->mem_map.async_mem_end - addr;
 
       ret = memory_read (core, (uint32_t) addr, buf, req_size);
     }
@@ -6367,10 +6367,9 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
   if ((addr >= cpu->mem_map.sdram
        && addr < cpu->mem_map.sdram_end
        && addr + write_size <= cpu->mem_map.sdram_end)
-      || (addr >= cpu->mem_map.flash
-	  && addr < cpu->mem_map.flash_end
-	  && addr + write_size <= cpu->mem_map.flash_end)
-      /* TODO  Allow access to devices mapped to async mem.  */
+      || (addr >= cpu->mem_map.async_mem
+	  && addr < cpu->mem_map.async_mem_end
+	  && addr + write_size <= cpu->mem_map.async_mem_end)
       || (addr >= cpu->mem_map.l2_sram
 	  && addr < cpu->mem_map.l2_sram_end
 	  && addr + write_size <= cpu->mem_map.l2_sram_end))
