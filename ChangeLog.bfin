@@ -1,3 +1,8 @@
+2008-09-14  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (dbgstat_show): Rearrange output string.
+	(core_dbgstat_show): Likewise.
+
 2008-09-14  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bfin_read_mem): Change flash to async.

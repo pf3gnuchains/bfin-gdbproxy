@@ -1477,8 +1477,8 @@ dbgstat_show (const char *id)
 
   dbgstat_get ();
   for (i = 0; i < cpu->chain->parts->len; i++)
-    bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	      "<%s> [%d] DBGSTAT [0x%08X]", id, i, cpu->cores[i].dbgstat);
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] DBGSTAT [0x%04X] <%s>",
+	      i, cpu->cores[i].dbgstat, id);
 }
 
 static void
@@ -1487,8 +1487,8 @@ core_dbgstat_show (int core, const char *id)
   assert (id != NULL);
 
   core_dbgstat_get (core);
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "<%s> [%d] DBGSTAT [0x%08X]", id, core, cpu->cores[core].dbgstat);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] DBGSTAT [0x%04X] <%s>",
+	    core, cpu->cores[core].dbgstat, id);
 }
 
 static void
