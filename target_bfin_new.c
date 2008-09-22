@@ -40,40 +40,9 @@
 #include "cmd.h"
 #include "jtag.h"
 
+#include "blackfin-part.h"
 
 /* MMRs definitions */
-
-#define DBGCTL_SRAM_INIT		0x1000
-#define DBGCTL_WAKEUP			0x0800
-#define DBGCTL_SYSRST			0x0400
-#define DBGCTL_ESSTEP			0x0200
-#define DBGCTL_EMUDATSZ_32		0x0000
-#define DBGCTL_EMUDATSZ_40		0x0080
-#define DBGCTL_EMUDATSZ_48		0x0100
-#define DBGCTL_EMUDATSZ_MASK		0x0180
-#define DBGCTL_EMUIRLPSZ_2		0x0040
-#define DBGCTL_EMUIRSZ_64		0x0000
-#define DBGCTL_EMUIRSZ_48		0x0010
-#define DBGCTL_EMUIRSZ_32		0x0020
-#define DBGCTL_EMUIRSZ_MASK		0x0030
-#define DBGCTL_EMPEN			0x0008
-#define DBGCTL_EMEEN			0x0004
-#define DBGCTL_EMFEN			0x0002
-#define DBGCTL_EMPWR			0x0001
-
-#define DBGSTAT_LPDEC1			0x8000
-#define DBGSTAT_CORE_FAULT		0x4000
-#define DBGSTAT_IDLE			0x2000
-#define DBGSTAT_IN_RESET		0x1000
-#define DBGSTAT_LPDEC0			0x0800
-#define DBGSTAT_BIST_DONE		0x0400
-#define DBGSTAT_EMUCAUSE_MASK		0x03c0
-#define DBGSTAT_EMUACK			0x0020
-#define DBGSTAT_EMUREADY		0x0010
-#define DBGSTAT_EMUDIOVF		0x0008
-#define DBGSTAT_EMUDOOVF		0x0004
-#define DBGSTAT_EMUDIF			0x0002
-#define DBGSTAT_EMUDOF			0x0001
 
 #define EMUCAUSE_EMUEXCPT		0x0
 #define EMUCAUSE_EMUIN			0x1
@@ -239,9 +208,6 @@ const static char *emucause_infos[] = {
 
 #define CACHE_LINE_BYTES		32
 
-#define DTEST_COMMAND			0xffe00300
-#define ITEST_COMMAND			0xffe01300
-
 #define BFIN_DCPLB_NUM			16
 #define BFIN_ICPLB_NUM			16
 
@@ -285,10 +251,10 @@ const static char *scans[] = {
   "BYPASS",
 };
 
-#define INSN_NOP			0x00000000
-#define INSN_RTE			0x00140000
-#define INSN_CSYNC			0x00230000
-#define INSN_SSYNC			0x00240000
+#define INSN_NOP			0x0000
+#define INSN_RTE			0x0014
+#define INSN_CSYNC			0x0023
+#define INSN_SSYNC			0x0024
 #define INSN_ILLEGAL			0xffffffff
 
 #define UPDATE				0
@@ -705,6 +671,27 @@ static bfin_l1_map bf561_b_l1_map = {
   .l1_scratch_end	= 0xff701000,
   .l1_end		= 0xff800000,
 };
+static bfin_l1_map bf579_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff804000,
+  //  .l1_data_a_cache	= 0xff804000,
+  //  .l1_data_a_cache_end	= 0xff808000,
+  .l1_data_b		= 0xff900000,
+  .l1_data_b_end	= 0xff904000,
+  //  .l1_data_b_cache	= 0xff904000,
+  //  .l1_data_b_cache_end	= 0xff908000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa10000,
+  // ??? L1 secondary Icache configured as ISRAM
+  .l1_code_cache	= 0xffa10000,
+  .l1_code_cache_end	= 0xffa14000,
+  //  .l1_code_rom		= 0xffa14000,
+  //  .l1_code_rom_end	= 0xffa24000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb02000,
+  .l1_end		= 0xffc00000,
+};
 
 typedef struct _bfin_mem_map
 {
@@ -808,6 +795,22 @@ static bfin_mem_map bf561_mem_map = {
   .l2_sram		= 0xfeb00000,
   .l2_sram_end		= 0xfeb20000,
   .l1			= 0xff400000,
+  .l1_end		= 0xffc00000,
+  .sysmmr		= 0xffc00000,
+  .coremmr		= 0xffe00000,
+};
+static bfin_mem_map bf579_mem_map = {
+  .sdram		= 0,
+  .sdram_end		= 0,
+  .async_mem		= 0,
+  .flash		= 0,
+  .flash_end		= 0,
+  .async_mem_end	= 0,
+  .boot_rom		= 0,
+  .boot_rom_end		= 0,
+  .l2_sram		= 0,
+  .l2_sram_end		= 0,
+  .l1			= 0xff800000,
   .l1_end		= 0xffc00000,
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
@@ -988,10 +991,6 @@ static int bfin_enable_icache = 0;
 
 /* Local functions */
 
-static char *bfin_out_treg (char *in, unsigned int reg_no);
-static char *bfin_out_treg_value (char *in, unsigned int reg_no,
-				  uint32_t value);
-
 static uint32_t
 gen_move (enum core_regnum dest, enum core_regnum src)
 {
@@ -1003,7 +1002,7 @@ gen_move (enum core_regnum dest, enum core_regnum src)
   insn |= GROUP (src) << 6;
   insn |= GROUP (dest) << 9;
 
-  return insn << 16;
+  return insn;
 }
 
 static uint32_t
@@ -1088,7 +1087,7 @@ gen_ldst (enum core_regnum reg,
   insn |= w << 9;
   insn |= sz << 10;
 
-  return insn << 16;
+  return insn;
 }
 
 static uint32_t
@@ -1178,7 +1177,7 @@ gen_flush_insn (enum core_regnum addr, int op, int post_modify)
   insn |= op << 3;
   insn |= post_modify << 5;
 
-  return insn << 16;
+  return insn;
 }
 
 static uint32_t
@@ -1229,32 +1228,6 @@ gen_prefetch_pm (enum core_regnum addr)
   return gen_flush_insn (addr, 0, 1);
 }
 
-static tap_register *
-register_init_value (tap_register *tr, uint64_t value)
-{
-  int i;
-
-  assert (tr->len <= 64);
-
-  for (i = 0; i < tr->len; i++)
-    tr->data[i] = (value >> (tr->len - i - 1)) & 1;
-
-  return tr;
-}
-
-static uint64_t
-register_value (tap_register *tr)
-{
-  uint64_t v = 0;
-  int i;
-
-  assert (tr->len <= 64);
-
-  for (i = 0; i < tr->len; i++)
-    v |= tr->data[i] << (tr->len - i - 1);
-
-  return v;
-}
 
 static void
 scan_select (int scan)
@@ -1304,99 +1277,195 @@ core_scan_select (int core, int scan)
     chain_shift_instructions_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 }
 
-static void
-dbgctl_bit_clear_and_set (uint16_t m, uint16_t v, int runtest)
+#define DBGCTL_CLEAR_OR_SET_BIT(name)					\
+  static void								\
+  dbgctl_bit_clear_or_set_##name (int runtest, int set)			\
+  {									\
+    int i;								\
+									\
+    scan_select (DBGCTL_SCAN);						\
+    for (i = 0; i < cpu->chain->parts->len; i++)			\
+      {									\
+	part_t *part = cpu->chain->parts->parts[i];			\
+	uint16_t dbgctl = cpu->cores[i].dbgctl;				\
+									\
+	dbgctl = part_dbgctl_bit_clear_or_set_##name (part, dbgctl, set); \
+	part_dbgctl_init (part, dbgctl);					\
+	cpu->cores[i].dbgctl = dbgctl;					\
+      }									\
+    chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ?	\
+				     EXITMODE_IDLE : EXITMODE_UPDATE);	\
+  }
+
+#define DBGCTL_SET_BIT(name)						\
+  static void								\
+  dbgctl_bit_set_##name (int runtest)					\
+  {									\
+    dbgctl_bit_clear_or_set_##name (runtest, 1);			\
+  }
+
+#define DBGCTL_CLEAR_BIT(name)						\
+  static void								\
+  dbgctl_bit_clear_##name (int runtest)					\
+  {									\
+    dbgctl_bit_clear_or_set_##name (runtest, 0);			\
+  }
+
+#define CORE_DBGCTL_CLEAR_OR_SET_BIT(name)				\
+  static void								\
+  core_dbgctl_bit_clear_or_set_##name (int core, int runtest, int set)	\
+  {									\
+    part_t *part = cpu->chain->parts->parts[core];			\
+    uint16_t dbgctl = cpu->cores[core].dbgctl;				\
+									\
+    core_scan_select (core, DBGCTL_SCAN);				\
+									\
+    dbgctl = part_dbgctl_bit_clear_or_set_##name (part, dbgctl, set);	\
+    part_dbgctl_init (part, dbgctl);					\
+    cpu->cores[core].dbgctl = dbgctl;					\
+									\
+    chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ?	\
+				     EXITMODE_IDLE : EXITMODE_UPDATE);	\
+  }
+
+#define CORE_DBGCTL_SET_BIT(name)					\
+  static void								\
+  core_dbgctl_bit_set_##name (int core, int runtest)			\
+  {									\
+    core_dbgctl_bit_clear_or_set_##name (core, runtest, 1);		\
+  }
+
+#define CORE_DBGCTL_CLEAR_BIT(name)					\
+  static void								\
+  core_dbgctl_bit_clear_##name (int core, int runtest)			\
+  {									\
+    core_dbgctl_bit_clear_or_set_##name (core, runtest, 0);		\
+  }
+
+#define DBGCTL_BIT_OP(name)						\
+  DBGCTL_CLEAR_OR_SET_BIT(name)						\
+  DBGCTL_SET_BIT(name)							\
+  DBGCTL_CLEAR_BIT(name)						\
+  CORE_DBGCTL_CLEAR_OR_SET_BIT(name)					\
+  CORE_DBGCTL_SET_BIT(name)						\
+  CORE_DBGCTL_CLEAR_BIT(name)
+
+
+/* These functions check cached DBGSTAT. So before calling them,
+   dbgstat_get or core_dbgstat_get has to be called to update cached
+   DBGSTAT value.  */
+
+#define CORE_DBGSTAT_BIT_IS(name)					\
+  static int								\
+  core_dbgstat_is_##name (int core)					\
+  {									\
+    part_t *part = cpu->chain->parts->parts[core];			\
+    return part_dbgstat_is_##name (part, cpu->cores[core].dbgstat);	\
+  }
+
+
+DBGCTL_BIT_OP (sram_init)
+DBGCTL_BIT_OP (wakeup)
+DBGCTL_BIT_OP (sysrst)
+DBGCTL_BIT_OP (esstep)
+DBGCTL_BIT_OP (emudatsz_32)
+DBGCTL_BIT_OP (emudatsz_40)
+DBGCTL_BIT_OP (emudatsz_48)
+DBGCTL_BIT_OP (emuirlpsz_2)
+DBGCTL_BIT_OP (emuirsz_64)
+DBGCTL_BIT_OP (emuirsz_48)
+DBGCTL_BIT_OP (emuirsz_32)
+DBGCTL_BIT_OP (empen)
+DBGCTL_BIT_OP (emeen)
+DBGCTL_BIT_OP (emfen)
+DBGCTL_BIT_OP (empwr)
+
+CORE_DBGSTAT_BIT_IS (lpdec1)
+CORE_DBGSTAT_BIT_IS (in_powrgate)
+CORE_DBGSTAT_BIT_IS (core_fault)
+CORE_DBGSTAT_BIT_IS (idle)
+CORE_DBGSTAT_BIT_IS (in_reset)
+CORE_DBGSTAT_BIT_IS (lpdec0)
+CORE_DBGSTAT_BIT_IS (bist_done)
+CORE_DBGSTAT_BIT_IS (emuack)
+CORE_DBGSTAT_BIT_IS (emuready)
+CORE_DBGSTAT_BIT_IS (emudiovf)
+CORE_DBGSTAT_BIT_IS (emudoovf)
+CORE_DBGSTAT_BIT_IS (emudif)
+CORE_DBGSTAT_BIT_IS (emudof)
+
+static uint16_t
+core_dbgstat_emucause (int core)
 {
   part_t *part;
-  int i;
-
-  scan_select (DBGCTL_SCAN);
-
-  for (i = 0; i < cpu->chain->parts->len; i++)
-    {
-      part = cpu->chain->parts->parts[i];
-      cpu->cores[i].dbgctl &= ~m;
-      cpu->cores[i].dbgctl |= v;
-      register_init_value (part->active_instruction->data_register->in,
-			   cpu->cores[i].dbgctl);
-    }
-
-  chain_shift_data_registers_mode (cpu->chain, 0, 1,
-				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
-}
-
-static void
-dbgctl_bit_set (uint16_t v, int runtest)
-{
-  dbgctl_bit_clear_and_set (0, v, runtest);
-}
-
-static void
-dbgctl_bit_clear (uint16_t v, int runtest)
-{
-  dbgctl_bit_clear_and_set (v, 0, runtest);
-}
-
-static void
-core_dbgctl_bit_clear_and_set (int core, uint16_t m, uint16_t v, int runtest)
-{
-  part_t *part;
-
-  assert (core >= 0 && core < cpu->chain->parts->len);
-
-  core_scan_select (core, DBGCTL_SCAN);
+  uint16_t mask;
+  uint16_t emucause;
 
   part = cpu->chain->parts->parts[core];
-  cpu->cores[core].dbgctl &= ~m;
-  cpu->cores[core].dbgctl |= v;
-  register_init_value (part->active_instruction->data_register->in,
-		       cpu->cores[core].dbgctl);
+  mask = part_dbgstat_emucause_mask (part);
+  emucause = cpu->cores[core].dbgstat & mask;
 
-  chain_shift_data_registers_mode (cpu->chain, 0, 1,
-				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
-}
+  while (!(mask & 0x1))
+    {
+      mask >>= 1;
+      emucause >>= 1;
+    }
 
-static void
-core_dbgctl_bit_set (int core, uint16_t v, int runtest)
-{
-  core_dbgctl_bit_clear_and_set (core, 0, v, runtest);
-}
-
-static void
-core_dbgctl_bit_clear (int core, uint16_t v, int runtest)
-{
-  core_dbgctl_bit_clear_and_set (core, v, 0, runtest);
+  return emucause;
 }
 
 static void
 dbgstat_get (void)
 {
-  tap_register *r;
+  part_t *part;
   int i;
 
   scan_select (DBGSTAT_SCAN);
 
-  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
+  /* After doing a shiftDR you always must eventually do an
+     update-DR. The dbgstat and dbgctl registers are in the same scan
+     chain.  Therefore when you want to read dbgstat you have to be
+     careful not to corrupt the dbgctl register in the process. So you
+     have to shift out the value that is currently in the dbgctl and
+     dbgstat registers, then shift back the same value into the dbgctl
+     so that when you do an updateDR you will not change the dbgctl
+     register when all you wanted to do is read the dbgstat value.  */
+
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
-      r = cpu->chain->parts->parts[i]->active_instruction->data_register->out;
-      cpu->cores[i].dbgstat = register_value (r);
+      part = cpu->chain->parts->parts[i];
+      if (part_dbgctl_dbgstat_in_one_chain (part))
+	part_dbgctl_init (part, cpu->cores[i].dbgctl);
+    }
+
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
+
+  for (i = 0; i < cpu->chain->parts->len; i++)
+    {
+      part = cpu->chain->parts->parts[i];
+      cpu->cores[i].dbgstat = part_dbgstat_value (part);
     }
 }
 
 static void
 core_dbgstat_get (int core)
 {
-  tap_register *r;
+  part_t *part;
 
   assert (core >= 0 && core < cpu->chain->parts->len);
 
   core_scan_select (core, DBGSTAT_SCAN);
 
+  /* See above comments.  */
+
+  part = cpu->chain->parts->parts[core];
+
+  if (part_dbgctl_dbgstat_in_one_chain (part))
+    part_dbgctl_init (part, cpu->cores[core].dbgctl);
+
   chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
 
-  r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
-  cpu->cores[core].dbgstat = register_value (r);
+  cpu->cores[core].dbgstat = part_dbgstat_value (part);
 }
 
 static void
@@ -1435,17 +1504,22 @@ core_emupc_get (int core)
 static void
 dbgstat_clear_ovfs (void)
 {
-  tap_register *r;
   int i;
 
   scan_select (DBGSTAT_SCAN);
 
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
-      cpu->cores[i].dbgstat |= DBGSTAT_EMUDIOVF | DBGSTAT_EMUDOOVF;
-      r = cpu->chain->parts->parts[i]->active_instruction->data_register->in;
-      register_init_value (r, cpu->cores[i].dbgstat);
-      cpu->cores[i].dbgstat &= ~(DBGSTAT_EMUDIOVF | DBGSTAT_EMUDOOVF);
+      part_t *part = cpu->chain->parts->parts[i];
+      tap_register *r = part->active_instruction->data_register->in;
+      uint16_t dbgstat = cpu->cores[i].dbgstat;
+
+      dbgstat = part_dbgstat_bit_set_emudiovf (part, dbgstat);
+      dbgstat = part_dbgstat_bit_set_emudoovf (part, dbgstat);
+      register_init_value (r, dbgstat);
+      dbgstat = part_dbgstat_bit_clear_emudiovf (part, dbgstat);
+      dbgstat = part_dbgstat_bit_clear_emudoovf (part, dbgstat);
+      cpu->cores[i].dbgstat = dbgstat;
     }
 
   chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
@@ -1454,16 +1528,18 @@ dbgstat_clear_ovfs (void)
 static void
 core_dbgstat_clear_ovfs (int core)
 {
-  tap_register *r;
-
-  assert (core >= 0 && core < cpu->chain->parts->len);
+  part_t *part = cpu->chain->parts->parts[core];
+  tap_register *r = part->active_instruction->data_register->in;
+  uint16_t dbgstat = cpu->cores[core].dbgstat;
 
   core_scan_select (core, DBGSTAT_SCAN);
 
-  cpu->cores[core].dbgstat |= DBGSTAT_EMUDIOVF | DBGSTAT_EMUDOOVF;
-  r = cpu->chain->parts->parts[core]->active_instruction->data_register->in;
-  register_init_value (r, cpu->cores[core].dbgstat);
-  cpu->cores[core].dbgstat &= ~(DBGSTAT_EMUDIOVF | DBGSTAT_EMUDOOVF);
+  dbgstat = part_dbgstat_bit_set_emudiovf (part, dbgstat);
+  dbgstat = part_dbgstat_bit_set_emudoovf (part, dbgstat);
+  register_init_value (r, dbgstat);
+  dbgstat = part_dbgstat_bit_clear_emudiovf (part, dbgstat);
+  dbgstat = part_dbgstat_bit_clear_emudoovf (part, dbgstat);
+  cpu->cores[core].dbgstat = dbgstat;
 
   chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 }
@@ -1501,9 +1577,13 @@ wait_emuready (void)
 try_again:
 
   dbgstat_get ();
-  emuready = DBGSTAT_EMUREADY;
+  emuready = 1;
   for (i = 0; i < cpu->chain->parts->len; i++)
-    emuready &= cpu->cores[i].dbgstat & DBGSTAT_EMUREADY;
+    if (!(core_dbgstat_is_emuready (i)))
+      {
+	emuready = 0;
+	break;
+      }
 
   if (waited)
     assert (emuready);
@@ -1525,7 +1605,10 @@ core_wait_emuready (int core)
 try_again:
 
   core_dbgstat_get (core);
-  emuready = cpu->cores[core].dbgstat & DBGSTAT_EMUREADY;
+  if (core_dbgstat_is_emuready (core))
+    emuready = 1;
+  else
+    emuready = 0;
 
   if (waited)
     assert (emuready);
@@ -1538,6 +1621,13 @@ try_again:
     }
 }
 
+static int
+core_sticky_in_reset (int core)
+{
+  part_t *part = cpu->chain->parts->parts[core];
+  return part_sticky_in_reset (part);
+}
+
 static void
 wait_in_reset (void)
 {
@@ -1548,9 +1638,13 @@ wait_in_reset (void)
 try_again:
 
   dbgstat_get ();
-  in_reset = DBGSTAT_IN_RESET;
+  in_reset = 1;
   for (i = 0; i < cpu->chain->parts->len; i++)
-    in_reset &= cpu->cores[i].dbgstat & DBGSTAT_IN_RESET;
+    if (!(core_dbgstat_is_in_reset (i)))
+      {
+	in_reset = 0;
+	break;
+      }
 
   if (waited)
     assert (in_reset);
@@ -1572,7 +1666,10 @@ core_wait_in_reset (int core)
 try_again:
 
   core_dbgstat_get (core);
-  in_reset = cpu->cores[core].dbgstat & DBGSTAT_IN_RESET;
+  if (core_dbgstat_is_in_reset (core))
+    in_reset = 1;
+  else
+    in_reset = 0;
 
   if (waited)
     assert (in_reset);
@@ -1597,7 +1694,11 @@ try_again:
   dbgstat_get ();
   in_reset = 0;
   for (i = 0; i < cpu->chain->parts->len; i++)
-    in_reset |= cpu->cores[i].dbgstat & DBGSTAT_IN_RESET;
+    if (core_dbgstat_is_in_reset (i) && !core_sticky_in_reset (i))
+      {
+	in_reset = 1;
+	break;
+      }
 
   if (waited)
     assert (!in_reset);
@@ -1619,7 +1720,10 @@ core_wait_reset (int core)
 try_again:
 
   core_dbgstat_get (core);
-  in_reset = cpu->cores[core].dbgstat & DBGSTAT_IN_RESET;
+  if (core_dbgstat_is_in_reset (core) && !core_sticky_in_reset (core))
+    in_reset = 1;
+  else
+    in_reset = 0;
 
   if (waited)
     assert (!in_reset);
@@ -1632,10 +1736,43 @@ try_again:
     }
 }
 
+/* If EMUIR has two identify bits, set it properly.
+   [len-1:len-2] is
+     1 for 16-bit instruction.
+     2 for 32-bit instruction.
+     3 for 64-bit instruction.
+   [len-1] is in data[0] and [len-2] is in data[1].
+
+   gdbproxy only uses 16-bit and 32-bit instructions.  */
+
+static void
+emuir_init_value (tap_register *r, uint32_t insn)
+{
+  if ((insn & 0xffff0000) == 0)
+    {
+      register_init_value (r, insn << 16);
+      if (r->len % 32 == 2)
+	{
+	  r->data[0] = 0;
+	  r->data[1] = 1;
+	}
+    }
+  else
+    {
+      register_init_value (r, insn);
+      if (r->len % 32 == 2)
+	{
+	  r->data[0] = 1;
+	  r->data[1] = 0;
+	}
+    }
+}
+
 static void
 emuir_set (uint32_t *insn, int runtest)
 {
   part_t *part;
+  tap_register *r;
   int i;
 
   scan_select (EMUIR_SCAN);
@@ -1643,8 +1780,8 @@ emuir_set (uint32_t *insn, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
-      register_init_value (part->active_instruction->data_register->in,
-			   insn[i]);
+      r = part->active_instruction->data_register->in;
+      emuir_init_value (r, insn[i]);
       cpu->cores[i].emuir_a = insn[i];
     }
 
@@ -1658,6 +1795,7 @@ static void
 emuir_set_same (uint32_t insn, int runtest)
 {
   part_t *part;
+  tap_register *r;
   int i;
 
   scan_select (EMUIR_SCAN);
@@ -1665,7 +1803,8 @@ emuir_set_same (uint32_t insn, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
-      register_init_value (part->active_instruction->data_register->in, insn);
+      r = part->active_instruction->data_register->in;
+      emuir_init_value (r, insn);
       cpu->cores[i].emuir_a = insn;
     }
 
@@ -1679,6 +1818,7 @@ static void
 core_emuir_set (int core, uint32_t insn, int runtest)
 {
   part_t *part;
+  tap_register *r;
   int *changed;
   int scan_changed;
   int i;
@@ -1724,8 +1864,8 @@ core_emuir_set (int core, uint32_t insn, int runtest)
     if (changed[i])
       {
 	part = cpu->chain->parts->parts[i];
-	register_init_value (part->active_instruction->data_register->in,
-			     cpu->cores[i].emuir_a);
+	r = part->active_instruction->data_register->in;
+	emuir_init_value (r, cpu->cores[i].emuir_a);
       }
 
   free (changed);
@@ -1740,6 +1880,7 @@ static void
 emuir_set_2 (uint32_t *insn1, uint32_t *insn2, int runtest)
 {
   part_t *part;
+  tap_register *r;
   int i;
 
   scan_select (EMUIR_SCAN);
@@ -1747,8 +1888,8 @@ emuir_set_2 (uint32_t *insn1, uint32_t *insn2, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
-      register_init_value (part->active_instruction->data_register->in,
-			   insn2[i]);
+      r = part->active_instruction->data_register->in;
+      emuir_init_value (r, insn2[i]);
       cpu->cores[i].emuir_b = insn2[i];
     }
 
@@ -1757,8 +1898,8 @@ emuir_set_2 (uint32_t *insn1, uint32_t *insn2, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
-      register_init_value (part->active_instruction->data_register->in,
-			   insn1[i]);
+      r = part->active_instruction->data_register->in;
+      emuir_init_value (r, insn1[i]);
       cpu->cores[i].emuir_a = insn1[i];
     }
 
@@ -1772,6 +1913,7 @@ static void
 emuir_set_same_2 (uint32_t insn1, uint32_t insn2, int runtest)
 {
   part_t *part;
+  tap_register *r;
   int i;
 
   scan_select (EMUIR_SCAN);
@@ -1779,8 +1921,8 @@ emuir_set_same_2 (uint32_t insn1, uint32_t insn2, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
-      register_init_value (part->active_instruction->data_register->in,
-			   insn2);
+      r = part->active_instruction->data_register->in;
+      emuir_init_value (r, insn2);
       cpu->cores[i].emuir_b = insn2;
     }
 
@@ -1789,8 +1931,8 @@ emuir_set_same_2 (uint32_t insn1, uint32_t insn2, int runtest)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       part = cpu->chain->parts->parts[i];
-      register_init_value (part->active_instruction->data_register->in,
-			   insn1);
+      r = part->active_instruction->data_register->in;
+      emuir_init_value (r, insn1);
       cpu->cores[i].emuir_a = insn1;
     }
 
@@ -1804,6 +1946,7 @@ static void
 core_emuir_set_2 (int core, uint32_t insn1, uint32_t insn2, int runtest)
 {
   part_t *part;
+  tap_register *r;
   int *changed;
   int scan_changed;
   int i;
@@ -1851,18 +1994,17 @@ core_emuir_set_2 (int core, uint32_t insn1, uint32_t insn2, int runtest)
     if (changed[i] && i == core)
       {
 	part = cpu->chain->parts->parts[i];
-	register_init_value (part->active_instruction->data_register->in,
-			     insn2);
+	r = part->active_instruction->data_register->in;
+	emuir_init_value (r, insn2);
 	chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
-	register_init_value (part->active_instruction->data_register->in,
-			     insn1);
+	emuir_init_value (r, insn1);
       }
     else if (changed[i] && i != core)
       {
 	part = cpu->chain->parts->parts[i];
-	register_init_value (part->active_instruction->data_register->in,
-			     cpu->cores[i].emuir_a);
+	r = part->active_instruction->data_register->in;
+	emuir_init_value (r, cpu->cores[i].emuir_a);
       }
 
   free (changed);
@@ -1873,11 +2015,41 @@ core_emuir_set_2 (int core, uint32_t insn1, uint32_t insn2, int runtest)
     core_wait_emuready (core);
 }
 
+static uint64_t
+emudat_value (tap_register *r)
+{
+  uint64_t value;
+
+  value = register_value (r);
+  value >>= (r->len - 32);
+
+  return value;
+}
+
+static void
+emudat_init_value (tap_register *r, uint32_t value)
+{
+  uint64_t v = value;
+
+  v <<= (r->len - 32);
+  /* If the register size is larger than 32 bits, set EMUDIF.  */
+  if (r->len == 34 || r->len == 40 || r->len == 48)
+    v |= 0x1 << (r->len - 34);
+
+  register_init_value (r, v);
+}
+
+/* These two emudat functions only care the payload data, which is the
+   upper 32 bits.  Then follows EMUDOF and EMUDIF if the register size
+   is larger than 32 bits.  The remaining is reserved or don't care
+   bits.  */
 
 static uint32_t
 core_emudat_get (int core, int runtest)
 {
+  part_t *part;
   tap_register *r;
+  uint64_t value;
 
   if (runtest)
     {
@@ -1889,19 +2061,26 @@ core_emudat_get (int core, int runtest)
   core_scan_select (core, EMUDAT_SCAN);
 
   chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
-  r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
-  return register_value (r);
+  part = cpu->chain->parts->parts[core];
+  r = part->active_instruction->data_register->out;
+  value = emudat_value (r);
+
+  /* FIXME  Is it good to check EMUDOF here if it's available?  */
+
+  return value;
 }
 
 static void
 core_emudat_set (int core, uint32_t value, int runtest)
 {
+  part_t *part;
   tap_register *r;
 
   core_scan_select (core, EMUDAT_SCAN);
 
-  r = cpu->chain->parts->parts[core]->active_instruction->data_register->in;
-  register_init_value (r, value);
+  part = cpu->chain->parts->parts[core];
+  r = part->active_instruction->data_register->in;
+  emudat_init_value (r, value);
   chain_shift_data_registers_mode (cpu->chain, 0, 1,
 				   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
   if (runtest)
@@ -1916,11 +2095,12 @@ static void core_register_set (int core, enum core_regnum reg,
 static void
 register_get (enum core_regnum reg, uint32_t *value)
 {
+  part_t *part;
   tap_register *r;
   int i;
   uint32_t *r0 = NULL;
 
-  if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
+  if (DREG_P (reg) || PREG_P (reg))
     emuir_set_same (gen_move (REG_EMUDAT, reg), RUNTEST);
   else
     {
@@ -1929,21 +2109,22 @@ register_get (enum core_regnum reg, uint32_t *value)
 	abort ();
 
       register_get (REG_R0, r0);
-      dbgctl_bit_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_set_emuirlpsz_2 (UPDATE);
       emuir_set_same_2 (gen_move (REG_R0, reg),
 			gen_move (REG_EMUDAT, REG_R0), RUNTEST);
-      dbgctl_bit_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_clear_emuirlpsz_2 (UPDATE);
     }
 
   scan_select (EMUDAT_SCAN);
   chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
-      r = cpu->chain->parts->parts[i]->active_instruction->data_register->out;
-      value[i] = register_value (r);
+      part = cpu->chain->parts->parts[i];
+      r = part->active_instruction->data_register->out;
+      value[i] = emudat_value (r);
     }
 
-  if (!DREG_P (reg) && !PREG_P (reg) && reg != REG_USP)
+  if (!DREG_P (reg) && !PREG_P (reg))
     {
       register_set (REG_R0, r0);
       free (r0);
@@ -1953,38 +2134,41 @@ register_get (enum core_regnum reg, uint32_t *value)
 static uint32_t
 core_register_get (int core, enum core_regnum reg)
 {
+  part_t *part;
   tap_register *r;
   uint32_t r0 = 0;
 
-  if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
+  if (DREG_P (reg) || PREG_P (reg))
     core_emuir_set (core, gen_move (REG_EMUDAT, reg), RUNTEST);
   else
     {
       r0 = core_register_get (core, REG_R0);
-      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
       core_emuir_set_2 (core, gen_move (REG_R0, reg),
 			gen_move (REG_EMUDAT, REG_R0), RUNTEST);
-      core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
     }
 
   core_scan_select (core, EMUDAT_SCAN);
   chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
-  r = cpu->chain->parts->parts[core]->active_instruction->data_register->out;
+  part = cpu->chain->parts->parts[core];
+  r = part->active_instruction->data_register->out;
 
-  if (!DREG_P (reg) && !PREG_P (reg) && reg != REG_USP)
+  if (!DREG_P (reg) && !PREG_P (reg))
     core_register_set (core, REG_R0, r0);
 
-  return register_value (r);
+  return emudat_value (r);
 }
 
 static void
 register_set (enum core_regnum reg, uint32_t *value)
 {
+  part_t *part;
   tap_register *r;
   int i;
   uint32_t *r0 = NULL;
 
-  if (!DREG_P (reg) && !PREG_P (reg) && reg != REG_USP)
+  if (!DREG_P (reg) && !PREG_P (reg))
     {
       r0 = (uint32_t *)malloc (cpu->chain->parts->len * sizeof (uint32_t));
       if (!r0)
@@ -1996,19 +2180,20 @@ register_set (enum core_regnum reg, uint32_t *value)
   scan_select (EMUDAT_SCAN);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
-      r = cpu->chain->parts->parts[i]->active_instruction->data_register->in;
-      register_init_value (r, value[i]);
+      part = cpu->chain->parts->parts[i];
+      r = part->active_instruction->data_register->in;
+      emudat_init_value (r, value[i]);
     }
   chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
-  if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
+  if (DREG_P (reg) || PREG_P (reg))
     emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
   else
     {
-      dbgctl_bit_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_set_emuirlpsz_2 (UPDATE);
       emuir_set_same_2 (gen_move (REG_R0, REG_EMUDAT),
 			gen_move (reg, REG_R0), RUNTEST);
-      dbgctl_bit_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_clear_emuirlpsz_2 (UPDATE);
       register_set (REG_R0, r0);
       free (r0);
     }
@@ -2017,11 +2202,12 @@ register_set (enum core_regnum reg, uint32_t *value)
 static void
 register_set_same (enum core_regnum reg, uint32_t value)
 {
+  part_t *part;
   tap_register *r;
   int i;
   uint32_t *r0 = NULL;
 
-  if (!DREG_P (reg) && !PREG_P (reg) && reg != REG_USP)
+  if (!DREG_P (reg) && !PREG_P (reg))
     {
       r0 = (uint32_t *)malloc (cpu->chain->parts->len * sizeof (uint32_t));
       if (!r0)
@@ -2033,19 +2219,20 @@ register_set_same (enum core_regnum reg, uint32_t value)
   scan_select (EMUDAT_SCAN);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
-      r = cpu->chain->parts->parts[i]->active_instruction->data_register->in;
-      register_init_value (r, value);
+      part = cpu->chain->parts->parts[i];
+      r = part->active_instruction->data_register->in;
+      emudat_init_value (r, value);
     }
   chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
-  if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
+  if (DREG_P (reg) || PREG_P (reg))
     emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
   else
     {
-      dbgctl_bit_set (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_set_emuirlpsz_2 (UPDATE);
       emuir_set_same_2 (gen_move (REG_R0, REG_EMUDAT),
 			gen_move (reg, REG_R0), RUNTEST);
-      dbgctl_bit_clear (DBGCTL_EMUIRLPSZ_2, UPDATE);
+      dbgctl_bit_clear_emuirlpsz_2 (UPDATE);
       register_set (REG_R0, r0);
       free (r0);
     }
@@ -2054,28 +2241,30 @@ register_set_same (enum core_regnum reg, uint32_t value)
 static void
 core_register_set (int core, enum core_regnum reg, uint32_t value)
 {
+  part_t *part;
   tap_register *r;
   uint32_t r0 = 0;
 
-  if (!DREG_P (reg) && !PREG_P (reg) && reg != REG_USP)
+  if (!DREG_P (reg) && !PREG_P (reg))
     r0 = core_register_get (core, REG_R0);
 
   core_scan_select (core, EMUDAT_SCAN);
 
   cpu->cores[core].emudat_in = value;
-  r = cpu->chain->parts->parts[core]->active_instruction->data_register->in;
-  register_init_value (r, value);
+  part = cpu->chain->parts->parts[core];
+  r = part->active_instruction->data_register->in;
+  emudat_init_value (r, value);
 
   chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
-  if (DREG_P (reg) || PREG_P (reg) || reg == REG_USP)
+  if (DREG_P (reg) || PREG_P (reg))
     core_emuir_set (core, gen_move (reg, REG_EMUDAT), RUNTEST);
   else
     {
-      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
       core_emuir_set_2 (core, gen_move (REG_R0, REG_EMUDAT),
 			gen_move (reg, REG_R0), RUNTEST);
-      core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
       core_register_set (core, REG_R0, r0);
     }
 }
@@ -2530,12 +2719,14 @@ emulation_enable (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: emulation_enable ()", bfin_target.name);
 
-  dbgctl_bit_set (DBGCTL_EMPWR, UPDATE);
+  dbgctl_bit_set_empwr (UPDATE);
   dbgstat_show ("EMPWR");
-  dbgctl_bit_set (DBGCTL_EMFEN, UPDATE);
+  dbgctl_bit_set_emfen (UPDATE);
   dbgstat_show ("EMFEN");
-  dbgctl_bit_set (DBGCTL_EMUIRSZ_32 | DBGCTL_EMUDATSZ_32, UPDATE);
-  dbgstat_show ("EMUIRSZ|EMUDATSZ");
+  dbgctl_bit_set_emuirsz_32 (UPDATE);
+  dbgstat_show ("EMUIRSZ");
+  dbgctl_bit_set_emudatsz_32 (UPDATE);
+  dbgstat_show ("EMUDATSZ");
 }
 
 static void
@@ -2544,12 +2735,14 @@ core_emulation_enable (int core)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: [%d] core_emulation_enable ()", bfin_target.name, core);
 
-  core_dbgctl_bit_set (core, DBGCTL_EMPWR, UPDATE);
+  core_dbgctl_bit_set_empwr (core, UPDATE);
   core_dbgstat_show (core, "EMPWR");
-  core_dbgctl_bit_set (core, DBGCTL_EMFEN, UPDATE);
+  core_dbgctl_bit_set_emfen (core, UPDATE);
   core_dbgstat_show (core, "EMFEN");
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRSZ_32 | DBGCTL_EMUDATSZ_32, UPDATE);
-  core_dbgstat_show (core, "EMUIRSZ|EMUDATSZ");
+  core_dbgctl_bit_set_emuirsz_32 (core, UPDATE);
+  core_dbgstat_show (core, "EMUIRSZ");
+  core_dbgctl_bit_set_emudatsz_32 (core, UPDATE);
+  core_dbgstat_show (core, "EMUDATSZ");
 }
 
 static void
@@ -2560,7 +2753,9 @@ emulation_trigger (void)
 
   emuir_set_same (INSN_NOP, UPDATE);
   dbgstat_show ("before");
-  dbgctl_bit_set (DBGCTL_EMEEN | DBGCTL_EMPEN | DBGCTL_WAKEUP, RUNTEST);
+  dbgctl_bit_set_wakeup (UPDATE);
+  dbgctl_bit_set_emeen (RUNTEST);
+
   dbgstat_show ("after");
 }
 
@@ -2572,8 +2767,9 @@ core_emulation_trigger (int core)
 
   core_emuir_set (core, INSN_NOP, UPDATE);
   core_dbgstat_show (core, "before");
-  core_dbgctl_bit_set (core, DBGCTL_EMEEN | DBGCTL_EMPEN | DBGCTL_WAKEUP,
-		   RUNTEST);
+  core_dbgctl_bit_set_wakeup (core, UPDATE);
+  core_dbgctl_bit_set_emeen (core, RUNTEST);
+
   core_dbgstat_show (core, "after");
 }
 
@@ -2585,7 +2781,8 @@ emulation_return (void)
 
   emuir_set_same (INSN_RTE, UPDATE);
   dbgstat_show ("before");
-  dbgctl_bit_clear (DBGCTL_EMEEN | DBGCTL_WAKEUP, RUNTEST);
+  dbgctl_bit_clear_emeen (UPDATE);
+  dbgctl_bit_clear_wakeup (RUNTEST);
   dbgstat_show ("after");
 }
 
@@ -2597,7 +2794,8 @@ core_emulation_return (int core)
 
   core_emuir_set (core, INSN_RTE, UPDATE);
   core_dbgstat_show (core, "before");
-  core_dbgctl_bit_clear (core, DBGCTL_EMEEN | DBGCTL_WAKEUP, RUNTEST);
+  core_dbgctl_bit_clear_emeen (core, UPDATE);
+  core_dbgctl_bit_clear_wakeup (core, RUNTEST);
   core_dbgstat_show (core, "after");
 }
 
@@ -2607,7 +2805,7 @@ emulation_disable (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: emulation_disable ()", bfin_target.name);
 
-  dbgctl_bit_clear (DBGCTL_EMPWR, UPDATE);
+  dbgctl_bit_clear_empwr (UPDATE);
 }
 
 static void
@@ -2616,7 +2814,7 @@ core_emulation_disable (int core)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: [%d] core_emulation_disable ()", bfin_target.name, core);
 
-  core_dbgctl_bit_clear (core, DBGCTL_EMPWR, UPDATE);
+  core_dbgctl_bit_clear_empwr (core, UPDATE);
 }
 
 static void
@@ -2641,6 +2839,41 @@ system_reset (void)
   core_register_set (cpu->core_a, REG_R0, r0);
 }
 
+/* core_reset_new is supposed to be the right sequence to do the
+   reset. But it cannot always reset core in double fault. core_reset
+   is known to be able to reset core except BF579. So currently BF579
+   uses core_reset_new while others still use core_reset.  */
+
+static void
+core_reset_new (void)
+{
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset core(s)");
+
+  dbgstat_show ("core_reset start ...");
+
+  dbgctl_bit_set_sram_init (UPDATE);
+  dbgstat_show ("SRAM_INIT");
+
+  core_dbgctl_bit_set_sysrst (cpu->core_a, UPDATE);
+  dbgstat_show ("SYSRST");
+
+  emulation_return ();
+
+  wait_in_reset ();
+  dbgstat_show ("in_reset now");
+
+  emulation_trigger ();
+
+  core_dbgctl_bit_clear_sysrst (cpu->core_a, UPDATE);
+  dbgstat_show ("clear SYSRST");
+
+  wait_reset ();
+  dbgstat_show ("not in_reset now");
+
+  dbgctl_bit_clear_sram_init (UPDATE);
+  dbgstat_show ("clear SRAM_INIT");
+}
+
 static void
 core_reset (void)
 {
@@ -2649,16 +2882,16 @@ core_reset (void)
   emulation_disable ();
 
   core_emuir_set (cpu->core_a, INSN_NOP, UPDATE);
-  dbgctl_bit_set (DBGCTL_SRAM_INIT, UPDATE);
-  core_dbgctl_bit_set (cpu->core_a, DBGCTL_SYSRST, RUNTEST);
+  dbgctl_bit_set_sram_init (UPDATE);
+  core_dbgctl_bit_set_sysrst (cpu->core_a, RUNTEST);
   wait_in_reset ();
-  core_dbgctl_bit_clear (cpu->core_a, DBGCTL_SYSRST, UPDATE);
+  core_dbgctl_bit_clear_sysrst (cpu->core_a, UPDATE);
   wait_reset ();
 
   emulation_enable ();
   emulation_trigger ();
 
-  dbgctl_bit_clear (DBGCTL_SRAM_INIT, UPDATE);
+  dbgctl_bit_clear_sram_init (UPDATE);
 }
 
 static uint32_t
@@ -2670,7 +2903,7 @@ mmr_read_clobber_p0r0 (int core, int32_t offset, int size)
 
   if (offset == 0)
     {
-      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
 
       if (size == 2)
 	core_emuir_set_2 (core,
@@ -2692,7 +2925,7 @@ mmr_read_clobber_p0r0 (int core, int32_t offset, int size)
   value = core_emudat_get (core, RUNTEST);
 
   if (offset == 0)
-    core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+    core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   return value;
 }
@@ -2826,7 +3059,7 @@ mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, int size)
 
   if (offset == 0)
     {
-      core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+      core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
 
       if (size == 2)
 	core_emuir_set_2 (core,
@@ -2847,7 +3080,7 @@ mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, int size)
     }
 
   if (offset == 0)
-    core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+    core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 }
 
 static void
@@ -3082,22 +3315,22 @@ core_dcplb_get_clobber_p0r0 (int core)
   int i;
 
   core_register_set (core, REG_P0, DCPLB_ADDR0);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   core_emuir_set_2 (core,
 		    gen_load32pi (REG_R0, REG_P0),
 		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     cpu->cores[core].dcplbs[i].addr = core_emudat_get (core, RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   core_register_set (core, REG_P0, DCPLB_DATA0);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   core_emuir_set_2 (core,
 		    gen_load32pi (REG_R0, REG_P0),
 		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     cpu->cores[core].dcplbs[i].data = core_emudat_get (core, RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 }
 
 static void
@@ -3120,22 +3353,22 @@ core_dcplb_set_clobber_p0r0 (int core)
   int i;
 
   core_register_set (core, REG_P0, DCPLB_ADDR0);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].dcplbs[i].addr, RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   core_register_set (core, REG_P0, DCPLB_DATA0);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].dcplbs[i].data, RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 }
 
 static void
@@ -3158,22 +3391,22 @@ core_icplb_set_clobber_p0r0 (int core)
   int i;
 
   core_register_set (core, REG_P0, ICPLB_ADDR0);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_ICPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].icplbs[i].addr, RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   core_register_set (core, REG_P0, ICPLB_DATA0);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   core_emuir_set_2 (core,
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_ICPLB_NUM; i++)
     core_emudat_set (core, cpu->cores[core].icplbs[i].data, RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 }
 
 static void
@@ -3979,12 +4212,12 @@ cache_flush (int core, uint32_t addr, int size)
   p0 = core_register_get (core, REG_P0);
 
   core_register_set (core, REG_P0, addr);
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
   for (i = (size + addr % CACHE_LINE_BYTES - 1) / CACHE_LINE_BYTES + 1;
        i > 0; i--)
     core_emuir_set_2 (core, gen_flush (REG_P0),
 		      gen_iflush_pm (REG_P0), RUNTEST);
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   core_register_set (core, REG_P0, p0);
 }
@@ -4008,7 +4241,7 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 
   core_register_set (core, REG_P0, addr);
 
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
 
   if ((addr & 0x3) != 0)
     core_emuir_set_2 (core,
@@ -4052,7 +4285,7 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 
 finish_read:
 
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   dcplb_restore_clobber_p0r0 (core, clobbered);
 
@@ -4308,7 +4541,7 @@ memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 
   core_register_set (core, REG_P0, addr);
 
-  core_dbgctl_bit_set (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
 
   if ((addr & 0x3) != 0)
     core_emuir_set_2 (core,
@@ -4352,7 +4585,7 @@ memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 
 finish_write:
 
-  core_dbgctl_bit_clear (core, DBGCTL_EMUIRLPSZ_2, UPDATE);
+  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   dcplb_restore_clobber_p0r0 (core, clobbered);
 
@@ -4422,6 +4655,237 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   free (tmp);
 
   return ret;
+}
+
+/* Read Instruction SRAM using Instruction Test Registers.  */
+
+/* Do one ITEST read.  ADDR should be aligned to 8 bytes. BUF should
+   be enough large to hold 64 bits.  */
+static void
+itest_read_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
+{
+  part_t *part;
+  uint32_t test_command;
+  uint32_t test_command_addr;
+  uint32_t data1, data0;
+  uint32_t test_data1_addr, test_data0_addr;
+
+  assert ((addr & 0x7) == 0);
+
+  part = cpu->chain->parts->parts[core];
+
+  test_command = EMU_OAB (part)->test_command (addr, 0);
+
+  test_command_addr = EMU_OAB (part)->test_command_addr;
+  test_data1_addr = EMU_OAB (part)->test_data1_addr;
+  test_data0_addr = EMU_OAB (part)->test_data0_addr;
+
+  core_register_set (core, REG_P0, test_command_addr);
+  mmr_write_clobber_p0r0 (core, 0, test_command, 4);
+  core_emuir_set (core, INSN_CSYNC, RUNTEST);
+  data1 = mmr_read_clobber_p0r0 (core, test_data1_addr - test_command_addr, 4);
+  data0 = mmr_read_clobber_p0r0 (core, test_data0_addr - test_command_addr, 4);
+
+  *buf++ = data0 & 0xff;
+  *buf++ = (data0 >> 8) & 0xff;
+  *buf++ = (data0 >> 16) & 0xff;
+  *buf++ = (data0 >> 24) & 0xff;
+  *buf++ = data1 & 0xff;
+  *buf++ = (data1 >> 8) & 0xff;
+  *buf++ = (data1 >> 16) & 0xff;
+  *buf++ = (data1 >> 24) & 0xff;
+}
+
+/* Do one ITEST write.  ADDR should be aligned to 8 bytes. BUF should
+   be enough large to hold 64 bits.  */
+static void
+itest_write_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
+{
+  part_t *part;
+  uint32_t test_command;
+  uint32_t test_command_addr;
+  uint32_t data1, data0;
+  uint32_t test_data1_addr, test_data0_addr;
+
+  assert ((addr & 0x7) == 0);
+
+  part = cpu->chain->parts->parts[core];
+
+  test_command = EMU_OAB (part)->test_command (addr, 1);
+
+  test_command_addr = EMU_OAB (part)->test_command_addr;
+  test_data1_addr = EMU_OAB (part)->test_data1_addr;
+  test_data0_addr = EMU_OAB (part)->test_data0_addr;
+
+  data0 = *buf++;
+  data0 |= (*buf++) << 8;
+  data0 |= (*buf++) << 16;
+  data0 |= (*buf++) << 24;
+  data1 = *buf++;
+  data1 |= (*buf++) << 8;
+  data1 |= (*buf++) << 16;
+  data1 |= (*buf++) << 24;
+
+  core_register_set (core, REG_P0, test_command_addr);
+  mmr_write_clobber_p0r0 (core, test_data1_addr - test_command_addr, data1, 4);
+  mmr_write_clobber_p0r0 (core, test_data0_addr - test_command_addr, data0, 4);
+  mmr_write_clobber_p0r0 (core, 0, test_command, 4);
+  core_emuir_set (core, INSN_CSYNC, RUNTEST);
+}
+
+static int
+itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  uint32_t p0, r0;
+  uint8_t data[8];
+  uint8_t *ptr;
+
+  /* As a temporary workaound for hardware bug, we always set IMC of
+     bf579 to 01. Such that we can read ISRAM using ITEST
+     interface.  */
+  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
+    {
+      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control | IMC, 4);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+    }
+
+  p0 = core_register_get (core, REG_P0);
+  r0 = core_register_get (core, REG_R0);
+
+  if ((addr & 0x7) != 0)
+    {
+      itest_read_clobber_p0r0 (core, addr & 0xfffffff8, data);
+
+      while ((addr & 0x7) != 0 && size != 0)
+	{
+	  *buf++ = data[addr & 0x7];
+	  addr++;
+	  size--;
+	}
+    }
+
+  for (; size >= 8; size -= 8)
+    {
+      itest_read_clobber_p0r0 (core, addr, buf);
+      addr += 8;
+      buf += 8;
+    }
+
+  if (size != 0)
+    {
+      itest_read_clobber_p0r0 (core, addr, data);
+
+      ptr = data;
+      for (; size > 0; size--)
+	*buf++ = *ptr++;
+    }
+
+  core_register_set (core, REG_P0, p0);
+  core_register_set (core, REG_R0, r0);
+
+  /* As a tempory workaound for hardware bug, we always set IMC of
+     bf579 to 01. Such that we can read ISRAM using ITEST
+     interface.  */
+  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
+    {
+      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control & ~IMC, 4);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+    }
+
+  return 0;
+}
+
+static int
+itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  uint32_t p0, r0;
+  uint8_t data[8];
+  uint8_t *ptr;
+
+  /* As a tempory workaound for hardware bug, we always set IMC of
+     bf579 to 01. Such that we can read ISRAM using ITEST
+     interface.  */
+  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
+    {
+      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control | IMC, 4);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+    }
+
+
+  p0 = core_register_get (core, REG_P0);
+  r0 = core_register_get (core, REG_R0);
+
+  if ((addr & 0x7) != 0)
+    {
+      uint32_t aligned_addr = addr & 0xfffffff8;
+
+      itest_read_clobber_p0r0 (core, aligned_addr, data);
+
+      while ((addr & 0x7) != 0 && size != 0)
+	{
+	  data[addr & 0x7] = *buf++;
+	  addr++;
+	  size--;
+	}
+
+      itest_write_clobber_p0r0 (core, aligned_addr, data);
+    }
+
+  for (; size >= 8; size -= 8)
+    {
+      itest_write_clobber_p0r0 (core, addr, buf);
+      addr += 8;
+      buf += 8;
+    }
+
+  if (size != 0)
+    {
+      itest_read_clobber_p0r0 (core, addr, data);
+
+      ptr = data;
+      for (; size > 0; size--)
+	*ptr++ = *buf++;
+
+      itest_write_clobber_p0r0 (core, addr, data);
+    }
+
+  core_register_set (core, REG_P0, p0);
+  core_register_set (core, REG_R0, r0);
+
+  /* As a tempory workaound for hardware bug, we always set IMC of
+     bf579 to 01. Such that we can read ISRAM using ITEST
+     interface.  */
+  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
+    {
+      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control & ~IMC, 4);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+    }
+
+  return 0;
+}
+
+/* Wrappers for sram_read and sram_write.  */
+
+static int
+sram_read (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  return itest_sram_read (core, addr, buf, size);
+
+  /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
+  if (cpu->mdma_d0 == 0)
+    return itest_sram_read (core, addr, buf, size);
+  else
+    return dma_sram_read (core, addr, buf, size);
+}
+
+static int
+sram_write (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
+  if (cpu->mdma_d0 == 0)
+    return itest_sram_write (core, addr, buf, size);
+  else
+    return dma_sram_write (core, addr, buf, size);
 }
 
 
@@ -4546,11 +5010,11 @@ core_single_step (int core)
 	    "%s: [%d] core_single_step ()", bfin_target.name, core);
 
   if (!cpu->cores[core].is_stepping)
-    core_dbgctl_bit_set (core, DBGCTL_ESSTEP, UPDATE);
+    core_dbgctl_bit_set_esstep (core, UPDATE);
   core_emuir_set (core, INSN_RTE, RUNTEST);
   core_wait_emuready (core);
   if (!cpu->cores[core].is_stepping)
-    core_dbgctl_bit_clear (core, DBGCTL_ESSTEP, UPDATE);
+    core_dbgctl_bit_clear_esstep (core, UPDATE);
 }
 
 static void
@@ -4570,6 +5034,8 @@ core_cache_status_get (int core)
       || cpu->cores[core].is_running)
     return;
 
+  /* Instead of calling mmr_read twice, we save one of context save
+     and restore.  */
   if (!cpu->cores[core].dmem_control_valid_p
       && !cpu->cores[core].imem_control_valid_p)
     {
@@ -4587,10 +5053,14 @@ core_cache_status_get (int core)
       core_register_set (core, REG_R0, r0);
     }
   else if (!cpu->cores[core].dmem_control_valid_p)
+    /* No need to set dmem_control and dmem_control_valid_p here.
+       mmr_read will handle them.  */
     mmr_read (core, DMEM_CONTROL, 4);
   else if (!cpu->cores[core].imem_control_valid_p)
+    /* No need to set imem_control and imem_control_valid_p here.
+       mmr_read will handle them.  */
     mmr_read (core, IMEM_CONTROL, 4);
-      
+
   if (cpu->cores[core].imem_control & IMC)
     cpu->cores[core].l1_code_cache_enabled = 1;
   else
@@ -4699,6 +5169,17 @@ bfin_help (const char *prog_name)
   return;
 }
 
+/* TODO  Merge this with the one in UrJTAG.  */
+static void
+bfin_part_init (part_t *part)
+{
+  assert (part != 0);
+
+  if (strcmp (part->part, "BF579") == 0)
+    part->data = (void *) &bf579_emu_oab;
+  else
+    part->data = (void *) &bfin_emu_oab;
+}
 
 /* Target method */
 static int
@@ -4955,6 +5436,10 @@ bfin_open (int argc,
       return RP_VAL_TARGETRET_ERR;
     }
 
+  /* Initialize part specific data.  */
+  for (i = 0; i < chain->parts->len; i++)
+    bfin_part_init (chain->parts->parts[i]);
+
   /* Add Blackfin emulation instructions and registers.  */
   for (i = 0; i < chain->parts->len; i++)
     {
@@ -5056,6 +5541,15 @@ bfin_open (int argc,
       cpu->mem_map = bf561_mem_map;
       cpu->cores[1].l1_map = bf561_a_l1_map;
       cpu->cores[0].l1_map = bf561_b_l1_map;
+    }
+  else if (!strcmp (chain->parts->parts[0]->part, "BF579"))
+    {
+      assert (chain->parts->len == 1);
+
+      cpu->mdma_d0 = 0;
+      cpu->mdma_s0 = 0;
+      cpu->mem_map = bf579_mem_map;
+      cpu->cores[0].l1_map = bf579_l1_map;
     }
   else
     {
@@ -5298,21 +5792,22 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
       /* If there is core fault, we have to give it a reset.  */
-      if (cpu->cores[i].dbgstat & DBGSTAT_CORE_FAULT)
+      if (core_dbgstat_is_core_fault (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
-		    "[%d] core fault: DBGSTAT [0x%08X]",
+		    "[%d] core fault: DBGSTAT [0x%04X]",
 		    i, cpu->cores[i].dbgstat);
 	  need_reset = 1;
 	}
       /* If emulator is not ready after emulation_trigger (),
 	 we have to give it a reset, too.  */
-      else if (!(cpu->cores[i].dbgstat & DBGSTAT_EMUREADY)
-	       && (!(cpu->cores[i].dbgstat & DBGSTAT_EMUACK)
-		   || (cpu->cores[i].dbgstat & DBGSTAT_IN_RESET)))
+      else if (!core_dbgstat_is_emuready (i)
+	       && (!core_dbgstat_is_emuack (i)
+		   || (core_dbgstat_is_in_reset (i)
+		       && !core_sticky_in_reset (i))))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
-		    "[%d] emulator not ready: DBGSTAT [0x%08X]",
+		    "[%d] emulator not ready: DBGSTAT [0x%04X]",
 		    i, cpu->cores[i].dbgstat);
 	  need_reset = 1;
 	}
@@ -5322,16 +5817,25 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
     {
       bfin_log (RP_VAL_LOGLEVEL_INFO, "Resetting ...");
 
-      core_reset ();
-      system_reset ();
+      if (strcmp (cpu->chain->parts->parts[0]->part, "BF579") == 0)
+	core_reset_new ();
+      else
+	core_reset ();
+
+      /* FIXME  Find a better way to identify if the system exists.  */
+      if (cpu->mdma_d0)
+	system_reset ();
     }
 
+  dbgstat_get ();
+
   for (i = 0; i < cpu->chain->parts->len; i++)
-    if ((cpu->cores[i].dbgstat & DBGSTAT_EMUACK)
-	&& !(cpu->cores[i].dbgstat & DBGSTAT_IN_RESET))
+    if (core_dbgstat_is_emuack (i)
+	&& (!core_dbgstat_is_in_reset (i)
+	    || core_sticky_in_reset (i)))
       {
 	bfin_log (RP_VAL_LOGLEVEL_INFO,
-		  "[%d] locked: DBGSTAT [0x%08X]", i, cpu->cores[i].dbgstat);
+		  "[%d] locked: DBGSTAT [0x%04X]", i, cpu->cores[i].dbgstat);
 	cpu->cores[i].is_locked = 1;
 	cpu->cores[i].is_running = 0;
 
@@ -5391,15 +5895,31 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	    {
 	      rete = core_register_get (i, REG_RETE);
 	      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-			"[%d] DBGSTAT [0x%08X] PC [0x%08X]",
+			"[%d] DBGSTAT [0x%04X] PC [0x%08X]",
 			i, cpu->cores[i].dbgstat, rete);
 	    }
 	  else
 	    bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-		      "[%d] DBGSTAT [0x%08X] PC [0xXXXXXXXX]",
+		      "[%d] DBGSTAT [0x%04X] PC [0xXXXXXXXX]",
 		      i, cpu->cores[i].dbgstat);
 	}
     }
+
+  /* GDB can not create a frame when FP is zero. When there is no
+     valid frame, register can not be written. So if we find FP is
+     zero, set it to be the end of scratch sram. Currently I think
+     only BF579 needs this trick.  */
+  for (i = 0; i < cpu->chain->parts->len; i++)
+    if (strcmp (cpu->chain->parts->parts[i]->part, "BF579") == 0
+	&& !cpu->cores[i].is_locked
+	&& core_register_get (i, REG_FP) == 0)
+      {
+	bfin_log (RP_VAL_LOGLEVEL_INFO,
+		  "[%d] FP is 0, set to 0x%08X",
+		  i, cpu->cores[i].l1_map.l1_scratch_end - 12);
+
+	core_register_set (i, REG_FP, cpu->cores[i].l1_map.l1_scratch_end - 12);
+      }
 
   /* Fill out the the status string.  */
   sprintf (status_string, "T%02d", RP_SIGNAL_TRAP);
@@ -5439,7 +5959,7 @@ bfin_disconnect (void)
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (cpu->cores[i].is_stepping)
       {
-	core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
+	core_dbgctl_bit_clear_esstep (i, UPDATE);
 	cpu->cores[i].is_stepping = 0;
       }
 
@@ -5485,7 +6005,7 @@ bfin_stop (void)
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (cpu->cores[i].is_stepping)
       {
-	core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
+	core_dbgctl_bit_clear_esstep (i, UPDATE);
 	cpu->cores[i].is_stepping = 0;
       }
 
@@ -5882,7 +6402,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > end)
 	    req_size = end - addr;
 
-	  ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	  ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_code_cache_enabled
@@ -5892,7 +6412,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > cpu->cores[i].l1_map.l1_code_cache_end)
 	    req_size = cpu->cores[i].l1_map.l1_code_cache_end - addr;
 
-	  ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	  ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_code_rom
@@ -5901,7 +6421,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > cpu->cores[i].l1_map.l1_code_rom_end)
 	    req_size = cpu->cores[i].l1_map.l1_code_rom_end - addr;
 
-	  ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	  ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_a
@@ -5920,7 +6440,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_a_cache_enabled
@@ -5933,7 +6453,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_b
@@ -5952,7 +6472,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (! cpu->cores[i].l1_data_b_cache_enabled
@@ -5965,7 +6485,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = dma_sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_scratch
@@ -6198,7 +6718,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	      || (end = cpu->cores[i].l1_map.l1_code_end))
 	  && addr + write_size <= end)
 	{
-	  ret = dma_sram_write (core, (uint32_t) addr, buf, write_size);
+	  ret = sram_write (core, (uint32_t) addr, buf, write_size);
 
 	  if (i == core)
 	    icache_flush (i, addr, write_size);
@@ -6240,7 +6760,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	       && addr < cpu->cores[i].l1_map.l1_code_cache_end
 	       && addr + write_size <= cpu->cores[i].l1_map.l1_code_cache_end)
 	{
-	  ret = dma_sram_write (core, (uint32_t) addr, buf, write_size);
+	  ret = sram_write (core, (uint32_t) addr, buf, write_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_a
@@ -6255,7 +6775,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = dma_sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_a_cache_enabled
@@ -6266,7 +6786,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = dma_sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_b
@@ -6281,7 +6801,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = dma_sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_b_cache_enabled
@@ -6292,7 +6812,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = dma_sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_scratch
@@ -6463,12 +6983,12 @@ bfin_resume_from_current (int step, int sig)
 	{
 	  if (step && !cpu->cores[i].is_stepping)
 	    {
-	      core_dbgctl_bit_set (i, DBGCTL_ESSTEP, UPDATE);
+	      core_dbgctl_bit_set_esstep (i, UPDATE);
 	      cpu->cores[i].is_stepping = 1;
 	    }
 	  else if (!step && cpu->cores[i].is_stepping)
 	    {
-	      core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
+	      core_dbgctl_bit_clear_esstep (i, UPDATE);
 	      cpu->cores[i].is_stepping = 0;
 	    }
 
@@ -6484,7 +7004,7 @@ bfin_resume_from_current (int step, int sig)
 	{
 	  if (cpu->cores[i].is_stepping)
 	    {
-	      core_dbgctl_bit_clear (i, DBGCTL_ESSTEP, UPDATE);
+	      core_dbgctl_bit_clear_esstep (i, UPDATE);
 	      cpu->cores[i].is_stepping = 0;
 	    }
 
@@ -6612,7 +7132,7 @@ bfin_wait_partial (int first,
       if (cpu->cores[i].leave_stopped)
 	continue;
 
-      if ((cpu->cores[i].dbgstat & DBGSTAT_EMUREADY)
+      if (core_dbgstat_is_emuready (i)
 	  && cpu->cores[i].is_locked)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
@@ -6662,17 +7182,17 @@ bfin_wait_partial (int first,
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] done", bfin_target.name, i);
 	}
-      if ((cpu->cores[i].dbgstat & DBGSTAT_CORE_FAULT)
-	  || (cpu->cores[i].dbgstat & DBGSTAT_EMUREADY))
+      if (core_dbgstat_is_core_fault (i)
+	  || core_dbgstat_is_emuready (i))
 	{
 	  *more = FALSE;
 	}
-      else if (cpu->cores[i].dbgstat & DBGSTAT_IDLE)
+      else if (core_dbgstat_is_idle (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] core is in idle mode", bfin_target.name, i);
 	}
-      else if (cpu->cores[i].dbgstat & DBGSTAT_IN_RESET)
+      else if (core_dbgstat_is_in_reset (i) && !core_sticky_in_reset (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] core is currently being reset",
@@ -6704,9 +7224,9 @@ bfin_wait_partial (int first,
       if (cpu->cores[i].is_locked)
 	continue;
 
-      cause = (cpu->cores[i].dbgstat & DBGSTAT_EMUCAUSE_MASK) >> 6;
+      cause = core_dbgstat_emucause (i);
 
-      if (cpu->cores[i].dbgstat & DBGSTAT_CORE_FAULT)
+      if (core_dbgstat_is_core_fault (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] a double fault has occured EMUPC [0x%08X]",
@@ -6719,7 +7239,7 @@ bfin_wait_partial (int first,
 	  cpu->cores[i].pending_signal = sig;
 	  cpu->cores[i].pending_stop_pc = cpu->cores[i].emupc;
 	}
-      else if (cpu->cores[i].dbgstat & DBGSTAT_EMUREADY)
+      else if (core_dbgstat_is_emuready (i))
 	{
 	  pc = core_register_get (i, REG_RETE);
 	  fp = core_register_get (i, REG_FP);
@@ -6974,7 +7494,7 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
       cp += strlen (cp);
     }
 
-  sprintf (cp, " DBGSTAT [0x%08X]", cpu->cores[core].dbgstat);
+  sprintf (cp, " DBGSTAT [0x%04X]", cpu->cores[core].dbgstat);
 
   if (strlen (out_buf) >= out_buf_size)
     return RP_VAL_TARGETRET_ERR;

@@ -1,3 +1,85 @@
+2008-09-22  Jie Zhang  <jie.zhang@analog.com>
+
+	* blackfin-part.c: New file.
+	* blackfin-part.h: New file.
+	* blackfin-part-bf579.c: New file.
+	* blackfin-part-bfin.c: New file.
+	* Makefile.am (gdbproxy_SOURCES): Add blackfin-part-bf579.c,
+	blackfin-part-bfin.c, blackfin-part.c, and blackfin-part.h.
+	* Makefile.in Regenerate.
+	* target_bfin_new.c: Include "blackfin-part.h".
+	(DBGCTL_*, DBGSTAT_*): Remove.
+	(DTEST_COMMAND, ITEST_COMMAND): Remove.
+	(INSN_NOP, INSN_RTE, INSN_CSYNC, INSN_SSYNC): Use original
+	16 bit opcodes instread of shift 16-bit left.
+	(bf579_l1_map): Define.
+	(bf579_mem_map): Define.
+	(bfin_out_treg, bfin_out_treg_value): Remove declarations.
+	(gen_move): Don't shift the result.
+	(gen_ldst): Likewise.
+	(gen_flush_insn): Likewise.
+	(register_init_value): Move to blackfin-part.c.
+	(register_value): Move to blackfin-part.c. Drop the most
+	significant bits if the value cannot fit in the register.
+	(dbgctl_bit_clear_and_set): Remove.
+	(dbgctl_bit_set): Remove.
+	(dbgctl_bit_clear): Remove.
+	(core_dbgctl_bit_clear_and_set): Remove.
+	(core_dbgctl_bit_set): Remove.
+	(core_dbgctl_bit_clear): Remove.
+	(DBGCTL_CLEAR_OR_SET_BIT): Define.
+	(DBGCTL_SET_BIT): Define.
+	(DBGCTL_CLEAR_BIT): Define.
+	(CORE_DBGCTL_CLEAR_OR_SET_BIT): Define.
+	(CORE_DBGCTL_SET_BIT): Define.
+	(CORE_DBGCTL_CLEAR_BIT): Define.
+	(DBGCTL_BIT_OP): Define. Apply to each bit name of DBGCTL to
+	generate a set of DBGCTL bit operation functions. Update each
+	use of DBGCTL bit macros to use these functions.
+	(CORE_DBGSTAT_BIT_IS): Define. Apply to each bit name of DBGSTAT to
+	generate a set of DBGSTAT bit operation functions. Update each
+	use of DBGSTAT bit macros to use these functions.
+	(core_dbgstat_emucause): New.
+	(dbgstat_get): Deal with the case that DBGCTL and DBGSTAT are
+	in one scan chain.
+	(core_dbgstat_get): Likewise.
+	(core_sticky_in_reset): New.
+	(emuir_init_value): New.
+	(emuir_set): Call emuir_init_value to properly set identify
+	bits in EMUIR.
+	(emuir_set_same): Likewise.
+	(core_emuir_set): Likewise.
+	(emuir_set_2): Likewise.
+	(emuir_set_same_2): Likewise.
+	(core_emuir_set_2): Likewise.
+	(emudat_value): New.
+	(emudat_init_value): New.
+	(core_emudat_get): Only return real data.
+	(core_emudat_set): Set emudat_init_value to set EMUDIF if needed.
+	(register_get): Can't directly move between USP and EMUDAT.
+	(core_register_get): Likewise.
+	(register_set): Likewise.
+	(register_set_same): Likewise.
+	(core_register_set): Likewise.
+	(emulation_trigger): Don't EMPEN.
+	(core_emulation_trigger): Likewise.
+	(core_reset_new): New.
+	(itest_read_clobber_p0r0): New.
+	(itest_write_clobber_p0r0): New.
+	(itest_sram_read): New.
+	(itest_sram_write): New.
+	(sram_read): New.
+	(sram_write): New.
+	(bfin_part_init): New.
+	(bfin_open): Call bfin_part_init. Deal with BF579.
+	(bfin_connect): Call core_reset_new for BF579.
+	Don't call system_reset if there is no system.
+	Print DBGSTAT in 16-bit hex.
+	Call dbgstat_get before analyze the status of cores.
+	If FP is 0, set it to the end of scratch SRAM.
+	(bfin_read_mem): Call sram_read instead of dma_sram_read.
+	(bfin_write_mem): Call sram_write instead of dma_sram_write.
+
 2008-09-14  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (dbgstat_show): Rearrange output string.

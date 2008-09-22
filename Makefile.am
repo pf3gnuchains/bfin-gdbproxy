@@ -44,7 +44,7 @@ RC_SOURCES = gdbproxy-icon.rc
 else
 RC_SOURCES =
 endif
-gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
+gdbproxy_SOURCES = blackfin-part-bf579.c blackfin-part-bfin.c blackfin-part.c copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c blackfin-part.h gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
 
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
