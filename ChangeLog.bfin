@@ -1,3 +1,7 @@
+2008-09-29  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bfin_open): Treat BF518 as BF527.
+
 2008-09-22  Jie Zhang  <jie.zhang@analog.com>
 
 	* blackfin-part.c: New file.

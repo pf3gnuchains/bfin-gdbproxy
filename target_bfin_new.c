@@ -5470,7 +5470,7 @@ bfin_open (int argc,
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00E00
 
-     BF52x BF534/6/7 BF54x
+     BF52x BF534/6/7 BF54x BF51x
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00F00
 
@@ -5487,7 +5487,8 @@ bfin_open (int argc,
    */
 
   if (!strcmp (chain->parts->parts[0]->part, "BF526") ||
-      !strcmp (chain->parts->parts[0]->part, "BF527"))
+      !strcmp (chain->parts->parts[0]->part, "BF527") ||
+      !strcmp (chain->parts->parts[0]->part, "BF518"))
     {
       assert (chain->parts->len == 1);
 
