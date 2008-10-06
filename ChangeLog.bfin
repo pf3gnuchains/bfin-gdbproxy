@@ -1,3 +1,7 @@
+2008-10-05  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (sram_read): Don't call itest_sram_read() directly.
+
 2008-09-29  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bfin_open): Treat BF518 as BF527.

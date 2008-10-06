@@ -4869,10 +4869,8 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 static int
 sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
-  return itest_sram_read (core, addr, buf, size);
-
   /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
-  if (cpu->mdma_d0 == 0)
+  if ((addr & 0xf0000) == 0)
     return itest_sram_read (core, addr, buf, size);
   else
     return dma_sram_read (core, addr, buf, size);
