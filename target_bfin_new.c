@@ -2895,7 +2895,7 @@ core_reset (void)
 }
 
 static uint32_t
-mmr_read_clobber_p0r0 (int core, int32_t offset, int size)
+mmr_read_clobber_r0 (int core, int32_t offset, int size)
 {
   uint32_t value;
 
@@ -3031,7 +3031,7 @@ mmr_read (int core, uint32_t addr, int size)
   r0 = core_register_get (core, REG_R0);
 
   core_register_set (core, REG_P0, addr);
-  value = mmr_read_clobber_p0r0 (core, 0, size);
+  value = mmr_read_clobber_r0 (core, 0, size);
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -3051,7 +3051,7 @@ mmr_read (int core, uint32_t addr, int size)
 }
 
 static void
-mmr_write_clobber_p0r0 (int core, int32_t offset, uint32_t data, int size)
+mmr_write_clobber_r0 (int core, int32_t offset, uint32_t data, int size)
 {
   assert (size == 2 || size == 4);
 
@@ -3201,7 +3201,7 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
   r0 = core_register_get (core, REG_R0);
 
   core_register_set (core, REG_P0, addr);
-  mmr_write_clobber_p0r0 (core, 0, data, size);
+  mmr_write_clobber_r0 (core, 0, data, size);
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -3241,7 +3241,7 @@ sdram_init (void)
 
   /* Check if SDRAM has been enabled already.
      If so, don't enable it again.  */
-  value = mmr_read_clobber_p0r0 (core, EBIU_SDSTAT - EBIU_SDGCTL, 2);
+  value = mmr_read_clobber_r0 (core, EBIU_SDSTAT - EBIU_SDGCTL, 2);
   if ((value & 0x8) == 0)
     {
       bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -3249,11 +3249,11 @@ sdram_init (void)
       return 0;
     }
 
-  mmr_write_clobber_p0r0 (core, EBIU_SDRRC - EBIU_SDGCTL,
-			  cpu->sdram_config->sdrrc, 2);
-  mmr_write_clobber_p0r0 (core, EBIU_SDBCTL - EBIU_SDGCTL,
-			  cpu->sdram_config->sdbctl, 2);
-  mmr_write_clobber_p0r0 (core, 0, cpu->sdram_config->sdgctl, 4);
+  mmr_write_clobber_r0 (core, EBIU_SDRRC - EBIU_SDGCTL,
+			cpu->sdram_config->sdrrc, 2);
+  mmr_write_clobber_r0 (core, EBIU_SDBCTL - EBIU_SDGCTL,
+			cpu->sdram_config->sdbctl, 2);
+  mmr_write_clobber_r0 (core, 0, cpu->sdram_config->sdgctl, 4);
   core_emuir_set (core, INSN_SSYNC, RUNTEST);
 
   core_register_set (core, REG_P0, p0);
@@ -3293,15 +3293,15 @@ ddr_init (void)
 
   core_register_set (core, REG_P0, EBIU_DDRCTL0);
 
-  value = mmr_read_clobber_p0r0 (core, EBIU_RSTCTL - EBIU_DDRCTL0, 2);
-  mmr_write_clobber_p0r0 (core, EBIU_RSTCTL - EBIU_DDRCTL0, value | 0x1, 2);
+  value = mmr_read_clobber_r0 (core, EBIU_RSTCTL - EBIU_DDRCTL0, 2);
+  mmr_write_clobber_r0 (core, EBIU_RSTCTL - EBIU_DDRCTL0, value | 0x1, 2);
   core_emuir_set (core, INSN_SSYNC, RUNTEST);
 
-  mmr_write_clobber_p0r0 (core, 0, cpu->ddr_config->ddrctl0, 4);
-  mmr_write_clobber_p0r0 (core, EBIU_DDRCTL1 - EBIU_DDRCTL0,
-			  cpu->ddr_config->ddrctl1, 4);
-  mmr_write_clobber_p0r0 (core, EBIU_DDRCTL2 - EBIU_DDRCTL0,
-			  cpu->ddr_config->ddrctl2, 4);
+  mmr_write_clobber_r0 (core, 0, cpu->ddr_config->ddrctl0, 4);
+  mmr_write_clobber_r0 (core, EBIU_DDRCTL1 - EBIU_DDRCTL0,
+			cpu->ddr_config->ddrctl1, 4);
+  mmr_write_clobber_r0 (core, EBIU_DDRCTL2 - EBIU_DDRCTL0,
+			cpu->ddr_config->ddrctl2, 4);
   core_emuir_set (core, INSN_SSYNC, RUNTEST);
 
   core_register_set (core, REG_P0, p0);
@@ -3512,7 +3512,7 @@ dcplb_analyze (int core, uint32_t addr, int size, int *used)
 
       core_register_set (core, REG_P0, DMEM_CONTROL);
       cpu->cores[core].dmem_control
-	= mmr_read_clobber_p0r0 (core, 0, 4);
+	= mmr_read_clobber_r0 (core, 0, 4);
       cpu->cores[core].dmem_control_valid_p = 1;
 
       if ((cpu->cores[core].dmem_control & ENDCPLB)
@@ -4073,7 +4073,7 @@ core_dcache_enable (int core, int method)
   r0 = core_register_get (core, REG_R0);
 
   core_register_set (core, REG_P0, DTEST_COMMAND);
-  mmr_write_clobber_p0r0 (core, 0, 0, 4);
+  mmr_write_clobber_r0 (core, 0, 0, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 
   core_dcplb_set_clobber_p0r0 (core);
@@ -4081,7 +4081,7 @@ core_dcache_enable (int core, int method)
 
   cpu->cores[core].dmem_control = ACACHE_BCACHE | ENDCPLB;
   core_register_set (core, REG_P0, DMEM_CONTROL);
-  mmr_write_clobber_p0r0 (core, 0,
+  mmr_write_clobber_r0 (core, 0,
 			  cpu->cores[core].dmem_control, 4);
   cpu->cores[core].dmem_control_valid_p = 1;
 
@@ -4146,7 +4146,7 @@ core_icache_enable (int core)
   r0 = core_register_get (core, REG_R0);
 
   core_register_set (core, REG_P0, ITEST_COMMAND);
-  mmr_write_clobber_p0r0 (core, 0, 0, 4);
+  mmr_write_clobber_r0 (core, 0, 0, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 
   core_icplb_set_clobber_p0r0 (core);
@@ -4154,7 +4154,7 @@ core_icache_enable (int core)
 
   cpu->cores[core].imem_control = IMC | ENICPLB;
   core_register_set (core, REG_P0, IMEM_CONTROL);
-  mmr_write_clobber_p0r0 (core, 0,
+  mmr_write_clobber_r0 (core, 0,
 			  cpu->cores[core].imem_control, 4);
   cpu->cores[core].imem_control_valid_p = 1;
 
@@ -4301,11 +4301,11 @@ dma_context_save_clobber_p0r0 (int core, uint32_t base, bfin_dma *dma)
 {
   core_register_set (core, REG_P0, base);
 
-  dma->start_addr = mmr_read_clobber_p0r0 (core, 0x04, 4);
-  dma->config = mmr_read_clobber_p0r0 (core, 0x08, 2);
-  dma->x_count = mmr_read_clobber_p0r0 (core, 0x10, 2);
-  dma->x_modify = mmr_read_clobber_p0r0 (core, 0x14, 2);
-  dma->irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+  dma->start_addr = mmr_read_clobber_r0 (core, 0x04, 4);
+  dma->config = mmr_read_clobber_r0 (core, 0x08, 2);
+  dma->x_count = mmr_read_clobber_r0 (core, 0x10, 2);
+  dma->x_modify = mmr_read_clobber_r0 (core, 0x14, 2);
+  dma->irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
 }
 
 static void
@@ -4313,10 +4313,10 @@ dma_context_restore_clobber_p0r0 (int core, uint32_t base, bfin_dma *dma)
 {
   core_register_set (core, REG_P0, base);
 
-  mmr_write_clobber_p0r0 (core, 0x04, dma->start_addr, 4);
-  mmr_write_clobber_p0r0 (core, 0x10, dma->x_count, 2);
-  mmr_write_clobber_p0r0 (core, 0x14, dma->x_modify, 2);
-  mmr_write_clobber_p0r0 (core, 0x08, dma->config, 2);
+  mmr_write_clobber_r0 (core, 0x04, dma->start_addr, 4);
+  mmr_write_clobber_r0 (core, 0x10, dma->x_count, 2);
+  mmr_write_clobber_r0 (core, 0x14, dma->x_modify, 2);
+  mmr_write_clobber_r0 (core, 0x08, dma->config, 2);
 }
 
 static void
@@ -4368,9 +4368,9 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
       nanosleep (&dma_wait, NULL);
 
       core_register_set (core, REG_P0, cpu->mdma_s0);
-      s0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+      s0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
       core_register_set (core, REG_P0, cpu->mdma_d0);
-      d0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+      d0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
     }
 
   if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
@@ -4394,26 +4394,26 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
       || (s0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
     {
       core_register_set (core, REG_P0, cpu->mdma_s0);
-      mmr_write_clobber_p0r0 (core,
-			      0x28,
-			      DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
-			      2);
+      mmr_write_clobber_r0 (core,
+			    0x28,
+			    DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
+			    2);
     }
 
   if ((d0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
       || (d0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
     {
       core_register_set (core, REG_P0, cpu->mdma_d0);
-      mmr_write_clobber_p0r0 (core,
-			      0x28,
-			      DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
-			      2);
+      mmr_write_clobber_r0 (core,
+			    0x28,
+			    DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
+			    2);
     }
 
   core_register_set (core, REG_P0, cpu->mdma_s0);
-  s0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+  s0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
   core_register_set (core, REG_P0, cpu->mdma_d0);
-  d0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+  d0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: before dma copy MDMA0_S0 IRQ_STATUS [0x%04X]",
@@ -4442,9 +4442,9 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
 wait_dma:
 
   core_register_set (core, REG_P0, cpu->mdma_s0);
-  s0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+  s0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
   core_register_set (core, REG_P0, cpu->mdma_d0);
-  d0_irq_status = mmr_read_clobber_p0r0 (core, 0x28, 2);
+  d0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
 
   if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
     {
@@ -4493,20 +4493,20 @@ wait_dma:
       || (s0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
     {
       core_register_set (core, REG_P0, cpu->mdma_s0);
-      mmr_write_clobber_p0r0 (core,
-			      0x28,
-			      DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
-			      2);
+      mmr_write_clobber_r0 (core,
+			    0x28,
+			    DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
+			    2);
     }
 
   if ((d0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
       || (d0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
     {
       core_register_set (core, REG_P0, cpu->mdma_d0);
-      mmr_write_clobber_p0r0 (core,
-			      0x28,
-			      DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
-			      2);
+      mmr_write_clobber_r0 (core,
+			    0x28,
+			    DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE,
+			    2);
     }
 
 
@@ -4662,7 +4662,7 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 /* Do one ITEST read.  ADDR should be aligned to 8 bytes. BUF should
    be enough large to hold 64 bits.  */
 static void
-itest_read_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
+itest_read_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 {
   part_t *part;
   uint32_t test_command;
@@ -4680,11 +4680,10 @@ itest_read_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
   test_data1_addr = EMU_OAB (part)->test_data1_addr;
   test_data0_addr = EMU_OAB (part)->test_data0_addr;
 
-  core_register_set (core, REG_P0, test_command_addr);
-  mmr_write_clobber_p0r0 (core, 0, test_command, 4);
+  mmr_write_clobber_r0 (core, 0, test_command, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
-  data1 = mmr_read_clobber_p0r0 (core, test_data1_addr - test_command_addr, 4);
-  data0 = mmr_read_clobber_p0r0 (core, test_data0_addr - test_command_addr, 4);
+  data1 = mmr_read_clobber_r0 (core, test_data1_addr - test_command_addr, 4);
+  data0 = mmr_read_clobber_r0 (core, test_data0_addr - test_command_addr, 4);
 
   *buf++ = data0 & 0xff;
   *buf++ = (data0 >> 8) & 0xff;
@@ -4699,7 +4698,7 @@ itest_read_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
 /* Do one ITEST write.  ADDR should be aligned to 8 bytes. BUF should
    be enough large to hold 64 bits.  */
 static void
-itest_write_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
+itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 {
   part_t *part;
   uint32_t test_command;
@@ -4726,10 +4725,9 @@ itest_write_clobber_p0r0 (int core, uint32_t addr, uint8_t *buf)
   data1 |= (*buf++) << 16;
   data1 |= (*buf++) << 24;
 
-  core_register_set (core, REG_P0, test_command_addr);
-  mmr_write_clobber_p0r0 (core, test_data1_addr - test_command_addr, data1, 4);
-  mmr_write_clobber_p0r0 (core, test_data0_addr - test_command_addr, data0, 4);
-  mmr_write_clobber_p0r0 (core, 0, test_command, 4);
+  mmr_write_clobber_r0 (core, test_data1_addr - test_command_addr, data1, 4);
+  mmr_write_clobber_r0 (core, test_data0_addr - test_command_addr, data0, 4);
+  mmr_write_clobber_r0 (core, 0, test_command, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 }
 
@@ -4739,6 +4737,8 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   uint32_t p0, r0;
   uint8_t data[8];
   uint8_t *ptr;
+  uint32_t test_command_addr;
+  part_t *part;
 
   /* As a temporary workaound for hardware bug, we always set IMC of
      bf579 to 01. Such that we can read ISRAM using ITEST
@@ -4752,9 +4752,13 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
+  part = cpu->chain->parts->parts[core];
+  test_command_addr = EMU_OAB (part)->test_command_addr;
+  core_register_set (core, REG_P0, test_command_addr);
+
   if ((addr & 0x7) != 0)
     {
-      itest_read_clobber_p0r0 (core, addr & 0xfffffff8, data);
+      itest_read_clobber_r0 (core, addr & 0xfffffff8, data);
 
       while ((addr & 0x7) != 0 && size != 0)
 	{
@@ -4766,14 +4770,14 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 
   for (; size >= 8; size -= 8)
     {
-      itest_read_clobber_p0r0 (core, addr, buf);
+      itest_read_clobber_r0 (core, addr, buf);
       addr += 8;
       buf += 8;
     }
 
   if (size != 0)
     {
-      itest_read_clobber_p0r0 (core, addr, data);
+      itest_read_clobber_r0 (core, addr, data);
 
       ptr = data;
       for (; size > 0; size--)
@@ -4801,6 +4805,8 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   uint32_t p0, r0;
   uint8_t data[8];
   uint8_t *ptr;
+  uint32_t test_command_addr;
+  part_t *part;
 
   /* As a tempory workaound for hardware bug, we always set IMC of
      bf579 to 01. Such that we can read ISRAM using ITEST
@@ -4815,11 +4821,15 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
+  part = cpu->chain->parts->parts[core];
+  test_command_addr = EMU_OAB (part)->test_command_addr;
+  core_register_set (core, REG_P0, test_command_addr);
+
   if ((addr & 0x7) != 0)
     {
       uint32_t aligned_addr = addr & 0xfffffff8;
 
-      itest_read_clobber_p0r0 (core, aligned_addr, data);
+      itest_read_clobber_r0 (core, aligned_addr, data);
 
       while ((addr & 0x7) != 0 && size != 0)
 	{
@@ -4828,25 +4838,25 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 	  size--;
 	}
 
-      itest_write_clobber_p0r0 (core, aligned_addr, data);
+      itest_write_clobber_r0 (core, aligned_addr, data);
     }
 
   for (; size >= 8; size -= 8)
     {
-      itest_write_clobber_p0r0 (core, addr, buf);
+      itest_write_clobber_r0 (core, addr, buf);
       addr += 8;
       buf += 8;
     }
 
   if (size != 0)
     {
-      itest_read_clobber_p0r0 (core, addr, data);
+      itest_read_clobber_r0 (core, addr, data);
 
       ptr = data;
       for (; size > 0; size--)
 	*ptr++ = *buf++;
 
-      itest_write_clobber_p0r0 (core, addr, data);
+      itest_write_clobber_r0 (core, addr, data);
     }
 
   core_register_set (core, REG_P0, p0);
@@ -4869,6 +4879,7 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 static int
 sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
+    return itest_sram_read (core, addr, buf, size);
   /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
   if (cpu->mdma_d0 == 0)
     return itest_sram_read (core, addr, buf, size);
@@ -4879,6 +4890,7 @@ sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 static int
 sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
+    return itest_sram_write (core, addr, buf, size);
   /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
   if (cpu->mdma_d0 == 0)
     return itest_sram_write (core, addr, buf, size);
@@ -5042,9 +5054,9 @@ core_cache_status_get (int core)
 
       core_register_set (core, REG_P0, DMEM_CONTROL);
 
-      cpu->cores[core].dmem_control = mmr_read_clobber_p0r0 (core, 0, 4);
+      cpu->cores[core].dmem_control = mmr_read_clobber_r0 (core, 0, 4);
       cpu->cores[core].dmem_control_valid_p = 1;
-      cpu->cores[core].imem_control = mmr_read_clobber_p0r0 (core, IMEM_CONTROL - DMEM_CONTROL, 4);
+      cpu->cores[core].imem_control = mmr_read_clobber_r0 (core, IMEM_CONTROL - DMEM_CONTROL, 4);
       cpu->cores[core].imem_control_valid_p = 1;
 
       core_register_set (core, REG_P0, p0);

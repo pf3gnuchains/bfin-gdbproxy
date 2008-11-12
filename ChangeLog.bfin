@@ -1,3 +1,16 @@
+2008-11-12  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (mmr_read_clobber_p0r0): Rename to ...
+	(mmr_read_clobber_r0): ... this. And change all call sites.
+	(mmr_write_clobber_p0r0): Rename to ...
+	(mmr_write_clobber_r0): ... this. And change all call sites.
+	(itest_read_clobber_p0r0): Rename to ...
+	(itest_read_clobber_r0): ... this. And don't set P0.
+	(itest_write_clobber_p0r0): Rename to ...
+	(itest_write_clobber_r0): ... this. And don't set P0.
+	(itest_sram_read): Set P0 here.
+	(itest_sram_write): Set P0 here.
+
 2008-10-05  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (sram_read): Don't call itest_sram_read() directly.
