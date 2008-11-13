@@ -263,7 +263,7 @@ gdbproxy [@var{proxy-options}] bfin [--board=@var{board}]
     [--enable-icache] [--flash-size=@var{bytes}] [--force-range-wp]
     [--init-sdram] [--loop-wait=@var{usec}] [--no-auto-switch]
     [--reset] [--sdram-size=@var{bytes}] [--unlock-on-connect]
-    [--unlock-on-load]
+    [--unlock-on-load] [--use-dma]
 @end smallexample
 
 The target `bfin' is using JTAG cable to debug Blackfin processor
@@ -375,6 +375,14 @@ Unlock all locked cores when gdb connects.
 @item --unlock-on-load
 Unlock the locked core when loading code to the first address of
 its L1 Instruction SRAM.
+
+@item --use-dma
+Use DMA to access Instruction SRAM. ITEST/DTEST is used when
+possible by default. Using DMA to access Instruction SRAM is slower
+than using ITEST/DTEST. But when the latter is used, TEST_COMMAND
+is reset to 0, i.e. clobbered! But it should not do any harm to
+any reasonable user programs. Only Codes trying to peek TEST_COMMAND
+might be affected.
 @end table
 
 @node    Targets `remote' and `extended-remote', Target `skeleton', Target `bfin', Top

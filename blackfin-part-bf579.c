@@ -42,6 +42,10 @@ bf579_test_command (uint32_t addr, int w)
 {
   uint32_t test_command;
 
+  /* We can only access [15:0] range.  */
+  if ((addr & 0xf0000) != 0)
+    return 0;
+
   test_command =
     (addr & 0xfff8)		/* Address bits [15:3] */
     | 0x1;			/* Access to ISRAM */

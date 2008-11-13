@@ -1,5 +1,25 @@
 2008-11-13  Jie Zhang  <jie.zhang@analog.com>
 
+	* target_bfin_new.c (struct _bfin_test_data): Define.
+	(bfin_test_data): Typedef.
+	(reject_invalid_mem): Make it static.
+	(use_dma): Define.
+	(test_context_save_clobber_r0): New.
+	(test_context_restore_clobber_r0): New.
+	(itest_sram_read): Save and restore TEST_DATA MMR.
+	(itest_sram_write): Likewise.
+	(sram_read): Add new argument dma_p. Update callers.
+	Default use ITEST/DTEST.
+	(sram_write): Likewise.
+	(bfin_help): Add --use-dma.
+	(bfin_open): Handle --use-dma.
+	* blackfin-part-bf579.c (bf579_test_command): Return 0 if
+	the address cannot be accessed via ITEST/DTEST.
+	* blackfin-part-bfin.c (bfin_test_command): Likewise.
+	* gdbprox.texi: Document bfin --use-dma option.
+
+2008-11-13  Jie Zhang  <jie.zhang@analog.com>
+
 	* target_bfin_new.c (sram_read): Remove the line I accidentally
 	added in my last change.
 	(sram_write): Likewise.

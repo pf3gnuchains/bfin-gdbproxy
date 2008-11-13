@@ -49,15 +49,16 @@ bfin_test_command (uint32_t addr, int w)
   uint32_t test_command;
 
   /* We can only access [15:0] range.  */
-  assert ((addr & 0xf0000) == 0);
+  if ((addr & 0xf0000) != 0)
+    return 0;
 
   test_command =
     (addr & 0x0800) << 15	/* Address bit 11 */
     | (addr & 0x8000) << 8	/* Address bit 15 */
     | (addr & 0x3000) << 4	/* Address bits [13:12] */
     | (addr & 0x47f8)		/* Address bits 14 and [10:3] */
-    | 0x1000000		/* Access instruction */
-      | 0x4;			/* Access data array */
+    | 0x1000000			/* Access instruction */
+    | 0x4;			/* Access data array */
 
   if (w)
     test_command |= 0x2;	/* Write */

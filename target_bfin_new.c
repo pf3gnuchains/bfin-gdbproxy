@@ -833,6 +833,12 @@ typedef struct _bfin_dma
   uint16_t curr_y_count;
 } bfin_dma;
 
+typedef struct _bfin_test_data
+{
+  uint32_t data0;
+  uint32_t data1;
+} bfin_test_data;
+
 typedef struct _bfin_hwwps
 {
   uint32_t addr;
@@ -972,7 +978,6 @@ typedef struct _bfin_cpu
 
 int big_endian = 0;
 int debug_mode = 0;
-int reject_invalid_mem = 0;
 
 static log_func bfin_log;
 static bfin_cpu *cpu = NULL;
@@ -987,6 +992,8 @@ static int bfin_init_sdram = 0;
 static int bfin_reset = 0;
 static int bfin_enable_dcache = CACHE_DISABLED;
 static int bfin_enable_icache = 0;
+static int reject_invalid_mem = 0;
+static int use_dma = 0;
 
 
 /* Local functions */
@@ -4731,9 +4738,54 @@ itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 }
 
+static void
+test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
+{
+  part_t *part;
+  uint32_t test_command_addr;
+  uint32_t test_data1_addr, test_data0_addr;
+
+  part = cpu->chain->parts->parts[core];
+
+  test_command_addr = EMU_OAB (part)->test_command_addr;
+  test_data1_addr = EMU_OAB (part)->test_data1_addr;
+  test_data0_addr = EMU_OAB (part)->test_data0_addr;
+
+  test_data->data1
+    = mmr_read_clobber_r0 (core, test_data1_addr - test_command_addr, 4);
+  test_data->data0
+    = mmr_read_clobber_r0 (core, test_data0_addr - test_command_addr, 4);
+}
+
+static void
+test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
+{
+  part_t *part;
+  uint32_t test_command_addr;
+  uint32_t test_data1_addr, test_data0_addr;
+
+  part = cpu->chain->parts->parts[core];
+
+  test_command_addr = EMU_OAB (part)->test_command_addr;
+  test_data1_addr = EMU_OAB (part)->test_data1_addr;
+  test_data0_addr = EMU_OAB (part)->test_data0_addr;
+
+  mmr_write_clobber_r0 (core, test_data1_addr - test_command_addr,
+			test_data->data1, 4);
+  mmr_write_clobber_r0 (core, test_data0_addr - test_command_addr,
+			test_data->data0, 4);
+  /* Yeah, TEST_COMMAND is reset to 0, i.e. clobbered!  But it should
+     not do any harm to any reasonable user programs.  Codes trying to
+     peek TEST_COMMAND might be affected.  But why do such codes
+     exist?  */
+  mmr_write_clobber_r0 (core, 0, 0, 4);
+  core_emuir_set (core, INSN_CSYNC, RUNTEST);
+}
+
 static int
 itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
+  bfin_test_data test_data_save;
   uint32_t p0, r0;
   uint8_t data[8];
   uint8_t *ptr;
@@ -4755,6 +4807,8 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   part = cpu->chain->parts->parts[core];
   test_command_addr = EMU_OAB (part)->test_command_addr;
   core_register_set (core, REG_P0, test_command_addr);
+
+  test_context_save_clobber_r0 (core, &test_data_save);
 
   if ((addr & 0x7) != 0)
     {
@@ -4784,6 +4838,8 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 	*buf++ = *ptr++;
     }
 
+  test_context_restore_clobber_r0 (core, &test_data_save);
+
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
 
@@ -4802,6 +4858,7 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 static int
 itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
+  bfin_test_data test_data_save;
   uint32_t p0, r0;
   uint8_t data[8];
   uint8_t *ptr;
@@ -4824,6 +4881,8 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   part = cpu->chain->parts->parts[core];
   test_command_addr = EMU_OAB (part)->test_command_addr;
   core_register_set (core, REG_P0, test_command_addr);
+
+  test_context_save_clobber_r0 (core, &test_data_save);
 
   if ((addr & 0x7) != 0)
     {
@@ -4859,6 +4918,8 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
       itest_write_clobber_r0 (core, addr, data);
     }
 
+  test_context_restore_clobber_r0 (core, &test_data_save);
+
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
 
@@ -4874,26 +4935,41 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   return 0;
 }
 
-/* Wrappers for sram_read and sram_write.  */
+/* Wrappers for sram_read and sram_write.  If DMA_P is not zero, DMA
+   should be used.  Otherwise, ITEST may be used.  */
 
 static int
-sram_read (int core, uint32_t addr, uint8_t *buf, int size)
+sram_read (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 {
-  /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
-  if (cpu->mdma_d0 == 0)
-    return itest_sram_read (core, addr, buf, size);
-  else
+  part_t *part;
+  uint32_t test_command;
+
+  assert (!dma_p || cpu->mdma_d0 != 0);
+
+  part = cpu->chain->parts->parts[core];
+  test_command = EMU_OAB (part)->test_command (addr, 0);
+
+  if (dma_p || use_dma || test_command == 0)
     return dma_sram_read (core, addr, buf, size);
+  else
+    return itest_sram_read (core, addr, buf, size);
 }
 
 static int
-sram_write (int core, uint32_t addr, uint8_t *buf, int size)
+sram_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 {
-  /* If we have no MDMA, we have to use ITEST_COMMAND or DTEST_COMMAND.  */
-  if (cpu->mdma_d0 == 0)
-    return itest_sram_write (core, addr, buf, size);
-  else
+  part_t *part;
+  uint32_t test_command;
+
+  assert (!dma_p || cpu->mdma_d0 != 0);
+
+  part = cpu->chain->parts->parts[core];
+  test_command = EMU_OAB (part)->test_command (addr, 0);
+
+  if (dma_p || use_dma || test_command == 0)
     return dma_sram_write (core, addr, buf, size);
+  else
+    return itest_sram_write (core, addr, buf, size);
 }
 
 
@@ -5154,24 +5230,26 @@ bfin_help (const char *prog_name)
   printf (" --port=PORT             use specified port\n");
 
   printf ("\nBlackfin-options:\n\n");
+  printf (" --board=BOARD           specify the board\n");
   printf (" --connect=STRING        JTAG connection string\n");
   printf ("                         (default %s)\n", default_jtag_connect);
-  printf (" --board=BOARD           specify the board\n");
+  printf (" --emu-wait=USEC         wait USEC microseconds in emulator operations\n");
+  printf ("                         (default 5000)\n");
   printf (" --enable-dcache=METHOD  enable all data SRAM caches\n");
   printf (" --enable-icache         enable all instruction SRAM caches\n");
   printf (" --flash-size=BYTES      specify the size of flash\n");
   printf (" --force-range-wp        always use range watchpoint\n");
   printf (" --init-sdram            initialize SDRAM or DDR memory\n");
+  printf (" --loop-wait=USEC        wait USEC microseconds in wait loop (default 10000)\n");
   printf (" --no-auto-switch        Don't automatically switch to the core\n");
   printf ("                         which contains the address set to PC\n");
+  printf (" --reject-invalid-mem    make invalid memory addresses a hard error\n");
   printf (" --reset                 do a core and system reset when gdb connects\n");
   printf (" --sdram-size=BYTES      specify the size of SDRAM\n");
   printf (" --unlock-on-connect     unlock core when gdb connects\n");
   printf (" --unlock-on-load        unlock core when loading its L1 code\n");
-  printf (" --loop-wait=USEC        wait USEC microseconds in wait loop (default 10000)\n");
-  printf (" --emu-wait=USEC         wait USEC microseconds in emulator operations\n");
-  printf ("                         (default 5000)\n");
-  printf (" --reject-invalid-mem    make invalid memory addresses a hard error\n");
+  printf (" --use-dma               Use DMA to access Instruction SRAM\n");
+  printf ("                         Default ITEST or DTEST is used when possible\n");
   printf ("\n");
 
   return;
@@ -5223,6 +5301,7 @@ bfin_open (int argc,
     {"no-switch-on-load", no_argument, 0, 13},
     {"connect", required_argument, 0, 14},
     {"reject-invalid-mem", no_argument, 0, 15},
+    {"use-dma", no_argument, 0, 16},
     {NULL, 0, 0, 0}
   };
 
@@ -5390,6 +5469,10 @@ bfin_open (int argc,
 
 	case 15:
 	  reject_invalid_mem = 1;
+	  break;
+
+	case 16:
+	  use_dma = 1;
 	  break;
 
 	default:
@@ -5569,6 +5652,14 @@ bfin_open (int argc,
       chain->parts = 0;
       free (cpu);
       return RP_VAL_TARGETRET_ERR;
+    }
+
+  if (use_dma && cpu->mdma_d0 == 0)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		"%s: --use-dma is ignored since there is no MDMA",
+		bfin_target.name);
+      use_dma = 0;
     }
 
   switch (board)
@@ -6411,7 +6502,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > end)
 	    req_size = end - addr;
 
-	  ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_code_cache_enabled
@@ -6421,7 +6512,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > cpu->cores[i].l1_map.l1_code_cache_end)
 	    req_size = cpu->cores[i].l1_map.l1_code_cache_end - addr;
 
-	  ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_code_rom
@@ -6430,7 +6521,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > cpu->cores[i].l1_map.l1_code_rom_end)
 	    req_size = cpu->cores[i].l1_map.l1_code_rom_end - addr;
 
-	  ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_a
@@ -6449,7 +6540,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_a_cache_enabled
@@ -6462,7 +6553,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_b
@@ -6481,7 +6572,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
 	  goto done;
 	}
       else if (! cpu->cores[i].l1_data_b_cache_enabled
@@ -6494,7 +6585,7 @@ bfin_read_mem (uint64_t addr,
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size);
+	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_scratch
@@ -6727,7 +6818,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	      || (end = cpu->cores[i].l1_map.l1_code_end))
 	  && addr + write_size <= end)
 	{
-	  ret = sram_write (core, (uint32_t) addr, buf, write_size);
+	  ret = sram_write (core, (uint32_t) addr, buf, write_size, i != core);
 
 	  if (i == core)
 	    icache_flush (i, addr, write_size);
@@ -6769,7 +6860,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	       && addr < cpu->cores[i].l1_map.l1_code_cache_end
 	       && addr + write_size <= cpu->cores[i].l1_map.l1_code_cache_end)
 	{
-	  ret = sram_write (core, (uint32_t) addr, buf, write_size);
+	  ret = sram_write (core, (uint32_t) addr, buf, write_size, i != core);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_a
@@ -6784,7 +6875,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_a_cache_enabled
@@ -6795,7 +6886,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_data_b
@@ -6810,7 +6901,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_b_cache_enabled
@@ -6821,7 +6912,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size);
+	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
 	  goto done;
 	}
       else if (addr >= cpu->cores[i].l1_map.l1_scratch
