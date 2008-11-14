@@ -1,3 +1,18 @@
+2008-11-14  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (BF579_EBIU_SDGCTL): Define.
+	(BF579_EBIU_SDBCTL): Define.
+	(BF579_EBIU_SDRRC): Define.
+	(enum _bfin_board): Add BF579_LX220.
+	(bf579_mem_map): Initialize sdram_end, async_mem,
+	flash, flash_end, and async_mem_end.
+	(bf579_lx220_sdram_config): Define.
+	(sdram_init): Move board specific code into two below
+	functions.
+	(bfin_sdram_init): New.
+	(bf579_sdram_init): New.
+	(bfin_open): Deal with bf579-lx220 board.
+
 2008-11-13  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (struct _bfin_test_data): Define.

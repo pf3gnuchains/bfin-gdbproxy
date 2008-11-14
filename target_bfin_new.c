@@ -152,6 +152,10 @@ const static char *emucause_infos[] = {
 #define EBIU_SDRRC			0xffc00a18
 #define EBIU_SDSTAT			0xffc00a1c
 
+#define BF579_EBIU_SDGCTL		0xffc04c00
+#define BF579_EBIU_SDBCTL		0xffc04c04
+#define BF579_EBIU_SDRRC		0xffc04c08
+
 #define EBIU_DDRCTL0			0xffc00a20
 #define EBIU_DDRCTL1			0xffc00a24
 #define EBIU_DDRCTL2			0xffc00a28
@@ -231,6 +235,7 @@ typedef enum _bfin_board
   BF538F_EZKIT,
   BF548_EZKIT,
   BF561_EZKIT,
+  BF579_LX220,
 } bfin_board;
 
 #define IDCODE_SCAN			0
@@ -801,11 +806,11 @@ static bfin_mem_map bf561_mem_map = {
 };
 static bfin_mem_map bf579_mem_map = {
   .sdram		= 0,
-  .sdram_end		= 0,
-  .async_mem		= 0,
-  .flash		= 0,
-  .flash_end		= 0,
-  .async_mem_end	= 0,
+  .sdram_end		= 0x02000000,
+  .async_mem		= 0x20000000,
+  .flash		= 0x20000000,
+  .flash_end		= 0x20400000,
+  .async_mem_end	= 0x24000000,
   .boot_rom		= 0,
   .boot_rom_end		= 0,
   .l2_sram		= 0,
@@ -941,6 +946,12 @@ static bfin_sdram_config bf561_ezkit_sdram_config = {
   .sdrrc = 0x01cf,
   .sdbctl = 0x0013,
   .sdgctl = 0x0091998d,
+};
+
+static bfin_sdram_config bf579_lx220_sdram_config = {
+  .sdrrc = 0x0136,
+  .sdbctl = 0x0013,
+  .sdgctl = 0x80908879,
 };
 
 typedef struct _bfin_ddr_config
@@ -3215,31 +3226,13 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
 }
 
 static int
-sdram_init (void)
+bfin_sdram_init (int core)
 {
   uint32_t p0, r0;
   uint32_t value;
-  int core;
-  int i;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: sdram_init ()", bfin_target.name);
-
-  for (i = 0; i < cpu->chain->parts->len; i++)
-    if (!cpu->cores[i].is_locked
-	&& !cpu->cores[i].is_corefault
-	&& !cpu->cores[i].is_running)
-      break;
-
-  if (i == cpu->chain->parts->len)
-    {
-      bfin_log (RP_VAL_LOGLEVEL_ERR,
-		"%s: no core available to init sdram",
-		bfin_target.name);
-      return -1;
-    }
-  else
-    core = i;
+	    "%s: bfin_sdram_init ()", bfin_target.name);
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -3266,6 +3259,77 @@ sdram_init (void)
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
   return 0;
+}
+
+static int
+bf579_sdram_init (int core)
+{
+  uint32_t p0, r0;
+  //  uint32_t value;
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: bf579_sdram_init ()", bfin_target.name);
+
+  p0 = core_register_get (core, REG_P0);
+  r0 = core_register_get (core, REG_R0);
+
+  core_register_set (core, REG_P0, BF579_EBIU_SDGCTL);
+
+#if 0
+  /* Check if SDRAM has been enabled already.
+     If so, don't enable it again.  */
+  value = mmr_read_clobber_r0 (core, EBIU_SDSTAT - EBIU_SDGCTL, 2);
+  if ((value & 0x8) == 0)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: sdram has already been enabled", bfin_target.name);
+      return 0;
+    }
+#endif
+
+  mmr_write_clobber_r0 (core, 0, cpu->sdram_config->sdgctl, 4);
+  mmr_write_clobber_r0 (core, BF579_EBIU_SDBCTL - BF579_EBIU_SDGCTL,
+			cpu->sdram_config->sdbctl, 4);
+  mmr_write_clobber_r0 (core, BF579_EBIU_SDRRC - BF579_EBIU_SDGCTL,
+			cpu->sdram_config->sdrrc, 4);
+
+  //  core_emuir_set (core, INSN_SSYNC, RUNTEST);
+
+  /* Do a dummy read to trigger the SDRAM power up sequence.  */
+  core_register_set (core, REG_P0, 0);
+  core_emuir_set (core, gen_load32 (REG_R0, REG_P0), RUNTEST);
+
+  core_register_set (core, REG_P0, p0);
+  core_register_set (core, REG_R0, r0);
+  return 0;
+}
+
+static int
+sdram_init (void)
+{
+  int core;
+  int i;
+
+  for (i = 0; i < cpu->chain->parts->len; i++)
+    if (!cpu->cores[i].is_locked
+	&& !cpu->cores[i].is_corefault
+	&& !cpu->cores[i].is_running)
+      break;
+
+  if (i == cpu->chain->parts->len)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: no core available to init sdram",
+		bfin_target.name);
+      return -1;
+    }
+  else
+    core = i;
+
+  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
+    return bf579_sdram_init (core);
+  else
+    return bfin_sdram_init (core);
 }
 
 static int
@@ -5351,6 +5415,8 @@ bfin_open (int argc,
 	    board = BF548_EZKIT;
 	  else if (strcmp (optarg, "bf561-ezkit") == 0)
 	    board = BF561_EZKIT;
+	  else if (strcmp (optarg, "bf579-lx220") == 0)
+	    board = BF579_LX220;
 	  else
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: unknown board  %s", bfin_target.name, optarg);
@@ -5763,6 +5829,20 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x800000;
       cpu->sdram_config = &bf561_ezkit_sdram_config;
+      cpu->ddr_config = NULL;
+      break;
+
+    case BF579_LX220:
+      if (strcmp (chain->parts->parts[0]->part, "BF579") != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %s on BF561 EZKIT board",
+		    bfin_target.name, chain->parts->parts[0]->part);
+	  exit (1);
+	}
+      cpu->mem_map.sdram_end = 0x2000000;
+      cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
+      cpu->sdram_config = &bf579_lx220_sdram_config;
       cpu->ddr_config = NULL;
       break;
 
