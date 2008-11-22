@@ -3293,7 +3293,7 @@ bf579_sdram_init (int core)
   mmr_write_clobber_r0 (core, BF579_EBIU_SDRRC - BF579_EBIU_SDGCTL,
 			cpu->sdram_config->sdrrc, 4);
 
-  //  core_emuir_set (core, INSN_SSYNC, RUNTEST);
+  core_emuir_set (core, INSN_SSYNC, RUNTEST);
 
   /* Do a dummy read to trigger the SDRAM power up sequence.  */
   core_register_set (core, REG_P0, 0);

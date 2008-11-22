@@ -1,3 +1,8 @@
+2008-11-22  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bf579_sdram_init): Issue SSYNC after
+	MMR write.
+
 2008-11-14  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (BF579_EBIU_SDGCTL): Define.
