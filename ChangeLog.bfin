@@ -1,3 +1,10 @@
+2008-11-24  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (emudat_clear_emudif): New.
+	(core_emudat_get): Clear EMUDIF bit in EMUDAT.
+	(register_get): Likewise.
+	(core_register_get): Likewise.
+
 2008-11-22  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bf579_sdram_init): Issue SSYNC after

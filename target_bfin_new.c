@@ -2057,6 +2057,14 @@ emudat_init_value (tap_register *r, uint32_t value)
   register_init_value (r, v);
 }
 
+static void
+emudat_clear_emudif (tap_register *r)
+{
+  /* If the register size is larger than 32 bits, clear EMUDIF.  */
+  if (r->len == 34 || r->len == 40 || r->len == 48)
+    r->data[33] = 0;
+}
+
 /* These two emudat functions only care the payload data, which is the
    upper 32 bits.  Then follows EMUDOF and EMUDIF if the register size
    is larger than 32 bits.  The remaining is reserved or don't care
@@ -2078,8 +2086,10 @@ core_emudat_get (int core, int runtest)
 
   core_scan_select (core, EMUDAT_SCAN);
 
-  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   part = cpu->chain->parts->parts[core];
+  r = part->active_instruction->data_register->in;
+  emudat_clear_emudif (r);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   r = part->active_instruction->data_register->out;
   value = emudat_value (r);
 
@@ -2134,6 +2144,12 @@ register_get (enum core_regnum reg, uint32_t *value)
     }
 
   scan_select (EMUDAT_SCAN);
+  for (i = 0; i < cpu->chain->parts->len; i++)
+    {
+      part = cpu->chain->parts->parts[i];
+      r = part->active_instruction->data_register->in;
+      emudat_clear_emudif (r);
+    }      
   chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   for (i = 0; i < cpu->chain->parts->len; i++)
     {
@@ -2168,8 +2184,10 @@ core_register_get (int core, enum core_regnum reg)
     }
 
   core_scan_select (core, EMUDAT_SCAN);
-  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   part = cpu->chain->parts->parts[core];
+  r = part->active_instruction->data_register->in;
+  emudat_clear_emudif (r);
+  chain_shift_data_registers_mode (cpu->chain, 1, 1, EXITMODE_UPDATE);
   r = part->active_instruction->data_register->out;
 
   if (!DREG_P (reg) && !PREG_P (reg))
