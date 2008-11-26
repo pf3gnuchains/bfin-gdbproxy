@@ -5699,7 +5699,8 @@ bfin_open (int argc,
       cpu->mem_map = bf538_mem_map;
       cpu->cores[0].l1_map = bf538_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF548"))
+  else if (!strcmp (chain->parts->parts[0]->part, "BF548") ||
+           !strcmp (chain->parts->parts[0]->part, "BF548M"))
     {
       assert (chain->parts->len == 1);
 

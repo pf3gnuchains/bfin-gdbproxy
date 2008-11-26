@@ -1,3 +1,7 @@
+2008-11-25  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bfin_open): Handle BF548M.
+
 2008-11-24  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (emudat_clear_emudif): New.
