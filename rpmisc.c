@@ -98,13 +98,14 @@
 
 
 /* Sockets */
-#if defined(WIN32)
+#if !defined(WIN32)
+# undef INVALID_SOCKET
+# define INVALID_SOCKET -1
+# undef SOCKET_ERROR
+# define SOCKET_ERROR -1
+#endif
 static int dbg_sock        = INVALID_SOCKET;
 static int dbg_listen_sock = INVALID_SOCKET;
-#else
-static int dbg_sock        = -1;
-static int dbg_listen_sock = -1;
-#endif
 
 /* Log functions */
 static void rp_log_local(int level, const char *fmt, ...);
@@ -140,29 +141,21 @@ void dbg_sock_cleanup(void)
 }
 
 /* Open listen socket in a mode expected by gdb */
-int dbg_listen_sock_open(unsigned int *port)
+int listen_sock_open(unsigned int *port)
 {
     struct sockaddr_in sa;
     int tmp;
     int ret;
     unsigned int p;
+    int sock;
 
     assert(port == NULL  ||  *port < 0x10000);
 
-#if defined(WIN32)
-    assert(dbg_sock == INVALID_SOCKET  &&  dbg_listen_sock == INVALID_SOCKET);
-
-    if ((dbg_listen_sock = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
-        return  FALSE;
-#else
-    assert(dbg_sock == -1  &&  dbg_listen_sock == -1);
-
-    if ((dbg_listen_sock = socket(PF_INET, SOCK_STREAM, 0)) < 0)
-        return  FALSE;
-#endif
+    if ((sock = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+        return INVALID_SOCKET;
 
     tmp = 1;
-    setsockopt(dbg_listen_sock,
+    setsockopt(sock,
     	       SOL_SOCKET,
 	       SO_REUSEADDR,
 	       (char *) &tmp,
@@ -178,13 +171,8 @@ int dbg_listen_sock_open(unsigned int *port)
         else
             sa.sin_port = htons((unsigned short int) *port);
 
-#if defined(WIN32)
-        if ((ret = bind(dbg_listen_sock, (struct sockaddr *) &sa, sizeof (sa))) == SOCKET_ERROR)
-            return  FALSE;
-#else
-        if ((ret = bind(dbg_listen_sock, (struct sockaddr *) &sa, sizeof (sa))) != 0)
-            return  FALSE;
-#endif
+        if ((ret = bind(sock, (struct sockaddr *) &sa, sizeof (sa))) == SOCKET_ERROR)
+            return INVALID_SOCKET;
     }
     else
     {
@@ -194,79 +182,68 @@ int dbg_listen_sock_open(unsigned int *port)
         {
             sa.sin_port = htons(p);
 
-#if defined(WIN32)
-            if ((ret = bind(dbg_listen_sock, (struct sockaddr *) &sa, sizeof (sa))) != SOCKET_ERROR)
+            if ((ret = bind(sock, (struct sockaddr *) &sa, sizeof (sa))) != SOCKET_ERROR)
                 break;
-#else
-            if ((ret = bind(dbg_listen_sock, (struct sockaddr *) &sa, sizeof (sa))) == 0)
-                break;
-#endif
         }
 
         if (p == 0x10000)
         {
             /* No sockets available */
-            return  FALSE;
+            return INVALID_SOCKET;
         }
 
         *port = p;
     }
 
-#if defined(WIN32)
-    assert(dbg_listen_sock != INVALID_SOCKET);
+    assert(sock != INVALID_SOCKET);
 
-    if ((ret = listen(dbg_listen_sock, 1)) == SOCKET_ERROR)
-        return  FALSE;
-#else
-    assert(dbg_listen_sock >= 0);
+    if ((ret = listen(sock, 1)) == SOCKET_ERROR)
+        return INVALID_SOCKET;
 
-    if ((ret = listen(dbg_listen_sock, 1)) != 0)
-        return  FALSE;
-#endif
+    return sock;
+}
+int dbg_listen_sock_open(unsigned int *port)
+{
+    assert(dbg_sock == INVALID_SOCKET  &&  dbg_listen_sock == INVALID_SOCKET);
 
-    return  TRUE;
+    dbg_listen_sock = listen_sock_open(port);
+
+    return (dbg_listen_sock == INVALID_SOCKET ? FALSE : TRUE);
 }
 
 /* Accept incoming connection and set mode expected by gdb */
-int dbg_sock_accept(void)
+int sock_accept(int listen_sock)
 {
     socklen_t tmp;
     struct sockaddr_in sa;
     struct protoent *pe;
-
-#if defined(WIN32)
-    assert(dbg_sock == INVALID_SOCKET);
-    assert(dbg_listen_sock != INVALID_SOCKET);
+    int sock;
 
     tmp = sizeof(sa);
-    if ((dbg_sock = accept(dbg_listen_sock, (struct sockaddr *) &sa, &tmp))
+    if ((sock = accept(listen_sock, (struct sockaddr *) &sa, &tmp))
         == INVALID_SOCKET)
     {
-        return  FALSE;
+        return INVALID_SOCKET;
     }
 
     if ((pe = getprotobyname("tcp")) == NULL)
-        return  FALSE;
-#else
-    assert(dbg_sock < 0);
-    assert(dbg_listen_sock >= 0);
-
-    tmp = sizeof(sa);
-    if ((dbg_sock = accept(dbg_listen_sock, (struct sockaddr *) &sa, &tmp)) < 0)
-        return  FALSE;
-
-    if ((pe = getprotobyname("tcp")) == NULL)
-        return  FALSE;
-#endif
+        return INVALID_SOCKET;
 
     tmp = 1;
-    setsockopt(dbg_sock,
+    setsockopt(sock,
                pe->p_proto,
                TCP_NODELAY,
                (char *) &tmp,
                sizeof(tmp));
 
-    return  TRUE;
+    return sock;
+}
+int dbg_sock_accept(void)
+{
+    assert(dbg_sock == INVALID_SOCKET);
+    assert(dbg_listen_sock != INVALID_SOCKET);
+    dbg_sock = sock_accept(dbg_listen_sock);
+    return (dbg_sock == INVALID_SOCKET ? FALSE : TRUE);
 }
 
 /* Close connection to debugger side */

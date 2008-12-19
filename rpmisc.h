@@ -39,6 +39,9 @@ int  dbg_sock_accept(void);
 int  dbg_sock_readchar(int ms);
 int  dbg_listen_sock_open(unsigned int *port);
 
+int  listen_sock_open(unsigned int *port);
+int  sock_accept(int listen_sock);
+
 /* Return values for readchar: either character
    code or one of the following*/
 #define RP_VAL_MISCREADCHARRET_TMOUT (-2)

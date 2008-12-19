@@ -1,3 +1,10 @@
+2008-12-19  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* rpmisc.c (listen_sock_open, sock_accept): New functions.
+	(dbg_listen_sock_open): Call listen_sock_open.
+	(dbg_sock_accept): Call sock_accept.
+	* rpmisc.h (listen_sock_open, sock_accept): New prototypes.
+
 2008-11-25  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bfin_open): Handle BF548M.
