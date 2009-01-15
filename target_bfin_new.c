@@ -7454,10 +7454,7 @@ bfin_wait_partial (int first,
 	    switch (cause)
 	      {
 	      case EMUCAUSE_EMUEXCPT:
-		pc -= 2;
-		core_register_set (i, REG_RETE, pc);
 		/* Fall through.  */
-
 	      case EMUCAUSE_SINGLE_STEP:
 		sig = RP_SIGNAL_TRAP;
 		break;
