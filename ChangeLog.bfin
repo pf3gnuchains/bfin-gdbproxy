@@ -1,3 +1,7 @@
+2009-02-08  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bfin_open): Handle BF534.
+
 2009-01-15  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_wait_partial): Don't decrement PC
