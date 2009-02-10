@@ -1,3 +1,9 @@
+2009-02-10  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (_register_set): New func.
+	(register_set): Call _register_set.
+	(register_set_same): Likewise.
+
 2009-02-08  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bfin_open): Handle BF534.

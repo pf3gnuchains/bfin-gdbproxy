@@ -21,6 +21,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -2197,7 +2198,7 @@ core_register_get (int core, enum core_regnum reg)
 }
 
 static void
-register_set (enum core_regnum reg, uint32_t *value)
+_register_set (enum core_regnum reg, uint32_t *value, bool array)
 {
   part_t *part;
   tap_register *r;
@@ -2218,7 +2219,7 @@ register_set (enum core_regnum reg, uint32_t *value)
     {
       part = cpu->chain->parts->parts[i];
       r = part->active_instruction->data_register->in;
-      emudat_init_value (r, value[i]);
+      emudat_init_value (r, array ? value[i] : *value);
     }
   chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
 
@@ -2236,42 +2237,15 @@ register_set (enum core_regnum reg, uint32_t *value)
 }
 
 static void
+register_set (enum core_regnum reg, uint32_t *value)
+{
+  _register_set (reg, value, true);
+}
+
+static void
 register_set_same (enum core_regnum reg, uint32_t value)
 {
-  part_t *part;
-  tap_register *r;
-  int i;
-  uint32_t *r0 = NULL;
-
-  if (!DREG_P (reg) && !PREG_P (reg))
-    {
-      r0 = (uint32_t *)malloc (cpu->chain->parts->len * sizeof (uint32_t));
-      if (!r0)
-	abort ();
-
-      register_get (REG_R0, r0);
-    }
-
-  scan_select (EMUDAT_SCAN);
-  for (i = 0; i < cpu->chain->parts->len; i++)
-    {
-      part = cpu->chain->parts->parts[i];
-      r = part->active_instruction->data_register->in;
-      emudat_init_value (r, value);
-    }
-  chain_shift_data_registers_mode (cpu->chain, 0, 1, EXITMODE_UPDATE);
-
-  if (DREG_P (reg) || PREG_P (reg))
-    emuir_set_same (gen_move (reg, REG_EMUDAT), RUNTEST);
-  else
-    {
-      dbgctl_bit_set_emuirlpsz_2 (UPDATE);
-      emuir_set_same_2 (gen_move (REG_R0, REG_EMUDAT),
-			gen_move (reg, REG_R0), RUNTEST);
-      dbgctl_bit_clear_emuirlpsz_2 (UPDATE);
-      register_set (REG_R0, r0);
-      free (r0);
-    }
+  _register_set (reg, &value, false);
 }
 
 static void
