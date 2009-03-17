@@ -8,6 +8,11 @@
 	PART_DBGCTL, PART_DBGCTL_MASK): New macros.
 	Convert all PART_DBGCTL_CLEAR_OR_SET_BIT users over to PART_DBGCTL and
 	PART_DBGCTL_MASK as appropriate.
+	* target_bfin_new.c (CORE_DBGCTL_IS): New macro.
+	(DBGCTL_BIT_OP): Call CORE_DBGCTL_IS().
+	(dbgstat_show): Decode DBGSTAT and output to debug loglevel.
+	(dbgctl_show): New function.
+	(emulation_enable): Call dbgctl_show.
 
 	* target_bfin_new.c (scan_select): Add assert() for active instruction.
 	(core_scan_select): Likewise.

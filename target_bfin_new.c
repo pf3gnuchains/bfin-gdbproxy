@@ -1317,7 +1317,7 @@ core_scan_select (int core, int scan)
 	uint16_t dbgctl = cpu->cores[i].dbgctl;				\
 									\
 	dbgctl = part_dbgctl_bit_clear_or_set_##name (part, dbgctl, set); \
-	part_dbgctl_init (part, dbgctl);					\
+	part_dbgctl_init (part, dbgctl);				\
 	cpu->cores[i].dbgctl = dbgctl;					\
       }									\
     chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ?	\
@@ -1369,27 +1369,22 @@ core_scan_select (int core, int scan)
     core_dbgctl_bit_clear_or_set_##name (core, runtest, 0);		\
   }
 
+#define CORE_DBGCTL_IS(name)						\
+  static int								\
+  core_dbgctl_is_##name (int core)					\
+  {									\
+    part_t *part = cpu->chain->parts->parts[core];			\
+    return part_dbgctl_is_##name (part, cpu->cores[core].dbgctl);	\
+  }
+
 #define DBGCTL_BIT_OP(name)						\
   DBGCTL_CLEAR_OR_SET_BIT(name)						\
   DBGCTL_SET_BIT(name)							\
   DBGCTL_CLEAR_BIT(name)						\
   CORE_DBGCTL_CLEAR_OR_SET_BIT(name)					\
   CORE_DBGCTL_SET_BIT(name)						\
-  CORE_DBGCTL_CLEAR_BIT(name)
-
-
-/* These functions check cached DBGSTAT. So before calling them,
-   dbgstat_get or core_dbgstat_get has to be called to update cached
-   DBGSTAT value.  */
-
-#define CORE_DBGSTAT_BIT_IS(name)					\
-  static int								\
-  core_dbgstat_is_##name (int core)					\
-  {									\
-    part_t *part = cpu->chain->parts->parts[core];			\
-    return part_dbgstat_is_##name (part, cpu->cores[core].dbgstat);	\
-  }
-
+  CORE_DBGCTL_CLEAR_BIT(name)						\
+  CORE_DBGCTL_IS(name)
 
 DBGCTL_BIT_OP (sram_init)
 DBGCTL_BIT_OP (wakeup)
@@ -1406,6 +1401,18 @@ DBGCTL_BIT_OP (empen)
 DBGCTL_BIT_OP (emeen)
 DBGCTL_BIT_OP (emfen)
 DBGCTL_BIT_OP (empwr)
+
+/* These functions check cached DBGSTAT. So before calling them,
+   dbgstat_get or core_dbgstat_get has to be called to update cached
+   DBGSTAT value.  */
+
+#define CORE_DBGSTAT_BIT_IS(name)					\
+  static int								\
+  core_dbgstat_is_##name (int core)					\
+  {									\
+    part_t *part = cpu->chain->parts->parts[core];			\
+    return part_dbgstat_is_##name (part, cpu->cores[core].dbgstat);	\
+  }
 
 CORE_DBGSTAT_BIT_IS (lpdec1)
 CORE_DBGSTAT_BIT_IS (in_powrgate)
@@ -1574,14 +1581,40 @@ core_dbgstat_clear_ovfs (int core)
 static void
 dbgstat_show (const char *id)
 {
+  char buf[1024];
   int i;
 
   assert (id != NULL);
 
   dbgstat_get ();
-  for (i = 0; i < cpu->chain->parts->len; i++)
-    bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] DBGSTAT [0x%04X] <%s>",
-	      i, cpu->cores[i].dbgstat, id);
+  for (i = 0; i < cpu->chain->parts->len; i++) {
+    sprintf (buf, "[%d] DBGSTAT [0x%04X]:", i, cpu->cores[i].dbgstat);
+    if (core_dbgstat_is_lpdec1 (i))     strcat (buf, " lpdec1");
+    if (core_dbgstat_is_core_fault (i)) strcat (buf, " core_fault");
+    if (core_dbgstat_is_idle (i))       strcat (buf, " idle");
+    if (core_dbgstat_is_in_reset (i))   strcat (buf, " in_reset");
+    if (core_dbgstat_is_lpdec0 (i))     strcat (buf, " lpdec0");
+    if (core_dbgstat_is_bist_done (i))  strcat (buf, " bist_done");
+    if (core_dbgstat_is_emuack (i))     strcat (buf, " emuack");
+    switch (core_dbgstat_emucause (i)) {
+      case 0x0: strcat (buf, " cause:emuexcpt");   break;
+      case 0x1: strcat (buf, " cause:emuin");      break;
+      case 0x2: strcat (buf, " cause:watchpoint"); break;
+      case 0x4: strcat (buf, " cause:perfmon0");   break;
+      case 0x5: strcat (buf, " cause:perfmon1");   break;
+      case 0x8: strcat (buf, " cause:emu-sstep");  break;
+      default:  strcat (buf, " cause:unknown");    break;
+    }
+    if (core_dbgstat_is_emuready (i))   strcat (buf, " emuready");
+    if (core_dbgstat_is_emudiovf (i))   strcat (buf, " emudiovf");
+    if (core_dbgstat_is_emudoovf (i))   strcat (buf, " emudoovf");
+    if (core_dbgstat_is_emudif (i))     strcat (buf, " emudif");
+    if (core_dbgstat_is_emudof (i))     strcat (buf, " emudof");
+    strcat (buf, " <");
+    strcat (buf, id);
+    strcat (buf, ">");
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
+  }
 }
 
 static void
@@ -1592,6 +1625,39 @@ core_dbgstat_show (int core, const char *id)
   core_dbgstat_get (core);
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] DBGSTAT [0x%04X] <%s>",
 	    core, cpu->cores[core].dbgstat, id);
+}
+
+static void
+dbgctl_show (const char *id)
+{
+  char buf[1024];
+  int i;
+
+  assert (id != NULL);
+
+  for (i = 0; i < cpu->chain->parts->len; ++i) {
+    sprintf (buf, "[%i] DBGCTL [0x%04x]:", i,
+	     cpu->cores[i].dbgctl);
+    if (core_dbgctl_is_sram_init (i))   strcat (buf, " sram_init");
+    if (core_dbgctl_is_wakeup (i))      strcat (buf, " wakeup");
+    if (core_dbgctl_is_sysrst (i))      strcat (buf, " sysrst");
+    if (core_dbgctl_is_esstep (i))      strcat (buf, " esstep");
+    if (core_dbgctl_is_emudatsz_32 (i)) strcat (buf, " emudatsz_32");
+    if (core_dbgctl_is_emudatsz_40 (i)) strcat (buf, " emudatsz_40");
+    if (core_dbgctl_is_emudatsz_48 (i)) strcat (buf, " emudatsz_48");
+    if (core_dbgctl_is_emuirlpsz_2 (i)) strcat (buf, " emuirlpsz_2");
+    if (core_dbgctl_is_emuirsz_64 (i))  strcat (buf, " emuirsz_64");
+    if (core_dbgctl_is_emuirsz_48 (i))  strcat (buf, " emuirsz_48");
+    if (core_dbgctl_is_emuirsz_32 (i))  strcat (buf, " emuirsz_32");
+    if (core_dbgctl_is_empen (i))       strcat (buf, " empen");
+    if (core_dbgctl_is_emeen (i))       strcat (buf, " emeen");
+    if (core_dbgctl_is_emfen (i))       strcat (buf, " emfen");
+    if (core_dbgctl_is_empwr (i))       strcat (buf, " empwr");
+    strcat (buf, " <");
+    strcat (buf, id);
+    strcat (buf, ">");
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
+  }
 }
 
 static void
@@ -2745,6 +2811,8 @@ emulation_enable (void)
   dbgstat_show ("EMUIRSZ");
   dbgctl_bit_set_emudatsz_32 (UPDATE);
   dbgstat_show ("EMUDATSZ");
+
+  dbgctl_show ("emulation_enable");
 }
 
 static void
