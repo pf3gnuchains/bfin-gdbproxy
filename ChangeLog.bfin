@@ -9,6 +9,9 @@
 	Convert all PART_DBGCTL_CLEAR_OR_SET_BIT users over to PART_DBGCTL and
 	PART_DBGCTL_MASK as appropriate.
 
+	* target_bfin_new.c (scan_select): Add assert() for active instruction.
+	(core_scan_select): Likewise.
+
 2009-02-10  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (_register_set): New func.

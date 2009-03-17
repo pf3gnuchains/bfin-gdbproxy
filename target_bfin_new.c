@@ -1251,6 +1251,7 @@ gen_prefetch_pm (enum core_regnum addr)
 static void
 scan_select (int scan)
 {
+  part_t *part;
   int i;
   int changed;
 
@@ -1258,7 +1259,9 @@ scan_select (int scan)
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (cpu->cores[i].scan != scan)
       {
-	part_set_instruction (cpu->chain->parts->parts[i], scans[scan]);
+	part = cpu->chain->parts->parts[i];
+	part_set_instruction (part, scans[scan]);
+	assert (part->active_instruction != NULL);
 	cpu->cores[i].scan = scan;
 	changed = 1;
       }
@@ -1270,6 +1273,7 @@ scan_select (int scan)
 static void
 core_scan_select (int core, int scan)
 {
+  part_t *part;
   int i;
   int changed;
 
@@ -1279,7 +1283,9 @@ core_scan_select (int core, int scan)
 
   if (cpu->cores[core].scan != scan)
     {
-      part_set_instruction (cpu->chain->parts->parts[core], scans[scan]);
+      part = cpu->chain->parts->parts[core];
+      part_set_instruction (part, scans[scan]);
+      assert (part->active_instruction != NULL);
       cpu->cores[core].scan = scan;
       changed = 1;
     }
@@ -1287,7 +1293,9 @@ core_scan_select (int core, int scan)
   for (i = 0; i < cpu->chain->parts->len; i++)
     if (i != core && cpu->cores[i].scan != BYPASS)
       {
-	part_set_instruction (cpu->chain->parts->parts[i], scans[BYPASS]);
+	part = cpu->chain->parts->parts[i];
+	part_set_instruction (part, scans[BYPASS]);
+	assert (part->active_instruction != NULL);
 	cpu->cores[i].scan = BYPASS;
 	changed = 1;
       }
