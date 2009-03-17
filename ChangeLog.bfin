@@ -1,3 +1,14 @@
+2009-03-16  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* blackfin-part.h (DECLARE_PART_DBGCTL_IS): New macro.
+	(DECLARE_PART_DBGCTL): New macro.
+	Convert all DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT users over to
+	DECLARE_PART_DBGCTL.
+	* blackfin-part.c (PART_DBGCTL_BIT_IS, PART_DBGCTL_BIT_IS_MASK,
+	PART_DBGCTL, PART_DBGCTL_MASK): New macros.
+	Convert all PART_DBGCTL_CLEAR_OR_SET_BIT users over to PART_DBGCTL and
+	PART_DBGCTL_MASK as appropriate.
+
 2009-02-10  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (_register_set): New func.

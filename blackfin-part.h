@@ -109,6 +109,29 @@ extern uint16_t part_dbgstat_emucause_mask (part_t *part);
 #define DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT(name)				\
   extern uint16_t part_dbgctl_bit_clear_or_set_##name (part_t *part, uint16_t dbgctl, int set);
 
+#define DECLARE_PART_DBGCTL_IS(name)						\
+  extern int part_dbgctl_is_##name (part_t *part, uint16_t dbgctl);
+
+#define DECLARE_PART_DBGCTL(name)						\
+  DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT(name)					\
+  DECLARE_PART_DBGCTL_IS(name)
+
+DECLARE_PART_DBGCTL (sram_init)
+DECLARE_PART_DBGCTL (wakeup)
+DECLARE_PART_DBGCTL (sysrst)
+DECLARE_PART_DBGCTL (esstep)
+DECLARE_PART_DBGCTL (emudatsz_32)
+DECLARE_PART_DBGCTL (emudatsz_40)
+DECLARE_PART_DBGCTL (emudatsz_48)
+DECLARE_PART_DBGCTL (emuirlpsz_2)
+DECLARE_PART_DBGCTL (emuirsz_64)
+DECLARE_PART_DBGCTL (emuirsz_48)
+DECLARE_PART_DBGCTL (emuirsz_32)
+DECLARE_PART_DBGCTL (empen)
+DECLARE_PART_DBGCTL (emeen)
+DECLARE_PART_DBGCTL (emfen)
+DECLARE_PART_DBGCTL (empwr)
+
 #define DECLARE_PART_DBGSTAT_BIT_IS(name)					\
   extern int part_dbgstat_is_##name (part_t *part, uint16_t dbgstat);
 
@@ -117,23 +140,6 @@ extern uint16_t part_dbgstat_emucause_mask (part_t *part);
 
 #define DECLARE_PART_DBGSTAT_SET_BIT(name)					\
   extern uint16_t part_dbgstat_bit_set_##name (part_t *part, uint16_t gdbstat);
-
-
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (sram_init)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (wakeup)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (sysrst)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (esstep)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emudatsz_32)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emudatsz_40)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emudatsz_48)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emuirlpsz_2)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emuirsz_64)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emuirsz_48)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emuirsz_32)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (empen)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emeen)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (emfen)
-DECLARE_PART_DBGCTL_CLEAR_OR_SET_BIT (empwr)
 
 DECLARE_PART_DBGSTAT_BIT_IS (lpdec1)
 DECLARE_PART_DBGSTAT_BIT_IS (in_powrgate)

@@ -50,6 +50,51 @@ part_dbgstat_value (part_t *part)
       return dbgctl & ~EMU_OAB (part)->dbgctl_##name;			\
   }
 
+#define PART_DBGCTL_BIT_IS(name)					\
+  int									\
+  part_dbgctl_is_##name (part_t *part, uint16_t dbgctl)			\
+  {									\
+    if (dbgctl & EMU_OAB (part)->dbgctl_##name)				\
+      return 1;								\
+    else								\
+      return 0;								\
+  }
+
+#define PART_DBGCTL(name)						\
+  PART_DBGCTL_CLEAR_OR_SET_BIT(name)					\
+  PART_DBGCTL_BIT_IS(name)
+
+#define PART_DBGCTL_BIT_IS_MASK(base, sfx)				\
+  int									\
+  part_dbgctl_is_##base##_##sfx (part_t *part, uint16_t dbgctl)		\
+  {									\
+    if ((dbgctl & EMU_OAB (part)->dbgctl_##base##_mask) ==		\
+	EMU_OAB (part)->dbgctl_##base##_##sfx)				\
+      return 1;								\
+    else								\
+      return 0;								\
+  }
+
+#define PART_DBGCTL_MASK(base, sfx)					\
+  PART_DBGCTL_CLEAR_OR_SET_BIT(base##_##sfx)				\
+  PART_DBGCTL_BIT_IS_MASK(base, sfx)
+
+PART_DBGCTL (sram_init)
+PART_DBGCTL (wakeup)
+PART_DBGCTL (sysrst)
+PART_DBGCTL (esstep)
+PART_DBGCTL_MASK (emudatsz, 32)
+PART_DBGCTL_MASK (emudatsz, 40)
+PART_DBGCTL_MASK (emudatsz, 48)
+PART_DBGCTL (emuirlpsz_2)
+PART_DBGCTL_MASK (emuirsz, 64)
+PART_DBGCTL_MASK (emuirsz, 48)
+PART_DBGCTL_MASK (emuirsz, 32)
+PART_DBGCTL (empen)
+PART_DBGCTL (emeen)
+PART_DBGCTL (emfen)
+PART_DBGCTL (empwr)
+
 #define PART_DBGSTAT_BIT_IS(name)					\
   int									\
   part_dbgstat_is_##name (part_t *part, uint16_t dbgstat)		\
@@ -73,22 +118,6 @@ part_dbgstat_value (part_t *part)
   {									\
     return dbgstat | EMU_OAB (part)->dbgstat_##name;			\
   }
-
-PART_DBGCTL_CLEAR_OR_SET_BIT (sram_init)
-PART_DBGCTL_CLEAR_OR_SET_BIT (wakeup)
-PART_DBGCTL_CLEAR_OR_SET_BIT (sysrst)
-PART_DBGCTL_CLEAR_OR_SET_BIT (esstep)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emudatsz_32)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emudatsz_40)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emudatsz_48)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emuirlpsz_2)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emuirsz_64)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emuirsz_48)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emuirsz_32)
-PART_DBGCTL_CLEAR_OR_SET_BIT (empen)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emeen)
-PART_DBGCTL_CLEAR_OR_SET_BIT (emfen)
-PART_DBGCTL_CLEAR_OR_SET_BIT (empwr)
 
 PART_DBGSTAT_BIT_IS (lpdec1)
 PART_DBGSTAT_BIT_IS (in_powrgate)
