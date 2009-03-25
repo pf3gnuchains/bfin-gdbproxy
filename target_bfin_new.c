@@ -21,6 +21,9 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,8 +34,11 @@
 #include <time.h>
 #include <stdarg.h>
 #include <getopt.h>
+#include <sys/param.h>
 
 #include "gdbproxy.h"
+#include "circ_buf.h"
+#include "rpmisc.h"
 
 #include "part.h"
 #include "chain.h"
@@ -252,7 +258,7 @@ const static char *scans[] = {
   "DBGSTAT_SCAN",
   "DBGCTL_SCAN",
   "EMUIR_SCAN",
-  "EMUDAT_SCAN",
+  "EMUDAT40_SCAN",
   "EMUPC_SCAN",
   "BYPASS",
 };
@@ -895,8 +901,8 @@ typedef struct _bfin_core
   uint16_t dbgstat;
   uint32_t emuir_a;
   uint32_t emuir_b;
-  uint32_t emudat_out;
-  uint32_t emudat_in;
+  uint64_t emudat_out;
+  uint64_t emudat_in;
   uint32_t emupc;
   uint32_t hwbps[RP_BFIN_MAX_HWBREAKPOINTS];
   bfin_hwwps hwwps[RP_BFIN_MAX_HWWATCHPOINTS];
@@ -2809,7 +2815,7 @@ emulation_enable (void)
   dbgstat_show ("EMFEN");
   dbgctl_bit_set_emuirsz_32 (UPDATE);
   dbgstat_show ("EMUIRSZ");
-  dbgctl_bit_set_emudatsz_32 (UPDATE);
+  dbgctl_bit_set_emudatsz_40 (UPDATE);
   dbgstat_show ("EMUDATSZ");
 
   dbgctl_show ("emulation_enable");
@@ -2827,7 +2833,7 @@ core_emulation_enable (int core)
   core_dbgstat_show (core, "EMFEN");
   core_dbgctl_bit_set_emuirsz_32 (core, UPDATE);
   core_dbgstat_show (core, "EMUIRSZ");
-  core_dbgctl_bit_set_emudatsz_32 (core, UPDATE);
+  core_dbgctl_bit_set_emudatsz_40 (core, UPDATE);
   core_dbgstat_show (core, "EMUDATSZ");
 }
 
@@ -5348,6 +5354,190 @@ bfin_out_treg (char *in, unsigned int reg_no)
 }
 
 
+static struct circ_buf jc_net_buf, jc_jtag_buf;
+static unsigned int jc_port = 2001;
+static int jc_listen_sock = -1;
+
+/* Helper function to make an fd non-blocking */
+static void set_fd_nonblock (int fd)
+{
+	int ret = fcntl (fd, F_GETFL);
+	assert (ret != -1);
+	ret = fcntl (fd, F_SETFL, ret | O_NONBLOCK);
+	assert (ret == 0);
+}
+
+/* Helper function to decode/dump an EMUDAT 40bit register */
+static void jc_emudat_show (tap_register *r, const char *id)
+{
+	bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: %sjtag 0x%08"PRIx64"%s%s",
+		bfin_target.name, id, emudat_value (r),
+		r->data[32] ? " emudof" : "", r->data[33] ? " emudif" : "");
+}
+
+/* If EMUDAT_OUT is valid (the Blackfin sending data to us), read it from JTAG
+ * chain and store it in the net circular buffer
+ */
+static void jc_maybe_queue (tap_register *rif, tap_register *rof)
+{
+	static uint32_t in_len;
+	const char *fmt;
+	uint64_t value;
+
+	if (!rof->data[32])
+		return;
+
+	/* First we scan in the length of the data, then we read the data */
+	value = emudat_value (rof);
+	if (in_len) {
+		uint32_t this_in;
+		char data[4] = { /* shift manually to avoid endian issues */
+			(value >>  0) & 0xff,
+			(value >>  8) & 0xff,
+			(value >> 16) & 0xff,
+			(value >> 24) & 0xff,
+		};
+		this_in = MIN(in_len, 4);
+		circ_puts(&jc_jtag_buf, data, this_in);
+		in_len -= this_in;
+		fmt = "<D";
+	} else {
+		in_len = value;
+		fmt = "<L";
+	}
+
+	jc_emudat_show (rof, fmt);
+	rif->data[32] = 0;
+}
+
+/* Scan EMUDAT and see if there is any data from the Blackfin proc, or if
+ * there is room for us to send data from the network.
+ */
+static void jc_process (int core)
+{
+	static uint32_t out_len;
+	part_t *part;
+	tap_register *rof, *rif;
+	uint64_t value;
+
+	core_scan_select (core, EMUDAT_SCAN);
+
+	part = cpu->chain->parts->parts[core];
+	rof = part->active_instruction->data_register->out;
+	rif = part->active_instruction->data_register->in;
+
+	rif->data[33] = 0;
+	chain_shift_data_registers (cpu->chain, 1);
+
+	jc_emudat_show (rif, "I-");
+	jc_emudat_show (rof, "O-");
+	jc_maybe_queue (rif, rof);
+
+	/* EMUDAT_IN: data for Blackfin */
+	if (!circ_empty(&jc_net_buf) && !rof->data[33]) {
+		size_t i, reg_size;
+		uint32_t emudat, this_out;
+		const char *fmt;
+
+		reg_size = sizeof (emudat);
+		if (out_len) {
+			/* First we write the # of bytes we are going to send */
+			char data[4];
+			this_out = MIN(reg_size, out_len);
+			circ_gets(&jc_net_buf, data, this_out);
+			/* shift manually to avoid endian issues */
+			emudat = data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
+			out_len -= this_out;
+			fmt = "D>";
+		} else {
+			/* Then we send the actual data */
+			out_len = MIN(reg_size, circ_cnt(&jc_net_buf));
+			emudat = out_len;
+			fmt = "L>";
+		}
+
+		/* Split our 32bit data into the data[] array */
+		reg_size *= 8;
+		for (i = 0; i < reg_size; ++i)
+			rif->data[i] = (emudat >> (reg_size - 1 - i)) & 0x1;
+		rif->data[33] = 1;
+		value = emudat_value (rif);
+		jc_emudat_show (rif, fmt);
+
+		/* Shift out the datum */
+		chain_shift_data_registers (cpu->chain, 1);
+		jc_emudat_show (rif, "I-");
+		jc_emudat_show (rof, "O-");
+		jc_maybe_queue (rif, rof);
+		rif->data[33] = 0;
+	}
+}
+
+/* Check the network and jtag for pending data */
+static void jc_loop (void)
+{
+	static int jc_sock = -1;
+	char buf[CIRC_SIZE];
+	ssize_t io_ret;
+
+	if (jc_listen_sock == -1)
+		return;
+
+	/* We only handle one connection at a time */
+	if (jc_sock == -1) {
+		jc_sock = sock_accept (jc_listen_sock);
+		if (jc_sock == -1)
+			return;
+		bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: connected", bfin_target.name);
+		set_fd_nonblock (jc_sock);
+	}
+
+	/* Grab data from network into buffer for jtag transmission */
+	if (!circ_full(&jc_net_buf)) {
+		io_ret = read (jc_sock, buf, circ_free(&jc_net_buf));
+		if (io_ret > 0) {
+			buf[io_ret] = '\0';
+			circ_puts(&jc_net_buf, buf, io_ret);
+			bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: net[%i/%i]: %s",
+				bfin_target.name, io_ret, circ_cnt(&jc_net_buf), buf);
+		} else if (io_ret == 0 || errno != EAGAIN) {
+			bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: disconnected",
+				bfin_target.name);
+			close (jc_sock);
+			jc_sock = -1;
+		}
+	}
+
+	/* Send out data from jtag buffer to network */
+	if (!circ_empty(&jc_jtag_buf)) {
+		io_ret = circ_cnt(&jc_jtag_buf);
+		circ_gets(&jc_jtag_buf, buf, io_ret);
+		buf[io_ret] = '\0';
+		bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: jtag[%i/%i]: %s",
+			bfin_target.name, io_ret, circ_cnt(&jc_jtag_buf), buf);
+		write (jc_sock, buf, io_ret);
+	}
+
+	/* See if there is anything in the jtag scan chain */
+	jc_process (0);
+}
+
+/* Set up the port for jtag communication */
+static void jc_init (void)
+{
+	jc_listen_sock = listen_sock_open (&jc_port);
+	if (jc_listen_sock == -1) {
+		bfin_log (RP_VAL_LOGLEVEL_ERR, "%s: jc: TCP port not available",
+			bfin_target.name);
+		return;
+	}
+	set_fd_nonblock (jc_listen_sock);
+
+	bfin_log (RP_VAL_LOGLEVEL_NOTICE, "%s: jc: waiting on TCP port %u",
+		bfin_target.name, jc_port);
+}
+
+
 /* Target method */
 static void
 bfin_help (const char *prog_name)
@@ -5382,6 +5572,7 @@ bfin_help (const char *prog_name)
   printf (" --unlock-on-load        unlock core when loading its L1 code\n");
   printf (" --use-dma               Use DMA to access Instruction SRAM\n");
   printf ("                         Default ITEST or DTEST is used when possible\n");
+  printf (" --jc-port=PORT          use specified port for JTAG communication\n");
   printf ("\n");
 
   return;
@@ -5434,6 +5625,7 @@ bfin_open (int argc,
     {"connect", required_argument, 0, 14},
     {"reject-invalid-mem", no_argument, 0, 15},
     {"use-dma", no_argument, 0, 16},
+    {"jc-port", required_argument, 0, 17},
     {NULL, 0, 0, 0}
   };
 
@@ -5607,6 +5799,10 @@ bfin_open (int argc,
 
 	case 16:
 	  use_dma = 1;
+	  break;
+
+	case 17:
+	  jc_port = atoi(optarg);
 	  break;
 
 	default:
@@ -5946,6 +6142,8 @@ bfin_open (int argc,
       cpu->core_a = 0;
       cpu->cores[0].name = "Core";
     }
+
+  jc_init ();
 
   return RP_VAL_TARGETRET_OK;
 }
@@ -7327,6 +7525,9 @@ bfin_wait_partial (int first,
   assert (more != NULL);
 
   *implemented = TRUE;
+
+  /* Check for pending jtag communications */
+  jc_loop ();
 
   /* If we have any interesting pending event,
      report it instead of resume.  */

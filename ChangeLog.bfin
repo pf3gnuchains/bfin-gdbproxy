@@ -1,3 +1,20 @@
+2009-03-25  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* circ_buf.h: New file.
+	* target_bfin_new.c: Include errno.h, fcntl.h, inttypes.h, circ_buf.h,
+	rpmisc.h, and sys/param.h headers.  Declare net_buf, jtag_buf, jc_port,
+	and jc_listen_sock.
+	(scans): Change EMUDAT_SCAN to EMUDAT40_scan.
+	(_bfin_core): Change emudat_out/emudat_in to uint64_t types.
+	(emulation_enable): Call dbgctl_bit_set_emudatsz_40.
+	(core_emulation_enable): Call core_dbgctl_bit_set_emudatsz_40.
+	(set_fd_nonblock, jc_emudat_show, jc_maybe_queue, jc_process, jc_loop,
+	jc_init): New functions.
+	(bfin_help): Document --jc-port.
+	(long_options): Add "jc-port".
+	(bfin_open): Handle 17 for jc-port and call jc_init.
+	(bfin_wait_partial): Call jc_loop.
+
 2009-03-16  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* blackfin-part.h (DECLARE_PART_DBGCTL_IS): New macro.
