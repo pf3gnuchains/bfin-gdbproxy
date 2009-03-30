@@ -4331,7 +4331,7 @@ static void jc_loop (void)
       jc_sock = sock_accept (jc_listen_sock);
       if (jc_sock == -1)
 	return;
-      bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: connected", bfin_target.name);
+      bfin_log (RP_VAL_LOGLEVEL_NOTICE, "%s: jc: connected", bfin_target.name);
       set_fd_nonblock (jc_sock);
     }
 
@@ -4348,7 +4348,7 @@ static void jc_loop (void)
 	}
       else if (io_ret == 0 || errno != EAGAIN)
 	{
-	  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: disconnected",
+	  bfin_log (RP_VAL_LOGLEVEL_NOTICE, "%s: jc: disconnected",
 		    bfin_target.name);
 	  close (jc_sock);
 	  jc_sock = -1;
