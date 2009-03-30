@@ -114,16 +114,13 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(infodir)" \
 	"$(DESTDIR)$(man1dir)" "$(DESTDIR)$(pkgdatadir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am__gdbproxy_SOURCES_DIST = blackfin-part-bf579.c blackfin-part-bfin.c \
-	blackfin-part.c copying.c init.c remote.c gdbproxy.c rpmisc.c \
-	serial.c target_bfin_new.c blackfin-part.h gdbproxy.h rpmisc.h \
+am__gdbproxy_SOURCES_DIST = copying.c init.c remote.c gdbproxy.c \
+	rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h \
 	serial.h gdbproxy-icon.rc
 @USE_RC_SOURCES_TRUE@am__objects_1 = gdbproxy-icon.$(OBJEXT)
-am_gdbproxy_OBJECTS = blackfin-part-bf579.$(OBJEXT) \
-	blackfin-part-bfin.$(OBJEXT) blackfin-part.$(OBJEXT) \
-	copying.$(OBJEXT) init.$(OBJEXT) remote.$(OBJEXT) \
-	gdbproxy.$(OBJEXT) rpmisc.$(OBJEXT) serial.$(OBJEXT) \
-	target_bfin_new.$(OBJEXT) $(am__objects_1)
+am_gdbproxy_OBJECTS = copying.$(OBJEXT) init.$(OBJEXT) \
+	remote.$(OBJEXT) gdbproxy.$(OBJEXT) rpmisc.$(OBJEXT) \
+	serial.$(OBJEXT) target_bfin_new.$(OBJEXT) $(am__objects_1)
 gdbproxy_OBJECTS = $(am_gdbproxy_OBJECTS)
 am__DEPENDENCIES_1 =
 gdbproxy_DEPENDENCIES = $(jtag_builddir)/src/cmd/libcmd.a \
@@ -132,7 +129,8 @@ gdbproxy_DEPENDENCIES = $(jtag_builddir)/src/cmd/libcmd.a \
 	$(jtag_builddir)/src/flash/libflash.a \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/flash/libflash.a \
-	$(jtag_builddir)/src/bus/libbus.a $(am__DEPENDENCIES_1) \
+	$(jtag_builddir)/src/bus/libbus.a \
+	$(jtag_builddir)/src/bfin/libbfin.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(jtag_builddir)/src/lib/libjtaglib.a \
 	$(top_builddir)/gnulib/lib/libgnu.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
@@ -401,7 +399,7 @@ ACLOCAL_AMFLAGS = -I gnulib/m4
 AUTOMAKE_OPTIONS = gnu
 @USE_RC_SOURCES_FALSE@RC_SOURCES = 
 @USE_RC_SOURCES_TRUE@RC_SOURCES = gdbproxy-icon.rc
-gdbproxy_SOURCES = blackfin-part-bf579.c blackfin-part-bfin.c blackfin-part.c copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c blackfin-part.h gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
+gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
 	-I$(jtag_srcdir)/include \
@@ -415,6 +413,7 @@ gdbproxy_LDADD = \
 	$(jtag_builddir)/src/tap/libtap.a \
 	$(jtag_builddir)/src/flash/libflash.a \
 	$(jtag_builddir)/src/bus/libbus.a \
+	$(jtag_builddir)/src/bfin/libbfin.a \
 	$(jtag_libbsdl) \
 	$(jtag_libsvf) \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
@@ -516,9 +515,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blackfin-part-bf579.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blackfin-part-bfin.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blackfin-part.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/copying.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gdbproxy.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/init.Po@am__quote@

@@ -1,3 +1,114 @@
+2009-03-30  Jie Zhang  <jie.zhang@analog.com>
+
+	* Makefile.am (gdbproxy_SOURCES): Remove blackfin-part-bf579.c,
+	blackfin-part-bfin.c, blackfin-part.c, blackfin-part.h.
+	* Makefile.in: Regenerate.
+	* blackfin-part.c: Remove.
+	* blackfin-part.h: Remove.
+	* blackfin-part-bf579.c: Remove.
+	* blackfin-part-bfin.c: Remove.
+	* target_bfin_new.c: Don't include <stdbool.h>.
+	Include "bfin.h".
+	Don't include "blackfin-part.h".
+	(SWRST): Don't define.
+	(IDCODE_SCAN): Don't define.
+	(DBGSTAT_SCAN): Don't define.
+	(DBGCTL_SCAN): Don't define.
+	(EMUIR_SCAN): Don't define.
+	(EMUDAT_SCAN): Don't define.
+	(EMUPC_SCAN): Don't define.
+	(BYPASS): Don't define.
+	(scans[]): Remove.
+	(INSN_NOP): Don't define.
+	(INSN_RTE): Don't define.
+	(INSN_CSYNC): Don't define.
+	(INSN_SSYNC): Don't define.
+	(INSN_ILLEGAL): Don't define.
+	(T_REG_R): Don't define.
+	(T_REG_P): Don't define.
+	(T_REG_I): Don't define.
+	(T_REG_B): Don't define.
+	(T_REG_L): Don't define.
+	(T_REG_M): Don't define.
+	(T_REG_A): Don't define.
+	(enum core_regnum): Remove.
+	(CLASS_MASK): Don't define.
+	(GROUP): Don't define.
+	(DREG_P): Don't define.
+	(PREG_P): Don't define.
+	(struct _bfin_core): Remove dbgctl, dbgstat, emuir_a, emuir_b,
+	emudat_out, emudat_in, and emupc.
+	(bfin_loop_wait_first_ts): Remove.
+	(bfin_loop_wait_ts): Remove.
+	(bfin_emu_wait_ts): Remove.
+	(gen_*): Remove.
+	(scan_select): Use new interface of UrJTAG bfin emulation code.
+	(core_scan_select): Likewise.
+	(dbgctl_bit_clear_or_set_##name): Likewise.
+	(core_dbgctl_bit_clear_or_set_##name): Likewise.
+	(core_dbgctl_is_##name): Likewise.
+	(core_dbgstat_is_##name): Likewise.
+	(core_dbgstat_emucause): Likewise.
+	(dbgstat_get): Likewise.
+	(core_dbgstat_get): Likewise.
+	(emupc_get): Likewise.
+	(core_emupc_get): Likewise.
+	(dbgstat_clear_ovfs): Likewise.
+	(core_dbgstat_clear_ovfs): Likewise.
+	(dbgstat_show): Likewise.
+	(core_dbgstat_show): Likewise.
+	(dbgctl_show): Likewise.
+	(wait_emuready): Likewise.
+	(core_wait_emuready): Likewise.
+	(core_sticky_in_reset): Likewise..
+	(wait_in_reset): Likewise.
+	(core_wait_in_reset): Likewise.
+	(wait_reset): Likewise.
+	(core_wait_reset): Likewise.
+	(emuir_init_value): Likewise.
+	(emuir_set_same): Likewise.
+	(core_emuir_set): Likewise.
+	(emuir_set_same_2): Likewise.
+	(core_emuir_set_2): Likewise.
+	(core_emudat_get): Likewise.
+	(core_emudat_set): Likewise.
+	(register_get): Likewise.
+	(core_register_get): Likewise.
+	(register_set): Likewise.
+	(register_set_same): Likewise.
+	(core_register_set): Likewise.
+	(emulation_enable): Likewise.
+	(core_emulation_enable): Likewise.
+	(emulation_trigger): Likewise.
+	(core_emulation_trigger): Likewise.
+	(emulation_return): Likewise.
+	(core_emulation_return): Likewise.
+	(emulation_disable): Likewise.
+	(core_emulation_disable): Likewise.
+	(system_reset): Likewise.
+	(core_reset_new): Likewise.
+	(core_reset): Likewise.
+	(mmr_read_clobber_r0): Likewise.
+	(mmr_read): Likewise.
+	(mmr_write_clobber_r0): Likewise.
+	(mmr_write): Likewise.
+	(emuir_set): Remove.
+	(emuir_set_2): Remove.
+	(emudat_value): Remove.
+	(emudat_init_value): Remove.
+	(_register_set): Remove.
+	(set_fd_nonblock): Reformat.
+	(jc_emudat_show): Likewise.
+	(jc_maybe_queue): Likewise.
+	(jc_process): Likewise.
+	(jc_loop): Likewise.
+	(jc_init): Likewise.
+	(bfin_part_init): Remove.
+	(bfin_open): Don't call bfin_part_init.
+	(bfin_connect): Adjust for struct _bfin_core changes.
+	(bfin_wait_partial): Likewise.
+	(bfin_threadextrainfo_query): Likewise.
+	
 2009-03-25  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* circ_buf.h: New file.
