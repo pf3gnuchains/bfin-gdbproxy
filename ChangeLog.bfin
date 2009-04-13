@@ -1,3 +1,20 @@
+2009-04-13  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (BF579_EBIU_SDGCTL): Don't define.
+	(BF579_EBIU_SDBCTL): Don't define.
+	(BF579_EBIU_SDRRC): Don't define.
+	(enum _bfin_board): Remove BF579_LX220.
+	(bf579_l1_map): Remove.
+	(bf579_mem_map): Remove.
+	(bf579_lx220_sdram_config): Remove.
+	(core_reset_new): Remove.
+	(bf579_sdram_init): Remove.
+	(sdram_init): Don't call bf579_sdram_init.
+	(itest_sram_read): Remove workaround for bf579.
+	(itest_sram_write): Likewise.
+	(bfin_open): Remove bf579 and its board.
+	(bfin_connect): Remove bf579.
+
 2009-03-30  Jie Zhang  <jie.zhang@analog.com>
 
 	* Makefile.am (gdbproxy_SOURCES): Remove blackfin-part-bf579.c,

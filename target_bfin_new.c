@@ -156,10 +156,6 @@ const static char *emucause_infos[] = {
 #define EBIU_SDRRC			0xffc00a18
 #define EBIU_SDSTAT			0xffc00a1c
 
-#define BF579_EBIU_SDGCTL		0xffc04c00
-#define BF579_EBIU_SDBCTL		0xffc04c04
-#define BF579_EBIU_SDRRC		0xffc04c08
-
 #define EBIU_DDRCTL0			0xffc00a20
 #define EBIU_DDRCTL1			0xffc00a24
 #define EBIU_DDRCTL2			0xffc00a28
@@ -239,7 +235,6 @@ typedef enum _bfin_board
   BF538F_EZKIT,
   BF548_EZKIT,
   BF561_EZKIT,
-  BF579_LX220,
 } bfin_board;
 
 #define UPDATE				0
@@ -625,27 +620,6 @@ static bfin_l1_map bf561_b_l1_map = {
   .l1_scratch_end	= 0xff701000,
   .l1_end		= 0xff800000,
 };
-static bfin_l1_map bf579_l1_map = {
-  .l1			= 0xff800000,
-  .l1_data_a		= 0xff800000,
-  .l1_data_a_end	= 0xff804000,
-  //  .l1_data_a_cache	= 0xff804000,
-  //  .l1_data_a_cache_end	= 0xff808000,
-  .l1_data_b		= 0xff900000,
-  .l1_data_b_end	= 0xff904000,
-  //  .l1_data_b_cache	= 0xff904000,
-  //  .l1_data_b_cache_end	= 0xff908000,
-  .l1_code		= 0xffa00000,
-  .l1_code_end		= 0xffa10000,
-  // ??? L1 secondary Icache configured as ISRAM
-  .l1_code_cache	= 0xffa10000,
-  .l1_code_cache_end	= 0xffa14000,
-  //  .l1_code_rom		= 0xffa14000,
-  //  .l1_code_rom_end	= 0xffa24000,
-  .l1_scratch		= 0xffb00000,
-  .l1_scratch_end	= 0xffb02000,
-  .l1_end		= 0xffc00000,
-};
 
 typedef struct _bfin_mem_map
 {
@@ -749,22 +723,6 @@ static bfin_mem_map bf561_mem_map = {
   .l2_sram		= 0xfeb00000,
   .l2_sram_end		= 0xfeb20000,
   .l1			= 0xff400000,
-  .l1_end		= 0xffc00000,
-  .sysmmr		= 0xffc00000,
-  .coremmr		= 0xffe00000,
-};
-static bfin_mem_map bf579_mem_map = {
-  .sdram		= 0,
-  .sdram_end		= 0x02000000,
-  .async_mem		= 0x20000000,
-  .flash		= 0x20000000,
-  .flash_end		= 0x20400000,
-  .async_mem_end	= 0x24000000,
-  .boot_rom		= 0,
-  .boot_rom_end		= 0,
-  .l2_sram		= 0,
-  .l2_sram_end		= 0,
-  .l1			= 0xff800000,
   .l1_end		= 0xffc00000,
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
@@ -889,12 +847,6 @@ static bfin_sdram_config bf561_ezkit_sdram_config = {
   .sdrrc = 0x01cf,
   .sdbctl = 0x0013,
   .sdgctl = 0x0091998d,
-};
-
-static bfin_sdram_config bf579_lx220_sdram_config = {
-  .sdrrc = 0x0136,
-  .sdbctl = 0x0013,
-  .sdgctl = 0x80908879,
 };
 
 typedef struct _bfin_ddr_config
@@ -1874,19 +1826,6 @@ system_reset (void)
   chain_system_reset (cpu->chain);
 }
 
-/* core_reset_new is supposed to be the right sequence to do the
-   reset. But it cannot always reset core in double fault. core_reset
-   is known to be able to reset core except BF579. So currently BF579
-   uses core_reset_new while others still use core_reset.  */
-
-static void
-core_reset_new (void)
-{
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset core(s)");
-
-  bf579_core_reset (cpu->chain, 1);
-}
-
 static void
 core_reset (void)
 {
@@ -2171,49 +2110,6 @@ bfin_sdram_init (int core)
 }
 
 static int
-bf579_sdram_init (int core)
-{
-  uint32_t p0, r0;
-  //  uint32_t value;
-
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: bf579_sdram_init ()", bfin_target.name);
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
-
-  core_register_set (core, REG_P0, BF579_EBIU_SDGCTL);
-
-#if 0
-  /* Check if SDRAM has been enabled already.
-     If so, don't enable it again.  */
-  value = mmr_read_clobber_r0 (core, EBIU_SDSTAT - EBIU_SDGCTL, 2);
-  if ((value & 0x8) == 0)
-    {
-      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-		"%s: sdram has already been enabled", bfin_target.name);
-      return 0;
-    }
-#endif
-
-  mmr_write_clobber_r0 (core, 0, cpu->sdram_config->sdgctl, 4);
-  mmr_write_clobber_r0 (core, BF579_EBIU_SDBCTL - BF579_EBIU_SDGCTL,
-			cpu->sdram_config->sdbctl, 4);
-  mmr_write_clobber_r0 (core, BF579_EBIU_SDRRC - BF579_EBIU_SDGCTL,
-			cpu->sdram_config->sdrrc, 4);
-
-  core_emuir_set (core, INSN_SSYNC, RUNTEST);
-
-  /* Do a dummy read to trigger the SDRAM power up sequence.  */
-  core_register_set (core, REG_P0, 0);
-  core_emuir_set (core, gen_load32 (REG_R0, REG_P0), RUNTEST);
-
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
-  return 0;
-}
-
-static int
 sdram_init (void)
 {
   int core;
@@ -2235,10 +2131,7 @@ sdram_init (void)
   else
     core = i;
 
-  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
-    return bf579_sdram_init (core);
-  else
-    return bfin_sdram_init (core);
+  return bfin_sdram_init (core);
 }
 
 static int
@@ -3765,15 +3658,6 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   uint32_t test_command_addr;
   part_t *part;
 
-  /* As a temporary workaound for hardware bug, we always set IMC of
-     bf579 to 01. Such that we can read ISRAM using ITEST
-     interface.  */
-  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
-    {
-      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control | IMC, 4);
-      core_emuir_set (core, INSN_CSYNC, RUNTEST);
-    }
-
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
@@ -3816,15 +3700,6 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
 
-  /* As a tempory workaound for hardware bug, we always set IMC of
-     bf579 to 01. Such that we can read ISRAM using ITEST
-     interface.  */
-  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
-    {
-      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control & ~IMC, 4);
-      core_emuir_set (core, INSN_CSYNC, RUNTEST);
-    }
-
   return 0;
 }
 
@@ -3837,16 +3712,6 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   uint8_t *ptr;
   uint32_t test_command_addr;
   part_t *part;
-
-  /* As a tempory workaound for hardware bug, we always set IMC of
-     bf579 to 01. Such that we can read ISRAM using ITEST
-     interface.  */
-  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
-    {
-      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control | IMC, 4);
-      core_emuir_set (core, INSN_CSYNC, RUNTEST);
-    }
-
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -3895,15 +3760,6 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
-
-  /* As a tempory workaound for hardware bug, we always set IMC of
-     bf579 to 01. Such that we can read ISRAM using ITEST
-     interface.  */
-  if (strcmp (cpu->chain->parts->parts[core]->part, "BF579") == 0)
-    {
-      mmr_write (core, IMEM_CONTROL, cpu->cores[core].imem_control & ~IMC, 4);
-      core_emuir_set (core, INSN_CSYNC, RUNTEST);
-    }
 
   return 0;
 }
@@ -4512,8 +4368,6 @@ bfin_open (int argc,
 	    board = BF548_EZKIT;
 	  else if (strcmp (optarg, "bf561-ezkit") == 0)
 	    board = BF561_EZKIT;
-	  else if (strcmp (optarg, "bf579-lx220") == 0)
-	    board = BF579_LX220;
 	  else
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: unknown board  %s", bfin_target.name, optarg);
@@ -4799,15 +4653,6 @@ bfin_open (int argc,
       cpu->cores[1].l1_map = bf561_a_l1_map;
       cpu->cores[0].l1_map = bf561_b_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF579"))
-    {
-      assert (chain->parts->len == 1);
-
-      cpu->mdma_d0 = 0;
-      cpu->mdma_s0 = 0;
-      cpu->mem_map = bf579_mem_map;
-      cpu->cores[0].l1_map = bf579_l1_map;
-    }
   else
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4928,20 +4773,6 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x800000;
       cpu->sdram_config = &bf561_ezkit_sdram_config;
-      cpu->ddr_config = NULL;
-      break;
-
-    case BF579_LX220:
-      if (strcmp (chain->parts->parts[0]->part, "BF579") != 0)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: found %s on BF561 EZKIT board",
-		    bfin_target.name, chain->parts->parts[0]->part);
-	  exit (1);
-	}
-      cpu->mem_map.sdram_end = 0x2000000;
-      cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
-      cpu->sdram_config = &bf579_lx220_sdram_config;
       cpu->ddr_config = NULL;
       break;
 
@@ -5090,10 +4921,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
     {
       bfin_log (RP_VAL_LOGLEVEL_INFO, "Resetting ...");
 
-      if (strcmp (cpu->chain->parts->parts[0]->part, "BF579") == 0)
-	core_reset_new ();
-      else
-	core_reset ();
+      core_reset ();
 
       /* FIXME  Find a better way to identify if the system exists.  */
       if (cpu->mdma_d0)
@@ -5181,22 +5009,6 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 		      i, BFIN_PART_DBGSTAT (part));
 	}
     }
-
-  /* GDB can not create a frame when FP is zero. When there is no
-     valid frame, register can not be written. So if we find FP is
-     zero, set it to be the end of scratch sram. Currently I think
-     only BF579 needs this trick.  */
-  for (i = 0; i < cpu->chain->parts->len; i++)
-    if (strcmp (cpu->chain->parts->parts[i]->part, "BF579") == 0
-	&& !cpu->cores[i].is_locked
-	&& core_register_get (i, REG_FP) == 0)
-      {
-	bfin_log (RP_VAL_LOGLEVEL_INFO,
-		  "[%d] FP is 0, set to 0x%08X",
-		  i, cpu->cores[i].l1_map.l1_scratch_end - 12);
-
-	core_register_set (i, REG_FP, cpu->cores[i].l1_map.l1_scratch_end - 12);
-      }
 
   /* Fill out the the status string.  */
   sprintf (status_string, "T%02d", RP_SIGNAL_TRAP);
