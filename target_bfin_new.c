@@ -34,6 +34,9 @@
 #include <stdarg.h>
 #include <getopt.h>
 #include <sys/param.h>
+#if defined(WIN32)
+#include <winsock.h>
+#endif
 
 #include "gdbproxy.h"
 #include "circ_buf.h"
@@ -47,6 +50,9 @@
 #include "jtag.h"
 #include "bfin.h"
 
+#ifndef MIN
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
+#endif
 
 /* MMRs definitions */
 
@@ -4052,10 +4058,17 @@ static int jc_listen_sock = -1;
 /* Helper function to make an fd non-blocking */
 static void set_fd_nonblock (int fd)
 {
+#ifdef __MINGW32__
+  int ret;
+  u_long mode = 1;
+  ret = ioctlsocket (fd, FIONBIO, &mode);
+  assert (ret == 0);
+#else
   int ret = fcntl (fd, F_GETFL);
   assert (ret != -1);
   ret = fcntl (fd, F_SETFL, ret | O_NONBLOCK);
   assert (ret == 0);
+#endif
 }
 
 /* Helper function to decode/dump an EMUDAT 40bit register */
