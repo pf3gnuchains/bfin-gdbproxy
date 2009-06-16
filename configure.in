@@ -121,6 +121,7 @@ PKG_CHECK_MODULES(LIBUSB, libusb, [LIBS="$LIBS $LIBUSB_LIBS" CFLAGS="$CFLAGS $LI
     AC_CHECK_LIB(usb, usb_get_busses)
   ])
 ])
+AC_CHECK_LIB(intl, libintl_gettext)
 
 
 dnl Enable a relocatable gdbproxy?

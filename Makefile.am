@@ -64,7 +64,7 @@ gdbproxy_LDADD = \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
 	-lm \
 	$(top_builddir)/gnulib/lib/libgnu.a \
-	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP)
+	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP) $(LIBINTL)
 
 dist_pkgdata_DATA = bfin
 

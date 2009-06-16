@@ -1,5 +1,5 @@
 # DO NOT EDIT! GENERATED AUTOMATICALLY!
-# Copyright (C) 2002-2008 Free Software Foundation, Inc.
+# Copyright (C) 2002-2009 Free Software Foundation, Inc.
 #
 # This file is free software, distributed under the terms of the GNU
 # General Public License.  As a special exception to the GNU General
@@ -26,6 +26,7 @@ AC_DEFUN([gl_EARLY],
   m4_pattern_allow([^gl_LTLIBOBJS$])dnl a variable
   AC_REQUIRE([AC_PROG_RANLIB])
   AC_REQUIRE([gl_USE_SYSTEM_EXTENSIONS])
+  AC_REQUIRE([gl_FP_IEEE])
 ])
 
 # This macro should be invoked from ./configure.in, in the section
@@ -43,21 +44,48 @@ AC_DEFUN([gl_INIT],
   m4_pushdef([gl_LIBSOURCES_DIR], [])
   gl_COMMON
   gl_source_base='gnulib/lib'
+  gl_FUNC_ALLOCA
   gl_CLOCK_TIME
+  gl_HEADER_ERRNO_H
+  gl_FLOAT_H
+  gl_FUNC_FREXP_NO_LIBM
+  gl_MATH_MODULE_INDICATOR([frexp])
+  gl_FUNC_FREXPL_NO_LIBM
+  gl_MATH_MODULE_INDICATOR([frexpl])
   gl_GETOPT
+  gl_FUNC_GETPAGESIZE
+  gl_UNISTD_MODULE_INDICATOR([getpagesize])
   AC_SUBST([LIBINTL])
   AC_SUBST([LTLIBINTL])
   gl_GETTIME
   gl_FUNC_GETTIMEOFDAY
+  gl_FUNC_ISNAND_NO_LIBM
+  gl_FUNC_ISNANF_NO_LIBM
+  gl_FUNC_ISNANL_NO_LIBM
+  gl_MATH_H
+  gl_FUNC_MEMCHR
+  gl_STRING_MODULE_INDICATOR([memchr])
+  gl_MULTIARCH
   gl_FUNC_NANOSLEEP
-  AC_REPLACE_FUNCS(raise)
+  gl_FUNC_PRINTF_FREXP
+  gl_FUNC_PRINTF_FREXPL
+  gl_FUNC_PRINTF_POSIX
+  gl_STDIO_MODULE_INDICATOR([printf-posix])
+  m4_divert_text([INIT_PREPARE], [gl_printf_safe=yes])
+  gl_FUNC_SELECT
+  gl_SYS_SELECT_MODULE_INDICATOR([select])
   gl_SIGACTION
   gl_SIGNAL_MODULE_INDICATOR([sigaction])
   gl_SIGNAL_H
+  gl_SIGNBIT
+  gl_MATH_MODULE_INDICATOR([signbit])
   gl_SIGNALBLOCKING
   gl_SIGNAL_MODULE_INDICATOR([sigprocmask])
+  gl_SIZE_MAX
   AM_STDBOOL_H
   gl_STDINT_H
+  gl_STDIO_H
+  gl_HEADER_STRING_H
   gl_HEADER_SYS_SELECT
   AC_PROG_MKDIR_P
   gl_HEADER_SYS_SOCKET
@@ -67,12 +95,16 @@ AC_DEFUN([gl_INIT],
   gl_HEADER_TIME_H
   gl_TIMESPEC
   gl_UNISTD_H
+  gl_FUNC_VASNPRINTF
+  gl_FUNC_VFPRINTF_POSIX
+  gl_STDIO_MODULE_INDICATOR([vfprintf-posix])
   gl_WCHAR_H
+  gl_XSIZE
   m4_ifval(gl_LIBSOURCES_LIST, [
-    m4_syscmd([test ! -d ]gl_LIBSOURCES_DIR[ ||
+    m4_syscmd([test ! -d ]m4_defn([gl_LIBSOURCES_DIR])[ ||
       for gl_file in ]gl_LIBSOURCES_LIST[ ; do
-        if test ! -r ]gl_LIBSOURCES_DIR[/$gl_file ; then
-          echo "missing file ]gl_LIBSOURCES_DIR[/$gl_file" >&2
+        if test ! -r ]m4_defn([gl_LIBSOURCES_DIR])[/$gl_file ; then
+          echo "missing file ]m4_defn([gl_LIBSOURCES_DIR])[/$gl_file" >&2
           exit 1
         fi
       done])dnl
@@ -108,10 +140,10 @@ AC_DEFUN([gl_INIT],
   gl_COMMON
   gl_source_base='tests'
   m4_ifval(gltests_LIBSOURCES_LIST, [
-    m4_syscmd([test ! -d ]gltests_LIBSOURCES_DIR[ ||
+    m4_syscmd([test ! -d ]m4_defn([gltests_LIBSOURCES_DIR])[ ||
       for gl_file in ]gltests_LIBSOURCES_LIST[ ; do
-        if test ! -r ]gltests_LIBSOURCES_DIR[/$gl_file ; then
-          echo "missing file ]gltests_LIBSOURCES_DIR[/$gl_file" >&2
+        if test ! -r ]m4_defn([gltests_LIBSOURCES_DIR])[/$gl_file ; then
+          echo "missing file ]m4_defn([gltests_LIBSOURCES_DIR])[/$gl_file" >&2
           exit 1
         fi
       done])dnl
@@ -201,50 +233,130 @@ AC_DEFUN([gltests_LIBSOURCES], [
 # gnulib-tool and may be removed by future gnulib-tool invocations.
 AC_DEFUN([gl_FILE_LIST], [
   build-aux/link-warning.h
-  lib/dummy.c
+  lib/alignof.h
+  lib/alloca.c
+  lib/alloca.in.h
+  lib/asnprintf.c
+  lib/errno.in.h
+  lib/float+.h
+  lib/float.in.h
+  lib/fpucw.h
+  lib/frexp.c
+  lib/frexpl.c
+  lib/fseterr.c
+  lib/fseterr.h
   lib/getopt.c
   lib/getopt.in.h
   lib/getopt1.c
   lib/getopt_int.h
+  lib/getpagesize.c
   lib/gettext.h
   lib/gettime.c
   lib/gettimeofday.c
+  lib/isnan.c
+  lib/isnand-nolibm.h
+  lib/isnand.c
+  lib/isnanf-nolibm.h
+  lib/isnanf.c
+  lib/isnanl-nolibm.h
+  lib/isnanl.c
+  lib/math.in.h
+  lib/memchr.c
+  lib/memchr.valgrind
   lib/nanosleep.c
-  lib/raise.c
+  lib/printf-args.c
+  lib/printf-args.h
+  lib/printf-frexp.c
+  lib/printf-frexp.h
+  lib/printf-frexpl.c
+  lib/printf-frexpl.h
+  lib/printf-parse.c
+  lib/printf-parse.h
+  lib/printf.c
+  lib/select.c
   lib/sig-handler.h
   lib/sigaction.c
   lib/signal.in.h
+  lib/signbitd.c
+  lib/signbitf.c
+  lib/signbitl.c
   lib/sigprocmask.c
+  lib/size_max.h
   lib/stdbool.in.h
   lib/stdint.in.h
+  lib/stdio-impl.h
+  lib/stdio-write.c
+  lib/stdio.in.h
+  lib/string.in.h
   lib/sys_select.in.h
   lib/sys_socket.in.h
   lib/sys_time.in.h
   lib/time.in.h
   lib/timespec.h
   lib/unistd.in.h
+  lib/vasnprintf.c
+  lib/vasnprintf.h
+  lib/vfprintf.c
   lib/wchar.in.h
+  lib/xsize.h
+  m4/00gnulib.m4
+  m4/alloca.m4
   m4/clock_time.m4
+  m4/errno_h.m4
+  m4/exponentd.m4
+  m4/exponentf.m4
+  m4/exponentl.m4
   m4/extensions.m4
+  m4/float_h.m4
+  m4/fpieee.m4
+  m4/frexp.m4
+  m4/frexpl.m4
   m4/getopt.m4
+  m4/getpagesize.m4
   m4/gettime.m4
   m4/gettimeofday.m4
   m4/gnulib-common.m4
   m4/include_next.m4
+  m4/intmax_t.m4
+  m4/inttypes_h.m4
+  m4/isnand.m4
+  m4/isnanf.m4
+  m4/isnanl.m4
+  m4/ldexpl.m4
   m4/longlong.m4
+  m4/math_h.m4
+  m4/memchr.m4
+  m4/mmap-anon.m4
+  m4/multiarch.m4
   m4/nanosleep.m4
+  m4/nocrash.m4
   m4/onceonly.m4
+  m4/printf-frexp.m4
+  m4/printf-frexpl.m4
+  m4/printf-posix-rpl.m4
+  m4/printf.m4
+  m4/select.m4
   m4/sigaction.m4
   m4/signal_h.m4
   m4/signalblocking.m4
+  m4/signbit.m4
+  m4/size_max.m4
   m4/sockpfaf.m4
   m4/stdbool.m4
   m4/stdint.m4
+  m4/stdint_h.m4
+  m4/stdio_h.m4
+  m4/string_h.m4
   m4/sys_select_h.m4
   m4/sys_socket_h.m4
   m4/sys_time_h.m4
   m4/time_h.m4
   m4/timespec.m4
   m4/unistd_h.m4
+  m4/vasnprintf.m4
+  m4/vfprintf-posix.m4
   m4/wchar.m4
+  m4/wchar_t.m4
+  m4/wint_t.m4
+  m4/xsize.m4
 ])

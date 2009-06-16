@@ -1,6 +1,5 @@
-/* Provide a non-threads replacement for the POSIX raise function.
-
-   Copyright (C) 2002, 2003, 2005, 2006 Free Software Foundation, Inc.
+/* Set the error indicator of a stream.
+   Copyright (C) 2007 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +14,24 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* written by Jim Meyering */
+#ifndef _FSETERR_H
+#define _FSETERR_H
 
-#include <config.h>
+#include <stdio.h>
 
-#include <sys/types.h>
-#include <signal.h>
-#include <unistd.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-int
-raise (int sig)
-{
-  return kill (getpid (), sig);
+
+/* Set the error indicator of the stream FP.
+   The "error indicator" is set when an I/O operation on the stream fails, and
+   is cleared (together with the "end-of-file" indicator) by clearerr (FP).  */
+extern void fseterr (FILE *fp);
+
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* _FSETERR_H */
