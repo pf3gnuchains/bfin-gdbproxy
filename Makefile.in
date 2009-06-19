@@ -83,11 +83,13 @@ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/gnulib/m4/00gnulib.m4 \
 	$(top_srcdir)/gnulib/m4/alloca.m4 \
 	$(top_srcdir)/gnulib/m4/clock_time.m4 \
+	$(top_srcdir)/gnulib/m4/close.m4 \
 	$(top_srcdir)/gnulib/m4/errno_h.m4 \
 	$(top_srcdir)/gnulib/m4/exponentd.m4 \
 	$(top_srcdir)/gnulib/m4/exponentf.m4 \
 	$(top_srcdir)/gnulib/m4/exponentl.m4 \
 	$(top_srcdir)/gnulib/m4/extensions.m4 \
+	$(top_srcdir)/gnulib/m4/fclose.m4 \
 	$(top_srcdir)/gnulib/m4/float_h.m4 \
 	$(top_srcdir)/gnulib/m4/fpieee.m4 \
 	$(top_srcdir)/gnulib/m4/frexp.m4 \
@@ -170,7 +172,7 @@ gdbproxy_DEPENDENCIES = $(jtag_builddir)/src/cmd/libcmd.a \
 	$(jtag_builddir)/src/bfin/libbfin.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(jtag_builddir)/src/lib/libjtaglib.a \
 	$(top_builddir)/gnulib/lib/libgnu.a $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -741,7 +743,7 @@ gdbproxy_LDADD = \
 	$(jtag_builddir)/src/lib/libjtaglib.a \
 	-lm \
 	$(top_builddir)/gnulib/lib/libgnu.a \
-	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP)
+	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP) $(LIBINTL)
 
 dist_pkgdata_DATA = bfin
 info_TEXINFOS = gdbproxy.texi

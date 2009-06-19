@@ -46,7 +46,11 @@ AC_DEFUN([gl_INIT],
   gl_source_base='gnulib/lib'
   gl_FUNC_ALLOCA
   gl_CLOCK_TIME
+  gl_FUNC_CLOSE
+  gl_UNISTD_MODULE_INDICATOR([close])
   gl_HEADER_ERRNO_H
+  gl_FUNC_FCLOSE
+  gl_STDIO_MODULE_INDICATOR([fclose])
   gl_FLOAT_H
   gl_FUNC_FREXP_NO_LIBM
   gl_MATH_MODULE_INDICATOR([frexp])
@@ -237,7 +241,11 @@ AC_DEFUN([gl_FILE_LIST], [
   lib/alloca.c
   lib/alloca.in.h
   lib/asnprintf.c
+  lib/close-hook.c
+  lib/close-hook.h
+  lib/close.c
   lib/errno.in.h
+  lib/fclose.c
   lib/float+.h
   lib/float.in.h
   lib/fpucw.h
@@ -302,11 +310,13 @@ AC_DEFUN([gl_FILE_LIST], [
   m4/00gnulib.m4
   m4/alloca.m4
   m4/clock_time.m4
+  m4/close.m4
   m4/errno_h.m4
   m4/exponentd.m4
   m4/exponentf.m4
   m4/exponentl.m4
   m4/extensions.m4
+  m4/fclose.m4
   m4/float_h.m4
   m4/fpieee.m4
   m4/frexp.m4
