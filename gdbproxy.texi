@@ -259,11 +259,11 @@ information printed out by @code{gdbproxy}. @var{level} could be
 
 @smallexample
 gdbproxy [@var{proxy-options}] bfin [--board=@var{board}]
-    [--emu-wait=@var{usec}] [--enable-dcache=@var{method}]
+    [--enable-dcache=@var{method}]
     [--enable-icache] [--flash-size=@var{bytes}] [--force-range-wp]
     [--init-sdram] [--loop-wait=@var{usec}] [--no-auto-switch]
     [--reset] [--sdram-size=@var{bytes}] [--unlock-on-connect]
-    [--unlock-on-load] [--use-dma]
+    [--unlock-on-load] [--use-dma] [--wait-emuready]
 @end smallexample
 
 The target `bfin' is using JTAG cable to debug Blackfin processor
@@ -278,19 +278,6 @@ Specify the board. The @var{board} can be one of
 @code{bf537-ezkit}, @code{bf548-ezkit}, and @code{bf561-ezkit}.
 With this option, @code{gdbproxy} will set appropriate SDRAM
 size and flash size according the board choosed.
-
-@item --emu-wait=@var{usec}
-Wait @var{usec} microseconds in emulation operations.
-The default wait time is 5000 microseconds. After each emulator
-operation, @code{gdbproxy} will immediately check if Blackfin processor
-is @code{EMUREADY}, i.e. if Blackfin processor has executed
-all valid instructions in @code{EMUIR} and is ready to execute
-the next instruction. If the processor is not @code{EMUREADY},
-@code{gdbproxy} will wait @var{usec} microseconds and check again.
-If the processor is still not @code{EMUREADY}, @code{gdbproxy}
-will failed an assert and abort. @code{gdbproxy} also waits
-@var{usec} microseconds for the processor to enter resetting
-and complete resetting, if the first check doesn't succeed.
 
 @item --enable-dcache=@var{method}
 Enable all data SRAM caches. The @var{method} can be one of
@@ -383,6 +370,15 @@ than using ITEST/DTEST. But when the latter is used, TEST_COMMAND
 is reset to 0, i.e. clobbered! But it should not do any harm to
 any reasonable user programs. Only Codes trying to peek TEST_COMMAND
 might be affected.
+
+@item --wait-emuready
+Wait for EMUREADY in emulation operations.
+After each emulator operation,
+@code{gdbproxy} will immediately check if Blackfin processor
+is @code{EMUREADY}, i.e. if Blackfin processor has executed
+all valid instructions in @code{EMUIR} and is ready to execute
+the next instruction. Since this checking will extremely slow down
+USB JTAG ICE operation, it's default off.
 @end table
 
 @node    Targets `remote' and `extended-remote', Target `skeleton', Target `bfin', Top

@@ -1,5 +1,13 @@
 2009-07-01  Jie Zhang  <jie.zhang@analog.com>
 
+	* target_bfin_new.c (bfin_help): Remove --emu-wait option.
+	Add --wait-emuready option.
+	(bfin_open): Likewise.
+	* gdbproxy.texi: Remove --emu-wait option.
+	Document --wait-emuready option.
+
+2009-07-01  Jie Zhang  <jie.zhang@analog.com>
+
 	* target_bfin_new.c (bfin_loop_wait_ts): Define.
 	(bfin_loop_wait_first_ts): Define.
 

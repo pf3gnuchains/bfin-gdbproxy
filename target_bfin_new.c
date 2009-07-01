@@ -4275,8 +4275,7 @@ bfin_help (const char *prog_name)
   printf (" --board=BOARD           specify the board\n");
   printf (" --connect=STRING        JTAG connection string\n");
   printf ("                         (default %s)\n", default_jtag_connect);
-  printf (" --emu-wait=USEC         wait USEC microseconds in emulator operations\n");
-  printf ("                         (default 5000)\n");
+  printf (" --wait-emuready         wait for EMUREADY in emulator operations\n");
   printf (" --enable-dcache=METHOD  enable all data SRAM caches\n");
   printf (" --enable-icache         enable all instruction SRAM caches\n");
   printf (" --flash-size=BYTES      specify the size of flash\n");
@@ -4328,7 +4327,7 @@ bfin_open (int argc,
     {"enable-dcache", required_argument, 0, 9},
     {"enable-icache", no_argument, 0, 10},
     {"reset", no_argument, 0, 11},
-    {"emu-wait", required_argument, 0, 12},
+    {"wait-emuready", no_argument, 0, 12},
     {"no-switch-on-load", no_argument, 0, 13},
     {"connect", required_argument, 0, 14},
     {"reject-invalid-mem", no_argument, 0, 15},
@@ -4355,6 +4354,10 @@ bfin_open (int argc,
   board = UNKNOWN_BOARD;
 
   /* Process options */
+
+  /* Default we don't wait EMUREADY */
+  bfin_wait_emuready = 0;
+
   optind = 1;
   for (;;)
     {
@@ -4470,25 +4473,7 @@ bfin_open (int argc,
 	  break;
 
 	case 12:
-	  usec = atol (optarg);
-	  if (usec < 0)
-	    {
-	      bfin_log (RP_VAL_LOGLEVEL_ERR,
-			"%s: bad wait time %d",
-			bfin_target.name, usec);
-	      exit (1);
-	    }
-
-	  if (usec > 5000000)
-	    {
-	      bfin_log (RP_VAL_LOGLEVEL_ERR,
-			"%s: wait time too large (> 5s) %d",
-			bfin_target.name, usec);
-	      exit (1);
-	    }
-
-	  bfin_emu_wait_ts.tv_nsec = usec * 1000 % 1000000000;
-	  bfin_emu_wait_ts.tv_sec = usec * 1000 / 1000000000;
+	  bfin_wait_emuready = 1;
 	  break;
 
 	case 13:
