@@ -467,6 +467,7 @@ rp_target bfin_target = {
   bfin_packetsize_query,
 };
 static char default_jtag_connect[] = "cable gnICE";
+static uint32_t bfin_frequency = 0;
 static struct timespec bfin_loop_wait_first_ts = {0, 50000000};
 static struct timespec bfin_loop_wait_ts = {0, 10000000};
 
@@ -4275,6 +4276,7 @@ bfin_help (const char *prog_name)
   printf (" --board=BOARD           specify the board\n");
   printf (" --connect=STRING        JTAG connection string\n");
   printf ("                         (default %s)\n", default_jtag_connect);
+  printf (" --frequency=FREQUENCY   set the cable frequency\n");
   printf (" --wait-emuready         wait for EMUREADY in emulator operations\n");
   printf (" --enable-dcache=METHOD  enable all data SRAM caches\n");
   printf (" --enable-icache         enable all instruction SRAM caches\n");
@@ -4333,6 +4335,7 @@ bfin_open (int argc,
     {"reject-invalid-mem", no_argument, 0, 15},
     {"use-dma", no_argument, 0, 16},
     {"jc-port", required_argument, 0, 17},
+    {"frequency", required_argument, 0, 18},
     {NULL, 0, 0, 0}
   };
 
@@ -4496,6 +4499,17 @@ bfin_open (int argc,
 	  jc_port = atoi(optarg);
 	  break;
 
+	case 18:
+	  bfin_frequency = atol (optarg);
+	  if (bfin_frequency < 0)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad frequency %d",
+			bfin_target.name, bfin_frequency);
+	      exit (1);
+	    }
+	  break;
+
 	default:
 	  bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 		    "%s: Use `%s --help %s' to see a complete list of options",
@@ -4539,6 +4553,9 @@ bfin_open (int argc,
 		"%s: cable initialization failed", bfin_target.name);
       return RP_VAL_TARGETRET_ERR;
     }
+
+  if (bfin_frequency != 0)
+    cable_set_frequency (chain->cable, bfin_frequency);
 
   cmd_run (chain, cmd_detect);
   if (!chain->parts || !chain->parts->len)

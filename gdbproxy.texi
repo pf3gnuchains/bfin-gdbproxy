@@ -261,6 +261,7 @@ information printed out by @code{gdbproxy}. @var{level} could be
 gdbproxy [@var{proxy-options}] bfin [--board=@var{board}]
     [--enable-dcache=@var{method}]
     [--enable-icache] [--flash-size=@var{bytes}] [--force-range-wp]
+    [--frequency=@var{frequency}]
     [--init-sdram] [--loop-wait=@var{usec}] [--no-auto-switch]
     [--reset] [--sdram-size=@var{bytes}] [--unlock-on-connect]
     [--unlock-on-load] [--use-dma] [--wait-emuready]
@@ -319,6 +320,12 @@ struct A @{
 @code{`s.b = 1'}. If you want to catch writes to all fields of
 @code{s}, you can use @option{--force-range-wp}. The cost is
 that you can only set one hardware watchpoint.
+
+@item --frequency=@var{frequency}
+Set cable frequency.  Usually gdbproxy uses the max frequency of
+the cable.  The max frequency of gnICE+ JTAG ICE cable is
+30000000Hz. But some boards can only work under 15000000Hz.
+In this case you can use this option to specify a working frequency.
 
 @item --init-sdram
 Initialize SDRAM or DDR memory. The default SDRAM configuration
