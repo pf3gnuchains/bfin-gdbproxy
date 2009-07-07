@@ -5410,6 +5410,8 @@ bfin_write_single_register (unsigned int reg_no,
   core_register_set (core, map_gdb_core[reg_no],
 		     cpu->cores[core].registers[reg_no]);
 
+  core_wait_emuready (core);
+
   return RP_VAL_TARGETRET_OK;
 }
 
@@ -6026,6 +6028,8 @@ done:
 
   if (ret < 0)
     return RP_VAL_TARGETRET_ERR;
+
+  core_wait_emuready (core);
 
   return RP_VAL_TARGETRET_OK;
 }
