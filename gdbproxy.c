@@ -498,10 +498,6 @@ static void handle_read_memory_command(char * const in_buf,
         return;
     }
 
-    /* Limit it so buggy gdbs will not complain */
-    if (len > ((RP_VAL_DBG_PBUFSIZ - 32)/2))
-        len = (RP_VAL_DBG_PBUFSIZ - 32)/2;
-
     ret = t->read_mem(addr, data_buf, len, &actual_len);
     switch (ret)
     {
