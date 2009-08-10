@@ -1256,6 +1256,20 @@ core_emudat_get (int core, int runtest)
 }
 
 static void
+core_emudat_defer_get (int core, int runtest)
+{
+  part_emudat_defer_get (cpu->chain, core,
+			 runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+}
+
+static uint32_t
+core_emudat_get_done (int core, int runtest)
+{
+  return part_emudat_get_done (cpu->chain, core,
+			       runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+}
+
+static void
 core_emudat_set (int core, uint32_t value, int runtest)
 {
   part_emudat_set (cpu->chain, core, value,
@@ -3110,6 +3124,7 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
   uint32_t p0, r0;
   int clobbered[BFIN_DCPLB_NUM];
   int i;
+  int count1 = 0, count2 = 0, count3 = 0;
 
   assert (size > 0);
 
@@ -3132,9 +3147,10 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 
   while ((addr & 0x3) != 0 && size != 0)
     {
-      *buf++ = core_emudat_get (core, RUNTEST);
+      core_emudat_defer_get (core, RUNTEST);
       addr++;
       size--;
+      count1++;
     }
   if (size == 0)
     goto finish_read;
@@ -3146,13 +3162,8 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 
   for (; size >= 4; size -= 4)
     {
-      uint32_t data;
-
-      data = core_emudat_get (core, RUNTEST);
-      *buf++ = data & 0xff;
-      *buf++ = (data >> 8) & 0xff;
-      *buf++ = (data >> 16) & 0xff;
-      *buf++ = (data >> 24) & 0xff;
+      core_emudat_defer_get (core, RUNTEST);
+      count2++;
     }
 
   if (size == 0)
@@ -3163,9 +3174,36 @@ memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
 
   for (; size > 0; size--)
-    *buf++ = core_emudat_get (core, RUNTEST);
+    {
+      core_emudat_defer_get (core, RUNTEST);
+      count3++;
+    }
 
 finish_read:
+
+  while (count1 > 0)
+    {
+      *buf++ = core_emudat_get_done (core, RUNTEST);
+      count1--;
+    }
+
+  while (count2 > 0)
+    {
+      uint32_t data;
+
+      data = core_emudat_get_done (core, RUNTEST);
+      *buf++ = data & 0xff;
+      *buf++ = (data >> 8) & 0xff;
+      *buf++ = (data >> 16) & 0xff;
+      *buf++ = (data >> 24) & 0xff;
+      count2--;
+    }
+
+  while (count3 > 0)
+    {
+      *buf++ = core_emudat_get_done (core, RUNTEST);
+      count3--;
+    }
 
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
