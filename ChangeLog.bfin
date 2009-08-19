@@ -1,3 +1,8 @@
+2009-08-19  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_open): Fix a typo in error message
+	for --enable-dcache.
+
 2009-08-11  Jie Zhang  <jie.zhang@analog.com>
 
 	* gdbproxy.c (handle_read_memory_command): Don't limit

@@ -4501,7 +4501,7 @@ bfin_open (int argc,
 	    bfin_enable_dcache = WRITE_BACK;
 	  else
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
-		      "%s: back cache write method  %s",
+		      "%s: bad cache write policy `%s', should be `write-through' or `write-back'",
 		      bfin_target.name, optarg);
 	  break;
 
