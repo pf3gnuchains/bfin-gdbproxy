@@ -795,8 +795,6 @@ typedef struct _bfin_core
 
   unsigned int dmem_control_valid_p:1;
   unsigned int imem_control_valid_p:1;
-  unsigned int dcplbs_valid_p:1;
-  unsigned int icplbs_valid_p:1;
 
   int pending_signal;
   uint32_t pending_stop_pc;
@@ -811,8 +809,6 @@ typedef struct _bfin_core
   bfin_hwwps hwwps[RP_BFIN_MAX_HWWATCHPOINTS];
   uint32_t dmem_control;
   uint32_t imem_control;
-  bfin_cplb_entry dcplbs[BFIN_DCPLB_NUM];
-  bfin_cplb_entry icplbs[BFIN_ICPLB_NUM];
 } bfin_core;
 
 typedef struct _bfin_sdram_config
@@ -1898,66 +1894,6 @@ mmr_read (int core, uint32_t addr, int size)
       if (cpu->cores[core].imem_control_valid_p)
 	return cpu->cores[core].imem_control;
     }
-  else if (addr >= DCPLB_ADDR0 && addr < DCPLB_ADDR0 + 4 * BFIN_DCPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to DCPLB_ADDRx",
-		    bfin_target.name,
-		    core);
-	  /* Return a weird value to notice people.  */
-	  return 0xfffffff;
-	}
-
-      if (cpu->cores[core].dcplbs_valid_p)
-	return cpu->cores[core].dcplbs[(addr - DCPLB_ADDR0) / 4].addr;
-    }
-  else if (addr >= DCPLB_DATA0 && addr < DCPLB_DATA0 + 4 * BFIN_DCPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to DCPLB_DATAx",
-		    bfin_target.name,
-		    core);
-	  /* Return a weird value to notice people.  */
-	  return 0xfffffff;
-	}
-
-      if (cpu->cores[core].dcplbs_valid_p)
-	return cpu->cores[core].dcplbs[(addr - DCPLB_DATA0) / 4].data;
-    }
-  else if (addr >= ICPLB_ADDR0 && addr < ICPLB_ADDR0 + 4 * BFIN_ICPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to ICPLB_ADDRx",
-		    bfin_target.name,
-		    core);
-	  /* Return a weird value to notice people.  */
-	  return 0xfffffff;
-	}
-
-      if (cpu->cores[core].icplbs_valid_p)
-	return cpu->cores[core].icplbs[(addr - ICPLB_ADDR0) / 4].addr;
-    }
-  else if (addr >= ICPLB_DATA0 && addr < ICPLB_DATA0 + 4 * BFIN_ICPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to ICPLB_DATAx",
-		    bfin_target.name,
-		    core);
-	  /* Return a weird value to notice people.  */
-	  return 0xfffffff;
-	}
-
-      if (cpu->cores[core].icplbs_valid_p)
-	return cpu->cores[core].icplbs[(addr - ICPLB_DATA0) / 4].data;
-    }
 
   value = part_mmr_read (cpu->chain, core, addr, size);
 
@@ -2023,74 +1959,6 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
 	  cpu->cores[core].imem_control = data;
 	  cpu->cores[core].imem_control_valid_p = 1;
 	}
-    }
-  else if (addr >= DCPLB_ADDR0 && addr < DCPLB_ADDR0 + 4 * BFIN_DCPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to DCPLB_ADDRx",
-		    bfin_target.name,
-		    core);
-	  return;
-	}
-
-      if (cpu->cores[core].dcplbs_valid_p
-	  && cpu->cores[core].dcplbs[(addr - DCPLB_ADDR0) / 4].addr == data)
-	return;
-      else
-	cpu->cores[core].dcplbs[(addr - DCPLB_ADDR0) / 4].addr = data;
-    }
-  else if (addr >= DCPLB_DATA0 && addr < DCPLB_DATA0 + 4 * BFIN_DCPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to DCPLB_DATAx",
-		    bfin_target.name,
-		    core);
-	  return;
-	}
-
-      if (cpu->cores[core].dcplbs_valid_p
-	  && cpu->cores[core].dcplbs[(addr - DCPLB_DATA0) / 4].data == data)
-	return;
-      else
-	cpu->cores[core].dcplbs[(addr - DCPLB_DATA0) / 4].data = data;
-    }
-  else if (addr >= ICPLB_ADDR0 && addr < ICPLB_ADDR0 + 4 * BFIN_ICPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to ICPLB_ADDRx",
-		    bfin_target.name,
-		    core);
-	  return;
-	}
-
-      if (cpu->cores[core].icplbs_valid_p
-	  && cpu->cores[core].icplbs[(addr - ICPLB_ADDR0) / 4].addr == data)
-	return;
-      else
-	cpu->cores[core].icplbs[(addr - ICPLB_ADDR0) / 4].addr = data;
-    }
-  else if (addr >= ICPLB_DATA0 && addr < ICPLB_DATA0 + 4 * BFIN_ICPLB_NUM)
-    {
-      if ((addr & 0x3) != 0 || size != 4)
-	{
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] misaligned or wrong size access to ICPLB_DATAx",
-		    bfin_target.name,
-		    core);
-	  return;
-	}
-
-      if (cpu->cores[core].icplbs_valid_p
-	  && cpu->cores[core].icplbs[(addr - ICPLB_DATA0) / 4].data == data)
-	return;
-      else
-	cpu->cores[core].icplbs[(addr - ICPLB_DATA0) / 4].data = data;
     }
 
   part_mmr_write (cpu->chain, core, addr, data, size);
@@ -2206,45 +2074,55 @@ ddr_init (void)
 }
 
 static void
-core_dcplb_get_clobber_p0r0 (int core)
+core_dcplb_enable_clobber_p0r0 (int core)
 {
-  int i;
+  core_register_set (core, REG_P0, DMEM_CONTROL);
 
-  core_register_set (core, REG_P0, DCPLB_ADDR0);
-  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
-  core_emuir_set_2 (core,
-		    gen_load32pi (REG_R0, REG_P0),
-		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    cpu->cores[core].dcplbs[i].addr = core_emudat_get (core, RUNTEST);
-  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
+  if (!cpu->cores[core].dmem_control_valid_p)
+    {
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+      cpu->cores[core].dmem_control = mmr_read_clobber_r0 (core, 0, 4);
+      cpu->cores[core].dmem_control_valid_p = 1;
+    }
 
-  core_register_set (core, REG_P0, DCPLB_DATA0);
-  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
-  core_emuir_set_2 (core,
-		    gen_load32pi (REG_R0, REG_P0),
-		    gen_move (REG_EMUDAT, REG_R0), UPDATE);
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    cpu->cores[core].dcplbs[i].data = core_emudat_get (core, RUNTEST);
-  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
+  if (cpu->cores[core].dmem_control & ENDCPLB)
+    return;
+
+  cpu->cores[core].dmem_control |= ENDCPLB;
+  mmr_write_clobber_r0 (core, 0, cpu->cores[core].dmem_control, 4);
+  core_emuir_set (core, INSN_SSYNC, RUNTEST);
+}
+
+/* Disable DCPLB if it's enabled.  Return zero if DCPLB was not enabled originally.
+   Othersize return non-zero.  */
+static int
+core_dcplb_disable_clobber_p0r0 (int core)
+{
+  int orig;
+
+  core_register_set (core, REG_P0, DMEM_CONTROL);
+
+  if (!cpu->cores[core].dmem_control_valid_p)
+    {
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+      cpu->cores[core].dmem_control = mmr_read_clobber_r0 (core, 0, 4);
+      cpu->cores[core].dmem_control_valid_p = 1;
+    }
+
+  orig = cpu->cores[core].dmem_control & ENDCPLB;
+
+  if (orig)
+    {
+      cpu->cores[core].dmem_control &= ~ENDCPLB;
+      mmr_write_clobber_r0 (core, 0, cpu->cores[core].dmem_control, 4);
+      core_emuir_set (core, INSN_SSYNC, RUNTEST);
+    }
+
+  return orig;
 }
 
 static void
-core_dcplb_get (int core)
-{
-  uint32_t p0, r0;
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
-
-  core_dcplb_get_clobber_p0r0 (core);
-
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
-}
-
-static void
-core_dcplb_set_clobber_p0r0 (int core)
+core_dcplb_set_clobber_p0r0 (int core, bfin_cplb_entry *dcplbs)
 {
   int i;
 
@@ -2254,7 +2132,7 @@ core_dcplb_set_clobber_p0r0 (int core)
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    core_emudat_set (core, cpu->cores[core].dcplbs[i].addr, RUNTEST);
+    core_emudat_set (core, dcplbs[i].addr, RUNTEST);
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   core_register_set (core, REG_P0, DCPLB_DATA0);
@@ -2263,26 +2141,12 @@ core_dcplb_set_clobber_p0r0 (int core)
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    core_emudat_set (core, cpu->cores[core].dcplbs[i].data, RUNTEST);
+    core_emudat_set (core, dcplbs[i].data, RUNTEST);
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 }
 
 static void
-core_dcplb_set (int core)
-{
-  uint32_t p0, r0;
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
-
-  core_dcplb_set_clobber_p0r0 (core);
-
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
-}
-
-static void
-core_icplb_set_clobber_p0r0 (int core)
+core_icplb_set_clobber_p0r0 (int core, bfin_cplb_entry *icplbs)
 {
   int i;
 
@@ -2292,7 +2156,7 @@ core_icplb_set_clobber_p0r0 (int core)
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_ICPLB_NUM; i++)
-    core_emudat_set (core, cpu->cores[core].icplbs[i].addr, RUNTEST);
+    core_emudat_set (core, icplbs[i].addr, RUNTEST);
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
   core_register_set (core, REG_P0, ICPLB_DATA0);
@@ -2301,653 +2165,50 @@ core_icplb_set_clobber_p0r0 (int core)
 		    gen_move (REG_R0, REG_EMUDAT),
 		    gen_store32pi (REG_P0, REG_R0), UPDATE);
   for (i = 0; i < BFIN_ICPLB_NUM; i++)
-    core_emudat_set (core, cpu->cores[core].icplbs[i].data, RUNTEST);
+    core_emudat_set (core, icplbs[i].data, RUNTEST);
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
-}
-
-static void
-core_icplb_set (int core)
-{
-  uint32_t p0, r0;
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
-
-  core_icplb_set_clobber_p0r0 (core);
-
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
-}
-
-/* Make DCPLB valid for reading or writing SIZE bytes data at address
-   ADDR. When called, array CLOBBERED should be initialized with all 0s.
-   When return, CLOBBERED is set to non-zero for clobbered entries.
-   If the bit 1 of element of CLOBBERED is not zero, the address part
-   of the CPLB entry is clobbered.  The bit 2 is for data part.  */
-
-/* The data structures.  */
-struct cplb
-{
-  int entry;
-  struct cplb *next;
-};
-
-struct mb
-{
-  uint32_t addr;
-  uint32_t end;
-  /* How many cplbs cover this memory block.  */
-  int cplb_count;
-  /* All cplbs that cover this memory block.  */
-  struct cplb *cplbs;
-  struct mb *next;
-};
-
-/* Split the memory block into two. The first one has NEW_SIZE bytes.  */
-static void
-split_mb (struct mb *p, int new_size, int *used)
-{
-  struct mb *p2;
-  struct cplb *c, *c2;
-
-  p2 = (struct mb *) malloc (sizeof (struct mb));
-  if (p2 == NULL)
-    abort ();
-
-  p2->end = p->end;
-  p2->addr = p->end = p->addr + new_size;
-  p2->next = p->next;
-  p->next = p2;
-
-  p2->cplb_count = p->cplb_count;
-
-  /* Copy all cplbs.  */
-  p2->cplbs = NULL;
-
-  for (c = p->cplbs; c != NULL; c = c->next)
-    {
-      c2 = (struct cplb *) malloc (sizeof (struct cplb));
-      if (c2 == NULL)
-	abort ();
-      c2->entry = c->entry;
-      c2->next = p2->cplbs;
-      p2->cplbs = c2;
-      used[c2->entry]++;
-    }
-}
-
-static int
-get_unused_dcplb (int *used, int *clobbered)
-{
-  int i;
-
-  /* If there is any clobbered but unused cplb entries,
-     use them first.  */
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    if (!used[i] && clobbered[i])
-      return i;
-
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    if (!used[i])
-      return i;
-
-  return -1;
-}
-
-static struct mb *
-dcplb_analyze (int core, uint32_t addr, int size, int *used)
-{
-  uint32_t p0, r0;
-  struct mb *mbs, *p;
-  int i;
-
-  if (!cpu->cores[core].dmem_control_valid_p)
-    {
-      p0 = core_register_get (core, REG_P0);
-      r0 = core_register_get (core, REG_R0);
-
-      core_register_set (core, REG_P0, DMEM_CONTROL);
-      cpu->cores[core].dmem_control
-	= mmr_read_clobber_r0 (core, 0, 4);
-      cpu->cores[core].dmem_control_valid_p = 1;
-
-      if ((cpu->cores[core].dmem_control & ENDCPLB)
-	  && !cpu->cores[core].dcplbs_valid_p)
-	{
-	  core_dcplb_get_clobber_p0r0 (core);
-	  cpu->cores[core].dcplbs_valid_p = 1;
-	}
-
-      core_register_set (core, REG_P0, p0);
-      core_register_set (core, REG_R0, r0);
-    }
-  else if ((cpu->cores[core].dmem_control & ENDCPLB)
-	   && !cpu->cores[core].dcplbs_valid_p)
-    {
-      core_dcplb_get (core);
-      cpu->cores[core].dcplbs_valid_p = 1;
-    }
-
-  if (!(cpu->cores[core].dmem_control & ENDCPLB))
-    return NULL;
-
-  mbs = (struct mb*) malloc (sizeof (struct mb));
-  if (!mbs)
-    abort ();
-
-  mbs->addr = addr;
-  mbs->end = addr + size;
-  mbs->cplbs = NULL;
-  mbs->cplb_count = 0;
-  mbs->next = NULL;
-
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    {
-      uint32_t cplb_addr;
-      uint32_t cplb_data;
-      int page_size;
-      struct cplb *c;
-
-      cplb_data = cpu->cores[core].dcplbs[i].data;
-      if (!(cplb_data & CPLB_VALID))
-	continue;
-      switch (cplb_data & PAGE_SIZE_MASK)
-	{
-	case PAGE_SIZE_4MB:
-	  page_size = 4 * 1024 * 1024;
-	  break;
-	case PAGE_SIZE_1MB:
-	  page_size = 1024 * 1024;
-	  break;
-	case PAGE_SIZE_4KB:
-	  page_size = 4 * 1024;
-	  break;
-	case PAGE_SIZE_1KB:
-	  page_size = 1024;
-	  break;
-	default:
-	  abort ();
-	}
-      cplb_addr = cpu->cores[core].dcplbs[i].addr;
-      cplb_addr &= ~(page_size - 1);
-
-      /* Check if this dcplb entry cover any memory blocks.  */
-      for (p = mbs; p != NULL; p = p->next)
-	{
-	  /* If the dcplb entry does not cover any part of the memory
-	     block, do nothing.  */
-	  if (p->addr >= cplb_addr + page_size
-	      || p->end <= cplb_addr)
-	    continue;
-
-	  /* If the dcplb entry completely covers the memory block,
-	     assign the dcplb entry to it.  */
-	  else if (p->addr >= cplb_addr && p->end <= cplb_addr + page_size)
-	    {
-	      c = (struct cplb *) malloc (sizeof (struct cplb));
-	      if (!c)
-		abort ();
-	      c->entry = i;
-	      c->next = p->cplbs;
-	      p->cplbs = c;
-	      p->cplb_count++;
-	      used[i]++;
-	    }
-
-	  /* If the dcplb entry only covers part of the memory block,
-	     we have to split the memory block.  First the most
-	     complicated one: cover the middle part.  */
-	  else if (p->addr < cplb_addr && p->end > cplb_addr + page_size)
-	    {
-	      split_mb (p, cplb_addr - p->addr, used);
-	      p = p->next;
-	      split_mb (p, page_size, used);
-
-	      c = (struct cplb *) malloc (sizeof (struct cplb));
-	      if (!c)
-		abort ();
-	      c->entry = i;
-	      c->next = p->cplbs;
-	      p->cplbs = c;
-	      p->cplb_count++;
-	      used[i]++;
-
-	      p = p->next;
-	    }
-
-	  /* Second one: cover the part near head.  */
-	  else if (p->addr >= cplb_addr && p->addr < cplb_addr + page_size
-		   && p->end > cplb_addr + page_size)
-	    {
-	      split_mb (p, cplb_addr - p->addr, used);
-
-	      c = (struct cplb *) malloc (sizeof (struct cplb));
-	      if (!c)
-		abort ();
-	      c->entry = i;
-	      c->next = p->cplbs;
-	      p->cplbs = c;
-	      p->cplb_count++;
-	      used[i]++;
-
-	      p = p->next;
-	    }
-
-	  /* Third one: cover the part near end.  */
-	  else if (p->addr < cplb_addr && p->end > cplb_addr
-		   && p->end <= cplb_addr + page_size)
-	    {
-	      split_mb (p, cplb_addr - p->addr, used);
-	      p = p->next;
-
-	      c = (struct cplb *) malloc (sizeof (struct cplb));
-	      if (!c)
-		abort ();
-	      c->entry = i;
-	      c->next = p->cplbs;
-	      p->cplbs = c;
-	      p->cplb_count++;
-	      used[i]++;
-	    }
-
-	  /* Should not reach here.  */
-	  else
-	    abort ();
-	}
-    }
-
-  return mbs;
-}
-
-/* Free all allocated memory.  */
-static void
-mbs_free (struct mb *mbs)
-{
-  struct mb *m = mbs;
-
-  while (m != NULL)
-    {
-      struct mb *p = m->next;
-      struct cplb *c = m->cplbs;
-
-      while (c != NULL)
-	{
-	  struct cplb *q = c->next;
-
-	  free (c);
-	  c = q;
-	}
-
-      free (m);
-      m = p;
-    }
-}
-
-static void
-dcplb_validate_clobber_p0r0 (int core,
-			     uint32_t addr,
-			     int size,
-			     int *clobbered)
-{
-  struct mb *mbs, *p;
-  int used[BFIN_DCPLB_NUM], used2[BFIN_DCPLB_NUM];
-  bfin_cplb_entry dcplbs_new[BFIN_DCPLB_NUM];
-  int need_reorg;
-  int i;
-  int changed;
-
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    used[i] = 0;
-
-  mbs = dcplb_analyze (core, addr, size, used);
-
-  /* If DCPLB is disabled, just return.  */
-  if (mbs == NULL)
-    return;
-
-  /* Keep a copy of the used information, such that we can save one pass
-     of analysis.  */
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    used2[i] = used[i];
-
-  /* Now we completed the analysis of the coverage.  Now we can try to
-     do the validation.  */
-  need_reorg = 0;
-
-  for (p = mbs; p != NULL; p = p->next)
-    {
-      /* If there is exactly one cplb cover the memory block.  Nothing
-	 we are required to do.  */
-      if (p->cplb_count == 1)
-	continue;
-
-      /* If the memory block is not covered by any cplb. Try to cover
-	 it.  */
-      else if (p->cplb_count == 0)
-	{
-	  uint32_t cplb_addr;
-	  uint32_t cplb_end;
-	  int page_size;
-
-	  cplb_addr = p->addr;
-	  cplb_end = p->end;
-
-	  /* If this is the only memory block.  */
-	  if (p == mbs && p->next == NULL)
-	    {
-	      cplb_addr &= ~(4 * 1024 * 1024 - 1);
-	      cplb_end += 4 * 1024 * 1024 - 1;
-	      cplb_end &= ~(4 * 1024 * 1024 - 1);
-	      page_size = 4 * 1024 * 1024;
-	    }
-
-	  /* If this is the first memory block, the largest cplb which
-	     aligns with the end of the memory block is used.  */
-	  else if (p == mbs)
-	    {
-	      if ((cplb_end & (4 * 1024 * 1024 - 1)) == 0)
-		page_size = 4 * 1024 * 1024;
-	      else if ((cplb_end & (1024 * 1024 - 1)) == 0)
-		page_size = 1024 * 1024;
-	      else if ((cplb_end & (4 * 1024 - 1)) == 0)
-		page_size = 4 * 1024;
-	      else if ((cplb_end & (1024 - 1)) == 0)
-		page_size = 1024;
-	      else
-		abort ();
-
-	      cplb_addr &= ~(page_size - 1);
-	    }
-
-	  /* If this is the last memory block, the largest cplb which
-	     aligns with the start of the memory block is used.  */
-	  else if (p->next == NULL)
-	    {
-	      if ((cplb_addr & (4 * 1024 * 1024 - 1)) == 0)
-		page_size = 4 * 1024 * 1024;
-	      else if ((cplb_addr & (1024 * 1024 - 1)) == 0)
-		page_size = 1024 * 1024;
-	      else if ((cplb_addr & (4 * 1024 - 1)) == 0)
-		page_size = 4 * 1024;
-	      else if ((cplb_addr & (1024 - 1)) == 0)
-		page_size = 1024;
-	      else
-		abort ();
-
-	      cplb_end += page_size - 1;
-	      cplb_end &= ~(page_size - 1);
-	    }
-
-	  /* This is a memory block between two others, we have to use
-	     the least cplb with aligns with the start and the end of
-	     the memory block.  */
-	  else
-	    {
-	      if ((cplb_addr & (4 * 1024 * 1024 - 1)) == 0
-		  && (cplb_end & (4 * 1024 * 1024 - 1)) == 0)
-		page_size = 4 * 1024 * 1024;
-	      else if ((cplb_addr & (1024 * 1024 - 1)) == 0
-		       && (cplb_end & (1024 * 1024 - 1)) == 0)
-		page_size = 1024 * 1024;
-	      else if ((cplb_addr & (4 * 1024 - 1)) == 0
-		       && (cplb_end & (4 * 1024 - 1)) == 0)
-		page_size = 4 * 1024;
-	      else if ((cplb_addr & (1024 - 1)) == 0
-		       && (cplb_end & (1024 - 1)) == 0)
-		page_size = 1024;
-	      else
-		abort ();
-	    }
-
-	  /* Find unused cplbs to cover this memory block.  */
-	  while (cplb_addr < cplb_end)
-	    {
-	      struct cplb *c;
-	      int new_cplb;
-
-	      new_cplb = get_unused_dcplb (used, clobbered);
-	      if (new_cplb == -1)
-		break;
-
-	      clobbered[new_cplb] = 1;
-	      dcplbs_new[new_cplb].addr = cplb_addr;
-	      if (page_size == 4 * 1024 * 1024)
-		dcplbs_new[new_cplb].data = DNON_CHBL_4MB;
-	      else if (page_size == 1024 * 1024)
-		dcplbs_new[new_cplb].data = DNON_CHBL_1MB;
-	      else if (page_size == 4 * 1024)
-		dcplbs_new[new_cplb].data = DNON_CHBL_4KB;
-	      else if (page_size == 1024)
-		dcplbs_new[new_cplb].data = DNON_CHBL_1KB;
-	      else
-		abort ();
-
-	      split_mb (p, page_size, used);
-
-	      c = (struct cplb *) malloc (sizeof (struct cplb));
-	      if (!c)
-		abort ();
-	      c->entry = new_cplb;
-	      c->next = p->cplbs;
-	      p->cplbs = c;
-	      p->cplb_count++;
-	      used[new_cplb]++;
-
-	      p = p->next;
-	      cplb_addr += page_size;
-	    }
-
-	  /* If there are not enough unused dcplbs to cover it,
-	     we have to reorg it.  */
-	  if (cplb_addr < cplb_end)
-	    {
-	      need_reorg = 1;
-	      break;
-	    }
-	}
-
-      /* If there are more than one dcplbs covering the memory block.
-	 we will see if we can remove the redundant ones.  */
-      else if (p->cplb_count > 1)
-	{
-	  struct cplb **q = &(p->cplbs);
-
-	  while (p->cplb_count > 1)
-	    {
-	      struct cplb *c = *q;
-
-	      if (c == NULL)
-		break;
-
-	      /* Only remove the cplb which doesn't cover other memory
-		 blocks to make our life easy.  */
-	      if (used[c->entry] == 1)
-		{
-		  /* Disable the cplb.  */
-		  clobbered[c->entry] = 1;
-		  dcplbs_new[c->entry].addr
-		    = cpu->cores[core].dcplbs[c->entry].addr;
-		  dcplbs_new[c->entry].data
-		    = cpu->cores[core].dcplbs[c->entry].addr & ~CPLB_VALID;
-
-		  /* Unlink the cplb.  */
-		  *q = c->next;
-		  q = &(c->next);
-		  used[c->entry]--;
-		  free (c);
-
-		  p->cplb_count--;
-		}
-	      else
-		q = &(c->next);
-	    }
-
-	  if (p->cplb_count > 1)
-	    {
-	      need_reorg = 1;
-	      break;
-	    }
-	}
-
-      /* Cannot reach here.  */
-      else
-	abort ();
-    }
-
-  if (need_reorg)
-    {
-      uint32_t cplb_addr;
-      uint32_t cplb_end;
-      int page_size;
-
-      for (i = 0; i < BFIN_DCPLB_NUM; i++)
-	if (used2[i])
-	  {
-	    clobbered[i] = 1;
-	    dcplbs_new[i].addr
-	      = cpu->cores[core].dcplbs[i].addr;
-	    dcplbs_new[i].data
-	      = cpu->cores[core].dcplbs[i].addr & ~CPLB_VALID;
-	    used2[i] = 0;
-	  }
-	else
-	  clobbered[i] = 0;
-
-      /* Reconstruct the cplbs for the memory region.
-	 Use 4MB page size.  */
-      cplb_addr = addr & ~(4 * 1024 * 1024 - 1);
-      cplb_end = addr + size + 4 * 1024 * 1024 - 1;
-      cplb_end &= ~(4 * 1024 * 1024 - 1);
-      page_size = 4 * 1024 * 1024;
-
-      while (cplb_addr < cplb_end)
-	{
-	  int new_cplb;
-
-	  new_cplb = get_unused_dcplb (used2, clobbered);
-
-	  /* This should never happen.  */
-	  if (new_cplb == -1)
-	    abort ();
-
-	  clobbered[new_cplb] = 1;
-	  dcplbs_new[new_cplb].addr = cplb_addr;
-	  dcplbs_new[new_cplb].data = DNON_CHBL_4MB;
-	  used2[new_cplb] = 1;
-	  cplb_addr += page_size;
-	}
-    }
-
-  mbs_free (mbs);
-
-  /* Now it's the time to do the real changes.  */
-
-  changed = 0;
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    if (clobbered[i])
-      {
-	changed = 1;
-	break;
-      }
-
-  /* If there is no cplb entries to be clobbered,
-     Don't bother to set REG_P0.  */
-
-  if (!changed)
-    return;
-
-  core_register_set (core, REG_P0, DCPLB_ADDR0);
-
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    if (clobbered[i])
-      {
-	if (dcplbs_new[i].addr != cpu->cores[core].dcplbs[i].addr)
-	  {
-	    core_register_set (core, REG_R0, dcplbs_new[i].addr);
-	    core_emuir_set (core,
-			    gen_store32_offset (REG_P0, i * 4, REG_R0),
-			    RUNTEST);
-	    clobbered[i] |= 0x2 ;
-	  }
-	if (dcplbs_new[i].data != cpu->cores[core].dcplbs[i].data)
-	  {
-	    core_register_set (core, REG_R0, dcplbs_new[i].data);
-	    core_emuir_set (core,
-			    gen_store32_offset (REG_P0,
-						DCPLB_DATA0
-						- DCPLB_ADDR0 + i * 4,
-						REG_R0),
-			    RUNTEST);
-	    clobbered[i] |= 0x4 ;
-	  }
-      }
-}
-
-static void
-dcplb_restore_clobber_p0r0 (int core, int *clobbered)
-{
-  int changed, i;
-
-  changed = 0;
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    if (clobbered[i])
-      {
-	changed = 1;
-	break;
-      }
-
-  /* If there is no cplb entries to be clobbered,
-     Don't bother to set REG_P0.  */
-
-  if (!changed)
-    return;
-
-  core_register_set (core, REG_P0, DCPLB_ADDR0);
-
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    {
-      if (clobbered[i] & 0x2)
-	{
-	  core_register_set (core, REG_R0, cpu->cores[core].dcplbs[i].addr);
-	  core_emuir_set (core,
-			  gen_store32_offset (REG_P0, i * 4, REG_R0),
-			  RUNTEST);
-	}
-      if (clobbered[i] & 0x4)
-	{
-	  core_register_set (core, REG_R0, cpu->cores[core].dcplbs[i].data);
-	  core_emuir_set (core,
-			  gen_store32_offset (REG_P0,
-					      DCPLB_DATA0 - DCPLB_ADDR0
-					      + i * 4,
-					      REG_R0),
-			  RUNTEST);
-	}
-    }
 }
 
 static void
 core_dcache_enable (int core, int method)
 {
+  bfin_cplb_entry dcplbs[BFIN_DCPLB_NUM];
   uint32_t p0, r0;
   int i, j;
+
+  p0 = core_register_get (core, REG_P0);
+  r0 = core_register_get (core, REG_R0);
+
+  if (!cpu->cores[core].dmem_control_valid_p)
+    {
+      core_register_set (core, REG_P0, DMEM_CONTROL);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+      cpu->cores[core].dmem_control = mmr_read_clobber_r0 (core, 0, 4);
+      cpu->cores[core].dmem_control_valid_p = 1;
+    }
+  if (cpu->cores[core].dmem_control & ENDCPLB)
+    {
+      core_register_set (core, REG_P0, p0);
+      core_register_set (core, REG_R0, r0);
+      return;
+    }
 
   i = 0;
   if (cpu->cores[core].l1_map.l1_data_a)
     {
-      cpu->cores[core].dcplbs[i].addr = cpu->cores[core].l1_map.l1_data_a;
-      cpu->cores[core].dcplbs[i].data = L1_DMEMORY;
+      dcplbs[i].addr = cpu->cores[core].l1_map.l1_data_a;
+      dcplbs[i].data = L1_DMEMORY;
       i++;
     }
   if (cpu->cores[core].l1_map.l1_data_b)
     {
-      cpu->cores[core].dcplbs[i].addr = cpu->cores[core].l1_map.l1_data_b;
-      cpu->cores[core].dcplbs[i].data = L1_DMEMORY;
+      dcplbs[i].addr = cpu->cores[core].l1_map.l1_data_b;
+      dcplbs[i].data = L1_DMEMORY;
       i++;
     }
 
-  cpu->cores[core].dcplbs[i].addr = cpu->mem_map.flash;
-  cpu->cores[core].dcplbs[i].data = SDRAM_DNON_CHBL;
+  dcplbs[i].addr = cpu->mem_map.flash;
+  dcplbs[i].data = SDRAM_DNON_CHBL;
   i++;
   
   j = i;
@@ -2955,33 +2216,27 @@ core_dcache_enable (int core, int method)
     {
       if ((i - j) * 4 * 1024 * 1024 >= cpu->mem_map.sdram_end)
 	break;
-      cpu->cores[core].dcplbs[i].addr
-	= cpu->mem_map.sdram + (i - j) * 4 * 1024 * 1024;
+      dcplbs[i].addr = cpu->mem_map.sdram + (i - j) * 4 * 1024 * 1024;
       if (method == WRITE_THROUGH)
-	cpu->cores[core].dcplbs[i].data = SDRAM_DGEN_WT;
+	dcplbs[i].data = SDRAM_DGEN_WT;
       else if (method == WRITE_BACK)
-	cpu->cores[core].dcplbs[i].data = SDRAM_DGEN_WB;
+	dcplbs[i].data = SDRAM_DGEN_WB;
       else
 	abort ();
     }
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
 
   core_register_set (core, REG_P0, DTEST_COMMAND);
   mmr_write_clobber_r0 (core, 0, 0, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 
-  core_dcplb_set_clobber_p0r0 (core);
-  cpu->cores[core].dcplbs_valid_p = 1;
+  core_dcplb_set_clobber_p0r0 (core, dcplbs);
 
   cpu->cores[core].dmem_control = ACACHE_BCACHE | ENDCPLB;
   core_register_set (core, REG_P0, DMEM_CONTROL);
-  mmr_write_clobber_r0 (core, 0,
-			  cpu->cores[core].dmem_control, 4);
-  cpu->cores[core].dmem_control_valid_p = 1;
-
+  core_emuir_set (core, INSN_CSYNC, RUNTEST);
+  mmr_write_clobber_r0 (core, 0, cpu->cores[core].dmem_control, 4);
   core_emuir_set (core, INSN_SSYNC, RUNTEST);
+  cpu->cores[core].dmem_control_valid_p = 1;
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -3013,19 +2268,37 @@ dcache_enable (int method)
 static void
 core_icache_enable (int core)
 {
+  bfin_cplb_entry icplbs[BFIN_ICPLB_NUM];
   uint32_t p0, r0;
   int i, j;
+
+  p0 = core_register_get (core, REG_P0);
+  r0 = core_register_get (core, REG_R0);
+
+  if (!cpu->cores[core].imem_control_valid_p)
+    {
+      core_register_set (core, REG_P0, IMEM_CONTROL);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+      cpu->cores[core].imem_control = mmr_read_clobber_r0 (core, 0, 4);
+      cpu->cores[core].imem_control_valid_p = 1;
+    }
+  if (cpu->cores[core].imem_control & ENICPLB)
+    {
+      core_register_set (core, REG_P0, p0);
+      core_register_set (core, REG_R0, r0);
+      return;
+    }
 
   i = 0;
   if (cpu->cores[core].l1_map.l1_code)
     {
-      cpu->cores[core].icplbs[i].addr = cpu->cores[core].l1_map.l1_code;
-      cpu->cores[core].icplbs[i].data = L1_IMEMORY;
+      icplbs[i].addr = cpu->cores[core].l1_map.l1_code;
+      icplbs[i].data = L1_IMEMORY;
       i++;
     }
 
-  cpu->cores[core].icplbs[i].addr = cpu->mem_map.flash;
-  cpu->cores[core].icplbs[i].data = SDRAM_INON_CHBL;
+  icplbs[i].addr = cpu->mem_map.flash;
+  icplbs[i].data = SDRAM_INON_CHBL;
   i++;
 
   j = i;
@@ -3033,28 +2306,22 @@ core_icache_enable (int core)
     {
       if ((i - j) * 4 * 1024 * 1024 >= cpu->mem_map.sdram_end)
 	break;
-      cpu->cores[core].icplbs[i].addr
-	= cpu->mem_map.sdram + (i - j) * 4 * 1024 * 1024;
-      cpu->cores[core].icplbs[i].data = SDRAM_IGENERIC;
+      icplbs[i].addr = cpu->mem_map.sdram + (i - j) * 4 * 1024 * 1024;
+      icplbs[i].data = SDRAM_IGENERIC;
     }
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
 
   core_register_set (core, REG_P0, ITEST_COMMAND);
   mmr_write_clobber_r0 (core, 0, 0, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 
-  core_icplb_set_clobber_p0r0 (core);
-  cpu->cores[core].icplbs_valid_p = 1;
+  core_icplb_set_clobber_p0r0 (core, icplbs);
 
   cpu->cores[core].imem_control = IMC | ENICPLB;
   core_register_set (core, REG_P0, IMEM_CONTROL);
-  mmr_write_clobber_r0 (core, 0,
-			  cpu->cores[core].imem_control, 4);
-  cpu->cores[core].imem_control_valid_p = 1;
-
+  core_emuir_set (core, INSN_CSYNC, RUNTEST);
+  mmr_write_clobber_r0 (core, 0, cpu->cores[core].imem_control, 4);
   core_emuir_set (core, INSN_SSYNC, RUNTEST);
+  cpu->cores[core].imem_control_valid_p = 1;
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -3082,38 +2349,30 @@ icache_enable (void)
 static void
 icache_flush (int core, uint32_t addr, int size)
 {
-  uint32_t p0;
+  uint32_t p0, r0;
   int i;
 
   assert (size > 0);
 
   p0 = core_register_get (core, REG_P0);
 
-  core_register_set (core, REG_P0, addr);
-   for (i = (size + addr % CACHE_LINE_BYTES - 1) / CACHE_LINE_BYTES + 1;
-	i > 0; i--)
-     core_emuir_set (core, gen_iflush_pm (REG_P0), RUNTEST);
+  if (!cpu->cores[core].imem_control_valid_p)
+    {
+      r0 = core_register_get (core, REG_R0);
+      core_register_set (core, REG_P0, IMEM_CONTROL);
+      core_emuir_set (core, INSN_CSYNC, RUNTEST);
+      cpu->cores[core].imem_control = mmr_read_clobber_r0 (core, 0, 4);
+      cpu->cores[core].imem_control_valid_p = 1;
+      core_register_set (core, REG_R0, r0);
+    }
 
-  core_register_set (core, REG_P0, p0);
-}
-
-static void
-cache_flush (int core, uint32_t addr, int size)
-{
-  uint32_t p0;
-  int i;
-
-  assert (size > 0);
-
-  p0 = core_register_get (core, REG_P0);
-
-  core_register_set (core, REG_P0, addr);
-  core_dbgctl_bit_set_emuirlpsz_2 (core, UPDATE);
-  for (i = (size + addr % CACHE_LINE_BYTES - 1) / CACHE_LINE_BYTES + 1;
-       i > 0; i--)
-    core_emuir_set_2 (core, gen_flush (REG_P0),
-		      gen_iflush_pm (REG_P0), RUNTEST);
-  core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
+  if (cpu->cores[core].imem_control & IMC)
+    {
+      core_register_set (core, REG_P0, addr);
+      for (i = (size + addr % CACHE_LINE_BYTES - 1) / CACHE_LINE_BYTES + 1;
+	   i > 0; i--)
+	core_emuir_set (core, gen_iflush_pm (REG_P0), RUNTEST);
+    }
 
   core_register_set (core, REG_P0, p0);
 }
@@ -3122,19 +2381,15 @@ static int
 memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint32_t p0, r0;
-  int clobbered[BFIN_DCPLB_NUM];
-  int i;
   int count1 = 0, count2 = 0, count3 = 0;
+  int dcplb_enabled;
 
   assert (size > 0);
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    clobbered[i] = 0;
-
-  dcplb_validate_clobber_p0r0 (core, addr, size, clobbered);
+  dcplb_enabled = core_dcplb_disable_clobber_p0r0 (core);
 
   core_register_set (core, REG_P0, addr);
 
@@ -3207,7 +2462,8 @@ finish_read:
 
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
-  dcplb_restore_clobber_p0r0 (core, clobbered);
+  if (dcplb_enabled)
+    core_dcplb_enable_clobber_p0r0 (core);
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -3446,18 +2702,14 @@ static int
 memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint32_t p0, r0;
-  int clobbered[BFIN_DCPLB_NUM];
-  int i;
+  int dcplb_enabled;
 
   assert (size > 0);
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
-  for (i = 0; i < BFIN_DCPLB_NUM; i++)
-    clobbered[i] = 0;
-
-  dcplb_validate_clobber_p0r0 (core, addr, size, clobbered);
+  dcplb_enabled = core_dcplb_disable_clobber_p0r0 (core);
 
   core_register_set (core, REG_P0, addr);
 
@@ -3507,7 +2759,8 @@ finish_write:
 
   core_dbgctl_bit_clear_emuirlpsz_2 (core, UPDATE);
 
-  dcplb_restore_clobber_p0r0 (core, clobbered);
+  if (dcplb_enabled)
+    core_dcplb_enable_clobber_p0r0 (core);
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -4924,8 +4177,6 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
       cpu->cores[i].status_pending_p = 0;
       cpu->cores[i].dmem_control_valid_p = 0;
       cpu->cores[i].imem_control_valid_p = 0;
-      cpu->cores[i].dcplbs_valid_p = 0;
-      cpu->cores[i].icplbs_valid_p = 0;
       cpu->cores[i].wpiactl = 0;
       cpu->cores[i].wpdactl = 0;
       cpu->cores[i].wpstat = 0;
@@ -6041,14 +5292,13 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  && addr + write_size <= cpu->mem_map.l2_sram_end))
     {
       ret = memory_write (core, (uint32_t) addr, buf, write_size);
-      cache_flush (core, addr, write_size);
 
       for (i = 0; i < cpu->chain->parts->len; i++)
 	if (!cpu->cores[i].is_locked
 	    && !cpu->cores[i].is_corefault
-	    && !cpu->cores[i].is_running
-	    && i != core)
+	    && !cpu->cores[i].is_running)
 	  icache_flush (i, addr, write_size);
+
     }
   else
     {
@@ -6144,8 +5394,6 @@ bfin_resume_from_current (int step, int sig)
 	  cpu->cores[i].is_interrupted = 0;
 	  cpu->cores[i].dmem_control_valid_p = 0;
 	  cpu->cores[i].imem_control_valid_p = 0;
-	  cpu->cores[i].dcplbs_valid_p = 0;
-	  cpu->cores[i].icplbs_valid_p = 0;
 	  core_emulation_return (i);
 	}
       else if (!cpu->cores[i].leave_stopped)
@@ -6160,8 +5408,6 @@ bfin_resume_from_current (int step, int sig)
 	  cpu->cores[i].is_interrupted = 0;
 	  cpu->cores[i].dmem_control_valid_p = 0;
 	  cpu->cores[i].imem_control_valid_p = 0;
-	  cpu->cores[i].dcplbs_valid_p = 0;
-	  cpu->cores[i].icplbs_valid_p = 0;
 	  core_emulation_return (i);
 	}
     }

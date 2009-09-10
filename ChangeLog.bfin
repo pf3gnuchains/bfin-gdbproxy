@@ -1,3 +1,35 @@
+2009-09-10  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (struct _bfin_core): Remove dcplbs_valid_p,
+	icplbs_valid_p, dcplbs[], icplbs[].
+	(bfin_connect, bfin_resume_from_current): Adjust accordingly.
+	(mmr_read): Don't treat CPLB MMRs as cached in gdbproxy.
+	(mmr_write): Don't cache CPLB MMRs in gdbproxy.
+	(core_dcplb_get_clobber_p0r0): Remove.
+	(core_dcplb_get): Remove.
+	(core_dcplb_set_clobber_p0r0): Add a new argument to pass in
+	DCPLB settings.
+	(core_dcplb_set): Remove.
+	(core_icplb_set_clobber_p0r0): Add a new argument to pass in
+	ICPLB settings.
+	(core_icplb_set): Remove.
+	(core_dcplb_enable_clobber_p0r0): New.
+	(core_dcplb_disable_clobber_p0r0): New.
+	(struct cplb): Remove.
+	(struct mb): Remove.
+	(split_mb): Remove.
+	(get_unused_dcplb): Remove.
+	(dcplb_analyze): Remove.
+	(mbs_free): Remove.
+	(dcplb_validate_clobber_p0r0): Remove.
+	(dcplb_restore_clobber_p0r0): Remove.
+	(core_dcache_enable): Adjust accordingly.
+	(core_icache_enable): Adjust accordingly.
+	(icache_flush): Only do flush when icache is enabled.
+	(memory_read): Disable and enable DCPLB instead of save and restore.
+	(memory_write): Likewise.
+	(bfin_write_mem): No need to flush data cache.
+
 2009-08-19  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_open): Fix a typo in error message
