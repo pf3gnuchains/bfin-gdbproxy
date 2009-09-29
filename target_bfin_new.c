@@ -250,17 +250,17 @@ typedef enum _bfin_board
    Core A is assigned the thread ID 1.
    Core B is assigned the thread ID 2.  */
 #define THREAD_ID(n) \
-  (cpu->chain->parts->len - (n))
+  (cpu->first_core + cpu->core_num - (n))
 /* Convert thread id to part number.  */
 #define PART_NO(n) \
-  (cpu->chain->parts->len - (n))
+  (cpu->first_core + cpu->core_num - (n))
 
 #define ALL_THREADS	-1
 #define ANY_THREAD	0
 
 #define INVALID_CORE	-1
-#define ALL_CORES	(cpu->chain->parts->len + 1)
-#define ANY_CORE	(cpu->chain->parts->len)
+#define ALL_CORES	(cpu->core_num + 1)
+#define ANY_CORE	(cpu->core_num)
 
 #define CACHE_DISABLED 0
 #define WRITE_THROUGH 1
@@ -468,6 +468,7 @@ rp_target bfin_target = {
 };
 static char default_jtag_connect[] = "cable gnICE";
 static uint32_t bfin_frequency = 0;
+static int bfin_processor = -1;
 static struct timespec bfin_loop_wait_first_ts = {0, 50000000};
 static struct timespec bfin_loop_wait_ts = {0, 10000000};
 
@@ -878,6 +879,11 @@ typedef struct _bfin_cpu
   uint32_t mdma_s0;
   uint32_t mdma_d0;
 
+  /* The first core of this cpu in the chain.  */
+  int first_core;
+  /* The number of cores of this cpu.  */
+  int core_num;
+
   /* The core will never be locked.  */
   int core_a;
 
@@ -916,7 +922,7 @@ scan_select (int scan)
 static void
 core_scan_select (int core, int scan)
 {
-  part_scan_select (cpu->chain, core, scan);
+  part_scan_select (cpu->chain, cpu->first_core + core, scan);
 }
 
 #define DBGCTL_CLEAR_OR_SET_BIT(name)					\
@@ -950,11 +956,11 @@ core_scan_select (int core, int scan)
   static void								\
   core_dbgctl_bit_clear_or_set_##name (int core, int runtest, int set)	\
   {									\
-    part_scan_select (cpu->chain, core, DBGCTL_SCAN);			\
+    part_scan_select (cpu->chain, cpu->first_core + core, DBGCTL_SCAN);	\
     if (set)								\
-      part_dbgctl_bit_set_##name (cpu->chain, core);			\
+      part_dbgctl_bit_set_##name (cpu->chain, cpu->first_core + core);	\
     else								\
-      part_dbgctl_bit_clear_##name (cpu->chain, core);			\
+      part_dbgctl_bit_clear_##name (cpu->chain, cpu->first_core + core); \
     chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ?	\
 				     EXITMODE_IDLE : EXITMODE_UPDATE);	\
   }
@@ -977,7 +983,7 @@ core_scan_select (int core, int scan)
   static int								\
   core_dbgctl_is_##name (int core)					\
   {									\
-    return part_dbgctl_is_##name (cpu->chain, core);			\
+    return part_dbgctl_is_##name (cpu->chain, cpu->first_core + core);	\
   }
 
 #define DBGCTL_BIT_OP(name)						\
@@ -1013,7 +1019,7 @@ DBGCTL_BIT_OP (empwr)
   static int								\
   core_dbgstat_is_##name (int core)					\
   {									\
-    return part_dbgstat_is_##name (cpu->chain, core);			\
+    return part_dbgstat_is_##name (cpu->chain, cpu->first_core + core);	\
   }
 
 CORE_DBGSTAT_BIT_IS (lpdec1)
@@ -1033,7 +1039,7 @@ CORE_DBGSTAT_BIT_IS (emudof)
 static uint16_t
 core_dbgstat_emucause (int core)
 {
-  return part_dbgstat_emucause (cpu->chain, core);
+  return part_dbgstat_emucause (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1045,7 +1051,7 @@ dbgstat_get (void)
 static void
 core_dbgstat_get (int core)
 {
-  part_dbgstat_get (cpu->chain, core);
+  part_dbgstat_get (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1057,7 +1063,7 @@ emupc_get (void)
 static uint32_t
 core_emupc_get (int core)
 {
-  return part_emupc_get (cpu->chain, core);
+  return part_emupc_get (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1069,7 +1075,7 @@ dbgstat_clear_ovfs (void)
 static void
 core_dbgstat_clear_ovfs (int core)
 {
-  part_dbgstat_clear_ovfs (cpu->chain, core);
+  part_dbgstat_clear_ovfs (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1082,9 +1088,9 @@ dbgstat_show (const char *id)
   assert (id != NULL);
 
   chain_dbgstat_get (cpu->chain);
-  for (i = 0; i < cpu->chain->parts->len; i++) {
-    part = cpu->chain->parts->parts[i];
-    sprintf (buf, "[%d] DBGSTAT [0x%04X]:", i, BFIN_PART_DBGSTAT (part));
+  for (i = 0; i < cpu->core_num; i++) {
+    part = cpu->chain->parts->parts[cpu->first_core + i];
+    sprintf (buf, "[%d] DBGSTAT [0x%04X]:", cpu->first_core + i, BFIN_PART_DBGSTAT (part));
     if (core_dbgstat_is_lpdec1 (i))     strcat (buf, " lpdec1");
     if (core_dbgstat_is_core_fault (i)) strcat (buf, " core_fault");
     if (core_dbgstat_is_idle (i))       strcat (buf, " idle");
@@ -1120,10 +1126,10 @@ core_dbgstat_show (int core, const char *id)
 
   assert (id != NULL);
 
-  part_dbgstat_get (cpu->chain, core);
-  part = cpu->chain->parts->parts[core];
+  part_dbgstat_get (cpu->chain, cpu->first_core + core);
+  part = cpu->chain->parts->parts[cpu->first_core + core];
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] DBGSTAT [0x%04X] <%s>",
-	    core, BFIN_PART_DBGSTAT (part), id);
+	    cpu->first_core + core, BFIN_PART_DBGSTAT (part), id);
 }
 
 static void
@@ -1135,9 +1141,9 @@ dbgctl_show (const char *id)
 
   assert (id != NULL);
 
-  for (i = 0; i < cpu->chain->parts->len; ++i) {
-    part = cpu->chain->parts->parts[i];
-    sprintf (buf, "[%i] DBGCTL [0x%04x]:", i,
+  for (i = 0; i < cpu->core_num; ++i) {
+    part = cpu->chain->parts->parts[cpu->first_core + i];
+    sprintf (buf, "[%i] DBGCTL [0x%04x]:", cpu->first_core + i,
 	     BFIN_PART_DBGCTL (part));
     if (core_dbgctl_is_sram_init (i))   strcat (buf, " sram_init");
     if (core_dbgctl_is_wakeup (i))      strcat (buf, " wakeup");
@@ -1170,13 +1176,13 @@ wait_emuready (void)
 static void
 core_wait_emuready (int core)
 {
-  part_wait_emuready (cpu->chain, core);
+  part_wait_emuready (cpu->chain, cpu->first_core + core);
 }
 
 static int
 core_sticky_in_reset (int core)
 {
-  return part_sticky_in_reset (cpu->chain, core);
+  return part_sticky_in_reset (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1188,7 +1194,7 @@ wait_in_reset (void)
 static void
 core_wait_in_reset (int core)
 {
-  part_wait_in_reset (cpu->chain, core);
+  part_wait_in_reset (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1200,7 +1206,7 @@ wait_reset (void)
 static void
 core_wait_reset (int core)
 {
-  part_wait_reset (cpu->chain, core);
+  part_wait_reset (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1213,7 +1219,7 @@ emuir_set_same (uint64_t insn, int runtest)
 static void
 core_emuir_set (int core, uint64_t insn, int runtest)
 {
-  part_emuir_set (cpu->chain, core, insn,
+  part_emuir_set (cpu->chain, cpu->first_core + core, insn,
 		  runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
@@ -1227,7 +1233,7 @@ emuir_set_same_2 (uint64_t insn1, uint64_t insn2, int runtest)
 static void
 core_emuir_set_2 (int core, uint64_t insn1, uint64_t insn2, int runtest)
 {
-  part_emuir_set_2 (cpu->chain, core, insn1, insn2,
+  part_emuir_set_2 (cpu->chain, cpu->first_core + core, insn1, insn2,
 		    runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
@@ -1247,28 +1253,28 @@ emudat_clear_emudif (tap_register *r)
 static uint32_t
 core_emudat_get (int core, int runtest)
 {
-  return part_emudat_get (cpu->chain, core,
+  return part_emudat_get (cpu->chain, cpu->first_core + core,
 			  runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static void
 core_emudat_defer_get (int core, int runtest)
 {
-  part_emudat_defer_get (cpu->chain, core,
+  part_emudat_defer_get (cpu->chain, cpu->first_core + core,
 			 runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static uint32_t
 core_emudat_get_done (int core, int runtest)
 {
-  return part_emudat_get_done (cpu->chain, core,
+  return part_emudat_get_done (cpu->chain, cpu->first_core + core,
 			       runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
 static void
 core_emudat_set (int core, uint32_t value, int runtest)
 {
-  part_emudat_set (cpu->chain, core, value,
+  part_emudat_set (cpu->chain, cpu->first_core + core, value,
 		   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
 }
 
@@ -1286,7 +1292,7 @@ register_get (enum core_regnum reg, uint32_t *value)
 static uint32_t
 core_register_get (int core, enum core_regnum reg)
 {
-  return part_register_get (cpu->chain, core, reg);
+  return part_register_get (cpu->chain, cpu->first_core + core, reg);
 }
 
 static void
@@ -1304,7 +1310,7 @@ register_set_same (enum core_regnum reg, uint32_t value)
 static void
 core_register_set (int core, enum core_regnum reg, uint32_t value)
 {
-  part_register_set (cpu->chain, core, reg, value);
+  part_register_set (cpu->chain, cpu->first_core + core, reg, value);
 }
 
 static void
@@ -1314,8 +1320,8 @@ wpu_init (void)
   uint32_t wpiactl, wpdactl;
   int i;
 
-  p0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
+  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
 
   if (!p0 || !r0)
     abort ();
@@ -1345,7 +1351,7 @@ wpu_init (void)
   register_set_same (REG_R0, 0);
   emuir_set_same (gen_store32_offset (REG_P0, WPSTAT - WPIACTL, REG_R0), RUNTEST);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       cpu->cores[i].wpiactl = wpiactl;
       cpu->cores[i].wpdactl = wpdactl;
@@ -1404,9 +1410,9 @@ wpu_enable (void)
   uint32_t *p0, *r0, *r0new;
   int i;
 
-  p0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0new = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
+  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0new = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
 
   if (!p0 || !r0 || !r0new)
     abort ();
@@ -1415,7 +1421,7 @@ wpu_enable (void)
   register_get (REG_R0, r0);
 
   register_set_same (REG_P0, WPIACTL);
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       cpu->cores[i].wpiactl |= WPIACTL_WPPWR;
       r0new[i] = cpu->cores[i].wpdactl;
@@ -1456,9 +1462,9 @@ wpu_disable (void)
   uint32_t *p0, *r0, *r0new;
   int i;
 
-  p0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0new = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
+  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0new = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
 
   if (!p0 || !r0 || !r0new)
     abort ();
@@ -1467,7 +1473,7 @@ wpu_disable (void)
   register_get (REG_R0, r0);
 
   register_set_same (REG_P0, WPIACTL);
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       cpu->cores[i].wpiactl &= ~WPIACTL_WPPWR;
       r0new[i] = cpu->cores[i].wpdactl;
@@ -1648,9 +1654,9 @@ wpstat_get (void)
   uint32_t *p0, *r0, *wpstat;
   int i;
 
-  p0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  wpstat = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
+  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  wpstat = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
 
   if (!p0 || !r0 || !wpstat)
     abort ();
@@ -1661,7 +1667,7 @@ wpstat_get (void)
   register_set_same (REG_P0, WPSTAT);
   emuir_set_same (gen_load32_offset (REG_R0, REG_P0, 0), RUNTEST);
   register_get (REG_R0, wpstat);
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     cpu->cores[i].wpstat = wpstat[i];
 
   register_set (REG_P0, p0);
@@ -1679,9 +1685,9 @@ wpstat_clear (void)
   uint32_t *p0, *r0, *wpstat;
   int i;
 
-  p0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
-  wpstat = (uint32_t *) malloc (cpu->chain->parts->len * sizeof (uint32_t));
+  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
+  wpstat = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
 
   if (!p0 || !r0 || !wpstat)
     abort ();
@@ -1691,13 +1697,13 @@ wpstat_clear (void)
 
   register_set_same (REG_P0, WPSTAT);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     wpstat[i] = cpu->cores[i].wpstat;
   register_set (REG_R0, wpstat);
 
   emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     cpu->cores[i].wpstat = 0;
 
   register_set (REG_P0, p0);
@@ -1731,7 +1737,7 @@ core_wpstat_clear (int core)
 {
   uint32_t p0, r0;
 
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] clear wpstat", core);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] clear wpstat", cpu->first_core + core);
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -1745,8 +1751,8 @@ core_wpstat_clear (int core)
   core_register_set (core, REG_R0, r0);
 
   core_wpstat_get (core);
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d]   WPSTAT [0x%08X]", core,
-	    cpu->cores[core].wpstat);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d]   WPSTAT [0x%08X]",
+	    cpu->first_core + core, cpu->cores[core].wpstat);
 
   return cpu->cores[core].wpstat;
 }
@@ -1768,10 +1774,11 @@ static void
 core_emulation_enable (int core)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_emulation_enable ()", bfin_target.name, core);
+	    "%s: [%d] core_emulation_enable ()",
+	    bfin_target.name, cpu->first_core + core);
 
   core_dbgstat_show (core, "before");
-  part_emulation_enable (cpu->chain, core);
+  part_emulation_enable (cpu->chain, cpu->first_core + core);
   core_dbgstat_show (core, "after");
 }
 
@@ -1790,10 +1797,11 @@ static void
 core_emulation_trigger (int core)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_emulation_trigger ()", bfin_target.name, core);
+	    "%s: [%d] core_emulation_trigger ()",
+	    bfin_target.name, cpu->first_core + core);
 
   core_dbgstat_show (core, "before");
-  part_emulation_trigger (cpu->chain, core);
+  part_emulation_trigger (cpu->chain, cpu->first_core + core);
   core_dbgstat_show (core, "after");
 }
 
@@ -1812,10 +1820,11 @@ static void
 core_emulation_return (int core)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_emulation_return ()", bfin_target.name, core);
+	    "%s: [%d] core_emulation_return ()",
+	    bfin_target.name, cpu->first_core + core);
 
   core_dbgstat_show (core, "before");
-  part_emulation_return (cpu->chain, core);
+  part_emulation_return (cpu->chain, cpu->first_core + core);
   core_dbgstat_show (core, "after");
 }
 
@@ -1832,9 +1841,10 @@ static void
 core_emulation_disable (int core)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_emulation_disable ()", bfin_target.name, core);
+	    "%s: [%d] core_emulation_disable ()",
+	    bfin_target.name, cpu->first_core + core);
 
-  part_emulation_disable (cpu->chain, core);
+  part_emulation_disable (cpu->chain, cpu->first_core + core);
 }
 
 static void
@@ -1856,7 +1866,7 @@ core_reset (void)
 static uint32_t
 mmr_read_clobber_r0 (int core, int32_t offset, int size)
 {
-  return part_mmr_read_clobber_r0 (cpu->chain, core, offset, size);
+  return part_mmr_read_clobber_r0 (cpu->chain, cpu->first_core + core, offset, size);
 }
 
 static uint32_t
@@ -1870,8 +1880,7 @@ mmr_read (int core, uint32_t addr, int size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] DMEM_CONTROL can only be accessed as 32-bit word",
-		    bfin_target.name,
-		    core);
+		    bfin_target.name, cpu->first_core + core);
 	  /* Return a weird value to notice people.  */
 	  return 0xfffffff;
 	}
@@ -1885,8 +1894,7 @@ mmr_read (int core, uint32_t addr, int size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] IMEM_CONTROL can only be accessed as 32-bit word",
-		    bfin_target.name,
-		    core);
+		    bfin_target.name, cpu->first_core + core);
 	  /* Return a weird value to notice people.  */
 	  return 0xfffffff;
 	}
@@ -1895,7 +1903,7 @@ mmr_read (int core, uint32_t addr, int size)
 	return cpu->cores[core].imem_control;
     }
 
-  value = part_mmr_read (cpu->chain, core, addr, size);
+  value = part_mmr_read (cpu->chain, cpu->first_core + core, addr, size);
 
   if (addr == DMEM_CONTROL)
     {
@@ -1914,7 +1922,7 @@ mmr_read (int core, uint32_t addr, int size)
 static void
 mmr_write_clobber_r0 (int core, int32_t offset, uint32_t data, int size)
 {
-  part_mmr_write_clobber_r0 (cpu->chain, core, offset, data, size);
+  part_mmr_write_clobber_r0 (cpu->chain, cpu->first_core + core, offset, data, size);
 }
 
 static void
@@ -1926,8 +1934,7 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] DMEM_CONTROL can only be accessed as 32-bit word",
-		    bfin_target.name,
-		    core);
+		    bfin_target.name, cpu->first_core + core);
 	  return;
 	}
 
@@ -1946,8 +1953,7 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] IMEM_CONTROL can only be accessed as 32-bit word",
-		    bfin_target.name,
-		    core);
+		    bfin_target.name, cpu->first_core + core);
 	  return;
 	}
 
@@ -1961,7 +1967,7 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
 	}
     }
 
-  part_mmr_write (cpu->chain, core, addr, data, size);
+  part_mmr_write (cpu->chain, cpu->first_core + core, addr, data, size);
 }
 
 static int
@@ -2006,13 +2012,13 @@ sdram_init (void)
   int core;
   int i;
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!cpu->cores[i].is_locked
 	&& !cpu->cores[i].is_corefault
 	&& !cpu->cores[i].is_running)
       break;
 
-  if (i == cpu->chain->parts->len)
+  if (i == cpu->core_num)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: no core available to init sdram",
@@ -2036,13 +2042,13 @@ ddr_init (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG2,
 	    "%s: ddr_init ()", bfin_target.name);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!cpu->cores[i].is_locked
 	&& !cpu->cores[i].is_corefault
 	&& !cpu->cores[i].is_running)
       break;
 
-  if (i == cpu->chain->parts->len)
+  if (i == cpu->core_num)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: no core available to init ddr",
@@ -2247,7 +2253,7 @@ dcache_enable (int method)
 {
   int i;
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].is_locked
 	  || cpu->cores[i].is_corefault
@@ -2332,7 +2338,7 @@ icache_enable (void)
 {
   int i;
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].is_locked
 	  || cpu->cores[i].is_corefault
@@ -2815,7 +2821,7 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "dma_sram_write (core [%d], addr [0x%08X], size [0x%X])",
-	    core, addr, size);
+	    cpu->first_core + core, addr, size);
 
   memory_read (core, cpu->cores[core].l1_map.l1_data_a, tmp, size);
 
@@ -2845,7 +2851,7 @@ itest_read_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 
   assert ((addr & 0x7) == 0);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
 
   test_command = EMU_OAB (part)->test_command (addr, 0);
 
@@ -2881,7 +2887,7 @@ itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 
   assert ((addr & 0x7) == 0);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
 
   test_command = EMU_OAB (part)->test_command (addr, 1);
 
@@ -2911,7 +2917,7 @@ test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
   uint32_t test_command_addr;
   uint32_t test_data1_addr, test_data0_addr;
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
 
   test_command_addr = EMU_OAB (part)->test_command_addr;
   test_data1_addr = EMU_OAB (part)->test_data1_addr;
@@ -2930,7 +2936,7 @@ test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
   uint32_t test_command_addr;
   uint32_t test_data1_addr, test_data0_addr;
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
 
   test_command_addr = EMU_OAB (part)->test_command_addr;
   test_data1_addr = EMU_OAB (part)->test_data1_addr;
@@ -2961,7 +2967,7 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
   test_command_addr = EMU_OAB (part)->test_command_addr;
   core_register_set (core, REG_P0, test_command_addr);
 
@@ -3016,7 +3022,7 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core+ core];
   test_command_addr = EMU_OAB (part)->test_command_addr;
   core_register_set (core, REG_P0, test_command_addr);
 
@@ -3075,7 +3081,7 @@ sram_read (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 
   assert (!dma_p || cpu->mdma_d0 != 0);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
   test_command = EMU_OAB (part)->test_command (addr, 0);
 
   if (dma_p || use_dma || test_command == 0)
@@ -3092,7 +3098,7 @@ sram_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 
   assert (!dma_p || cpu->mdma_d0 != 0);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
   test_command = EMU_OAB (part)->test_command (addr, 0);
 
   if (dma_p || use_dma || test_command == 0)
@@ -3220,7 +3226,8 @@ static void
 core_single_step (int core)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_single_step ()", bfin_target.name, core);
+	    "%s: [%d] core_single_step ()",
+	    bfin_target.name, cpu->first_core + core);
 
   if (!cpu->cores[core].is_stepping)
     core_dbgctl_bit_set_esstep (core, UPDATE);
@@ -3236,7 +3243,8 @@ core_cache_status_get (int core)
   uint32_t p0, r0;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_cache_status_get ()", bfin_target.name, core);
+	    "%s: [%d] core_cache_status_get ()", bfin_target.name,
+	    cpu->first_core + core);
 
   /* If the core is locked, caches remain disabled by default.
      If the core has a core fault or is running, we cannot get
@@ -3423,7 +3431,7 @@ static void jc_process (int core)
 
   core_scan_select (core, EMUDAT_SCAN);
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
   rof = part->active_instruction->data_register->out;
   rif = part->active_instruction->data_register->in;
 
@@ -3565,6 +3573,7 @@ bfin_help (const char *prog_name)
 
   printf ("\nBlackfin-options:\n\n");
   printf (" --board=BOARD           specify the board\n");
+  printf (" --processor=Nth         specify the processor for debugging\n");
   printf (" --connect=STRING        JTAG connection string\n");
   printf ("                         (default %s)\n", default_jtag_connect);
   printf (" --frequency=FREQUENCY   set the cable frequency\n");
@@ -3601,6 +3610,7 @@ bfin_open (int argc,
   int sdram_size;
   int flash_size;
   int usec;
+  int cpu_num, first_core, core_num;
 
   char *connect_string = default_jtag_connect;
   char *cmd_detect[2] = {"detect", NULL};
@@ -3627,6 +3637,7 @@ bfin_open (int argc,
     {"use-dma", no_argument, 0, 16},
     {"jc-port", required_argument, 0, 17},
     {"frequency", required_argument, 0, 18},
+    {"processor", required_argument, 0, 19},
     {NULL, 0, 0, 0}
   };
 
@@ -3801,6 +3812,17 @@ bfin_open (int argc,
 	    }
 	  break;
 
+	case 19:
+	  bfin_processor = atol (optarg);
+	  if (bfin_processor < 0)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad processor number %d",
+			bfin_target.name, bfin_processor);
+	      exit (1);
+	    }
+	  break;
+
 	default:
 	  bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 		    "%s: Use `%s --help %s' to see a complete list of options",
@@ -3856,8 +3878,46 @@ bfin_open (int argc,
       return RP_VAL_TARGETRET_ERR;
     }
 
-  /* Add Blackfin emulation instructions and registers.  */
+  first_core = -1;
+  cpu_num = 0;
   for (i = 0; i < chain->parts->len; i++)
+    {
+      /* If user does not specify a Blackfin processor for debugging,
+	 use the first one.  */
+      if ((bfin_processor == -1 && part_is_bfin (chain, i) && first_core == -1)
+	  || cpu_num == bfin_processor)
+	{
+	  first_core = i;
+	  if (!strcmp (chain->parts->parts[i]->part, "BF561"))
+	    i++;
+	}
+      else
+	{
+	  part_bypass (chain, i);
+	  if (!strcmp (chain->parts->parts[i]->part, "BF561"))
+	    {
+	      i++;
+	      part_bypass (chain, i);
+	    }
+	}
+      cpu_num++;
+    }
+
+  if (first_core == -1)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: no Blackfin processor is found", bfin_target.name);
+      return RP_VAL_TARGETRET_ERR;
+    }
+
+
+  if (!strcmp (chain->parts->parts[first_core]->part, "BF561"))
+    core_num = 2;
+  else
+    core_num = 1;
+
+  /* Add Blackfin emulation instructions and registers.  */
+  for (i = first_core; i < core_num; i++)
     {
       chain->active_part = i;
       cmd_run (chain, cmd_script);
@@ -3867,8 +3927,7 @@ bfin_open (int argc,
 
   /* TODO detectflash */
 
-  cpu = (bfin_cpu *) malloc (sizeof (bfin_cpu)
-			     + sizeof (bfin_core) * chain->parts->len);
+  cpu = (bfin_cpu *) malloc (sizeof (bfin_cpu) + sizeof (bfin_core) * core_num);
   if (!cpu)
     {
       parts_free (chain->parts);
@@ -3881,6 +3940,8 @@ bfin_open (int argc,
   cpu->chain = chain;
   cpu->board = board;
   cpu->swbps = NULL;
+  cpu->first_core = first_core;
+  cpu->core_num = core_num;
 
   /* BF531/2/3
 
@@ -3902,59 +3963,47 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[0]->part, "BF526") ||
-      !strcmp (chain->parts->parts[0]->part, "BF527") ||
-      !strcmp (chain->parts->parts[0]->part, "BF518"))
+  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF526") ||
+      !strcmp (chain->parts->parts[cpu->first_core]->part, "BF527") ||
+      !strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
     {
-      assert (chain->parts->len == 1);
-
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf52x_mem_map;
       cpu->cores[0].l1_map = bf52x_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF533"))
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF533"))
     {
-      assert (chain->parts->len == 1);
-
       cpu->mdma_d0 = 0xffc00e00;
       cpu->mdma_s0 = 0xffc00e40;
       cpu->mem_map = bf533_mem_map;
       cpu->cores[0].l1_map = bf533_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF534") ||
-           !strcmp (chain->parts->parts[0]->part, "BF537"))
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF534") ||
+           !strcmp (chain->parts->parts[cpu->first_core]->part, "BF537"))
     {
-      assert (chain->parts->len == 1);
-
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf537_mem_map;
       cpu->cores[0].l1_map = bf537_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF538"))
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF538"))
     {
-      assert (chain->parts->len == 1);
-
       cpu->mdma_d0 = 0xffc00e00;
       cpu->mdma_s0 = 0xffc00e40;
       cpu->mem_map = bf538_mem_map;
       cpu->cores[0].l1_map = bf538_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF548") ||
-           !strcmp (chain->parts->parts[0]->part, "BF548M"))
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF548") ||
+           !strcmp (chain->parts->parts[cpu->first_core]->part, "BF548M"))
     {
-      assert (chain->parts->len == 1);
-
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf54x_mem_map;
       cpu->cores[0].l1_map = bf54x_l1_map;
     }
-  else if (!strcmp (chain->parts->parts[0]->part, "BF561"))
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF561"))
     {
-      assert (chain->parts->len == 2);
-
       cpu->mdma_d0 = 0xffc01800;
       cpu->mdma_s0 = 0xffc01840;
       cpu->mem_map = bf561_mem_map;
@@ -3983,6 +4032,13 @@ bfin_open (int argc,
   switch (board)
     {
     case BF527_EZKIT:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF527 EZKIT board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF527") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -3997,6 +4053,13 @@ bfin_open (int argc,
       break;
 
     case BF533_EZKIT:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF533 EZKIT board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF533") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4011,6 +4074,13 @@ bfin_open (int argc,
       break;
 
     case BF533_STAMP:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF533 STAMP board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF533") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4026,6 +4096,15 @@ bfin_open (int argc,
 
     case BF537_EZKIT:
     case BF537_STAMP:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF537 %s board",
+		    bfin_target.name,
+		    chain->parts->len,
+		    board == BF537_EZKIT ? "EZKIT" : "STAMP");
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF537") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4042,6 +4121,13 @@ bfin_open (int argc,
       break;
 
     case BF538F_EZKIT:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF538F EZKIT board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF538") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4057,6 +4143,13 @@ bfin_open (int argc,
       break;
 
     case BF548_EZKIT:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF548 EZKIT board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF548") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4071,6 +4164,13 @@ bfin_open (int argc,
       break;
 
     case BF561_EZKIT:
+      if (chain->parts->len != 2)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF561 EZKIT board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
       if (strcmp (chain->parts->parts[0]->part, "BF561") != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4085,9 +4185,30 @@ bfin_open (int argc,
       break;
 
     case UNKNOWN_BOARD:
-      bfin_log (RP_VAL_LOGLEVEL_WARNING,
-		"%s: no board selected, %s is detected",
-		bfin_target.name, chain->parts->parts[0]->part);
+      if (chain->parts->len == 1)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: no board selected, %s is detected",
+		  bfin_target.name, chain->parts->parts[0]->part);
+      else
+	{
+	  /* Assume maximal 64 cores.  */
+	  char buf[6 * 64];
+	  size_t len = 0;
+
+	  bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		    "%s: no board selected, %d cores are detected",
+		    bfin_target.name, chain->parts->len);
+	  for (i = 0; i < chain->parts->len; i++)
+	    {
+	      if (i == cpu->first_core)
+		len += sprintf (buf + len, "[");
+	      len += sprintf (buf + len, "%s", chain->parts->parts[i]->part);
+	      if (i == cpu->first_core + cpu->core_num - 1)
+		len += sprintf (buf + len, "]");
+	      len += sprintf (buf + len, " ");
+	    }
+	  bfin_log (RP_VAL_LOGLEVEL_WARNING, "%s:   cores: %s", bfin_target.name, buf);
+	}
       cpu->sdram_config = NULL;
       cpu->ddr_config = NULL;
       break;
@@ -4103,7 +4224,7 @@ bfin_open (int argc,
   if (flash_size != -1)
     cpu->mem_map.flash_end = cpu->mem_map.flash + flash_size;
 
-  if (!strcmp (chain->parts->parts[0]->part, "BF561"))
+  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF561"))
     {
       cpu->core_a = 1;
       cpu->cores[1].name = "Core A";
@@ -4114,6 +4235,8 @@ bfin_open (int argc,
       cpu->core_a = 0;
       cpu->cores[0].name = "Core";
     }
+
+  chain->main_part = cpu->first_core + cpu->core_a;
 
   jc_init ();
 
@@ -4163,7 +4286,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   assert (cpu->swbps == NULL);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       /* We won't use IDCODE_SCAN in debugging. Set it as
          default, such that new scan will be selected.  */
@@ -4197,16 +4320,16 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   dbgstat_get ();
 
   need_reset = 0;
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
-      part_t *part = cpu->chain->parts->parts[i];
+      part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
       /* If there is core fault, we have to give it a reset.  */
       if (core_dbgstat_is_core_fault (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "[%d] core fault: DBGSTAT [0x%04X]",
-		    i, BFIN_PART_DBGSTAT (part));
+		    cpu->first_core + i, BFIN_PART_DBGSTAT (part));
 	  need_reset = 1;
 	}
       /* If emulator is not ready after emulation_trigger (),
@@ -4218,7 +4341,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "[%d] emulator not ready: DBGSTAT [0x%04X]",
-		    i, BFIN_PART_DBGSTAT (part));
+		    cpu->first_core + i, BFIN_PART_DBGSTAT (part));
 	  need_reset = 1;
 	}
     }
@@ -4236,15 +4359,15 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   dbgstat_get ();
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (core_dbgstat_is_emuack (i)
 	&& (!core_dbgstat_is_in_reset (i)
 	    || core_sticky_in_reset (i)))
       {
-	part_t *part = cpu->chain->parts->parts[i];
+	part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
 	bfin_log (RP_VAL_LOGLEVEL_INFO,
-		  "[%d] locked: DBGSTAT [0x%04X]", i, BFIN_PART_DBGSTAT (part));
+		  "[%d] locked: DBGSTAT [0x%04X]", cpu->first_core + i, BFIN_PART_DBGSTAT (part));
 	cpu->cores[i].is_locked = 1;
 	cpu->cores[i].is_running = 0;
 
@@ -4253,7 +4376,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	    uint16_t sica_syscr;
 
 	    bfin_log (RP_VAL_LOGLEVEL_INFO,
-		      "%s: [%d] unlocking...", bfin_target.name, i);
+		      "%s: [%d] unlocking...", bfin_target.name, cpu->first_core + i);
 
 	    sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
 	    sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
@@ -4263,7 +4386,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	    core_wpu_init (i);
 
 	    bfin_log (RP_VAL_LOGLEVEL_INFO,
-		      "%s: [%d] done", bfin_target.name, i);
+		      "%s: [%d] done", bfin_target.name, cpu->first_core + i);
 	  }
       }
     else
@@ -4298,28 +4421,28 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
       dbgstat_get ();
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	{
-	  part_t *part = cpu->chain->parts->parts[i];
+	  part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
 	  if (!cpu->cores[i].is_locked)
 	    {
 	      rete = core_register_get (i, REG_RETE);
 	      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 			"[%d] DBGSTAT [0x%04X] PC [0x%08X]",
-			i, BFIN_PART_DBGSTAT (part), rete);
+			cpu->first_core + i, BFIN_PART_DBGSTAT (part), rete);
 	    }
 	  else
 	    bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 		      "[%d] DBGSTAT [0x%04X] PC [0xXXXXXXXX]",
-		      i, BFIN_PART_DBGSTAT (part));
+		      cpu->first_core + i, BFIN_PART_DBGSTAT (part));
 	}
     }
 
   /* Fill out the the status string.  */
   sprintf (status_string, "T%02d", RP_SIGNAL_TRAP);
 
-  if (cpu->chain->parts->len == 1)
+  if (cpu->core_num == 1)
     {
       cp = bfin_out_treg (&status_string[3], BFIN_PC_REGNUM);
       cp = bfin_out_treg (cp, BFIN_FP_REGNUM);
@@ -4327,7 +4450,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   else
     {
       cp = &status_string[3];
-      for (i = cpu->chain->parts->len - 1; i >= 0; i--)
+      for (i = cpu->core_num - 1; i >= 0; i--)
 	{
 	  sprintf (cp, "thread:%x;", THREAD_ID (i));
 	  cp += strlen (cp);
@@ -4351,7 +4474,7 @@ bfin_disconnect (void)
 
   wpu_disable ();
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (cpu->cores[i].is_stepping)
       {
 	core_dbgctl_bit_clear_esstep (i, UPDATE);
@@ -4360,7 +4483,7 @@ bfin_disconnect (void)
 
   emulation_return ();
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     cpu->cores[i].is_running = 1;
 
   return RP_VAL_TARGETRET_OK;
@@ -4397,7 +4520,7 @@ bfin_stop (void)
 
   assert (cpu);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (cpu->cores[i].is_stepping)
       {
 	core_dbgctl_bit_clear_esstep (i, UPDATE);
@@ -4406,7 +4529,7 @@ bfin_stop (void)
 
   emulation_trigger ();
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       cpu->cores[i].is_interrupted = 1;
       cpu->cores[i].is_running = 0;
@@ -4432,7 +4555,7 @@ bfin_set_gen_thread (rp_thread_ref *thread)
     {
       core = PART_NO (thread->val);
 
-      if (core < 0 || core >= cpu->chain->parts->len)
+      if (core < 0 || core >= cpu->core_num)
 	return RP_VAL_TARGETRET_ERR;
 
       cpu->general_core = core;
@@ -4453,25 +4576,25 @@ bfin_set_ctrl_thread (rp_thread_ref *thread)
   if (thread->val == ALL_THREADS)
     {
       cpu->continue_core = ALL_CORES;
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	cpu->cores[i].leave_stopped = 0;
     }
   else if (thread->val == ANY_THREAD)
     {
       if (cpu->continue_core == INVALID_CORE)
 	cpu->continue_core = cpu->core_a;
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	cpu->cores[i].leave_stopped = 0;
     }
   else
     {
       core = PART_NO (thread->val);
 
-      if (core < 0 || core >= cpu->chain->parts->len)
+      if (core < 0 || core >= cpu->core_num)
 	return RP_VAL_TARGETRET_ERR;
 
       cpu->continue_core = core;
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	if (i == core)
 	  cpu->cores[i].leave_stopped = 0;
 	else
@@ -4549,14 +4672,14 @@ bfin_read_single_register (unsigned int reg_no,
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] locked core cannot read register [%d]",
-		bfin_target.name, core, reg_no);
+		bfin_target.name, cpu->first_core + core, reg_no);
       memset (avail_buf, 0, reg_size);
     }
   else if (cpu->cores[core].is_corefault)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] CORE FAULT core cannot read register [%d]",
-		bfin_target.name, core, reg_no);
+		bfin_target.name, cpu->first_core + core, reg_no);
       memset (avail_buf, 0, reg_size);
     }
   /* In GDB testsuite, we have to pretend these registers have value 0
@@ -4622,7 +4745,7 @@ bfin_write_single_register (unsigned int reg_no,
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] locked core cannot write register [%d]",
-		bfin_target.name, core, reg_no);
+		bfin_target.name, cpu->first_core + core, reg_no);
       return RP_VAL_TARGETRET_ERR;
     }
 
@@ -4630,7 +4753,7 @@ bfin_write_single_register (unsigned int reg_no,
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] CORE FAULT core cannot write register [%d]",
-		bfin_target.name, core, reg_no);
+		bfin_target.name, cpu->first_core + core, reg_no);
       return RP_VAL_TARGETRET_ERR;
     }
 
@@ -4650,11 +4773,11 @@ bfin_write_single_register (unsigned int reg_no,
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] set RETE an address the core cannot execute from",
-		    bfin_target.name, core);
+		    bfin_target.name, cpu->first_core + core);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	if ((value >= cpu->cores[i].l1_map.l1_code
 	     && value < cpu->cores[i].l1_map.l1_code_end)
 	    || (value >= cpu->cores[i].l1_map.l1_code_cache
@@ -4666,7 +4789,7 @@ bfin_write_single_register (unsigned int reg_no,
 	      {
 		bfin_log (RP_VAL_LOGLEVEL_ERR,
 			  "%s: [%d] locked core cannot write register [%d]",
-			  bfin_target.name, i, reg_no);
+			  bfin_target.name, cpu->first_core + i, reg_no);
 		return RP_VAL_TARGETRET_ERR;
 	      }
 
@@ -4674,7 +4797,7 @@ bfin_write_single_register (unsigned int reg_no,
 	      {
 		bfin_log (RP_VAL_LOGLEVEL_ERR,
 			  "%s: [%d] CORE FAULT core cannot write register [%d]",
-			  bfin_target.name, i, reg_no);
+			  bfin_target.name, cpu->first_core + i, reg_no);
 		return RP_VAL_TARGETRET_ERR;
 	      }
 
@@ -4685,7 +4808,7 @@ bfin_write_single_register (unsigned int reg_no,
 	    break;
 	  }
 
-      if (i == cpu->chain->parts->len)
+      if (i == cpu->core_num)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: No core can execute from [0x%08X]",
@@ -4735,7 +4858,7 @@ bfin_read_mem (uint64_t addr,
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] %s core cannot read its core MMR [0x%08llX]",
 		bfin_target.name,
-		cpu->general_core,
+		cpu->first_core + cpu->general_core,
 		cpu->cores[cpu->general_core].
 		is_locked ? "locked" : "CORE FAULT", addr);
       return RP_VAL_TARGETRET_ERR;
@@ -4748,7 +4871,7 @@ bfin_read_mem (uint64_t addr,
 
   if (cpu->cores[avail_core].is_locked
       || cpu->cores[avail_core].is_corefault)
-    for (i = 0; i < cpu->chain->parts->len; i++)
+    for (i = 0; i < cpu->core_num; i++)
       {
 	if (!cpu->cores[i].is_locked
 	    && !cpu->cores[i].is_corefault
@@ -4758,7 +4881,7 @@ bfin_read_mem (uint64_t addr,
 	    break;
 	  }
 
-	if (i == cpu->chain->parts->len)
+	if (i == cpu->core_num)
 	  {
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: no core available to read memory",
@@ -4770,7 +4893,7 @@ bfin_read_mem (uint64_t addr,
   if (addr < cpu->mem_map.l1 || addr >= cpu->mem_map.l1_end)
     goto skip_l1;
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       /* Use the core for its L1 memory if possible.  */
       if (!cpu->cores[i].is_locked
@@ -4908,7 +5031,7 @@ bfin_read_mem (uint64_t addr,
 
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] cannot read reserved L1 [0x%08llX]",
-		    bfin_target.name, i, addr);
+		    bfin_target.name, cpu->first_core + i, addr);
 	  return RP_VAL_TARGETRET_ERR;
 	}
     }
@@ -4930,7 +5053,7 @@ bfin_read_mem (uint64_t addr,
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] bad MMR addr or size [0x%08llX] size %d",
-		bfin_target.name, core, addr, req_size);
+		bfin_target.name, cpu->first_core + core, addr, req_size);
       return RP_VAL_TARGETRET_ERR;
     }
   
@@ -4940,7 +5063,7 @@ bfin_read_mem (uint64_t addr,
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] bad MMR size [0x%08llX] size %d",
-		    bfin_target.name, core, addr, req_size);
+		    bfin_target.name, cpu->first_core + core, addr, req_size);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
@@ -4948,7 +5071,7 @@ bfin_read_mem (uint64_t addr,
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] odd MMR addr [0x%08llX]",
-		    bfin_target.name, core, addr);
+		    bfin_target.name, cpu->first_core + core, addr);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
@@ -5010,7 +5133,7 @@ bfin_read_mem (uint64_t addr,
 
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] cannot read reserved memory [0x%08llX]",
-		bfin_target.name, core, addr);
+		bfin_target.name, cpu->first_core + core, addr);
       return RP_VAL_TARGETRET_ERR;
     }
 
@@ -5018,7 +5141,7 @@ done:
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_read_mem () through Core [%d]",
-	    bfin_target.name, core);
+	    bfin_target.name, cpu->first_core + core);
 
   *actual_size = req_size;
 
@@ -5055,7 +5178,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] %s core cannot write its core MMR [0x%08llX]",
 		bfin_target.name,
-		cpu->general_core,
+		cpu->first_core + cpu->general_core,
 		cpu->cores[cpu->general_core].
 		is_locked ? "locked" : "CORE FAULT", addr);
       return RP_VAL_TARGETRET_ERR;
@@ -5068,7 +5191,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
   if (cpu->cores[avail_core].is_locked
       || cpu->cores[avail_core].is_corefault)
-    for (i = 0; i < cpu->chain->parts->len; i++)
+    for (i = 0; i < cpu->core_num; i++)
       {
 	if (!cpu->cores[i].is_locked
 	    && !cpu->cores[i].is_corefault
@@ -5078,7 +5201,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	    break;
 	  }
 
-	if (i == cpu->chain->parts->len)
+	if (i == cpu->core_num)
 	  {
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: no core available to write memory",
@@ -5090,7 +5213,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
   if (addr < cpu->mem_map.l1 || addr >= cpu->mem_map.l1_end)
     goto skip_l1;
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       /* Use the core for its L1 memory if possible.  */
       if (!cpu->cores[i].is_locked
@@ -5126,7 +5249,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	      uint16_t sica_syscr;
 
 	      bfin_log (RP_VAL_LOGLEVEL_INFO,
-			"%s: [%d] unlocking...", bfin_target.name, i);
+			"%s: [%d] unlocking...", bfin_target.name, cpu->first_core + i);
 
 	      sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
 	      sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
@@ -5147,7 +5270,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 		}
 
 	      bfin_log (RP_VAL_LOGLEVEL_INFO,
-			"%s: [%d] done", bfin_target.name, i);
+			"%s: [%d] done", bfin_target.name, cpu->first_core + i);
 	    }
 
 	  goto done;
@@ -5225,7 +5348,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] cannot write reserved L1 [0x%08llX] size %d",
-		    bfin_target.name, i, addr, write_size);
+		    bfin_target.name, cpu->first_core + i, addr, write_size);
 	  return RP_VAL_TARGETRET_ERR;
 	}
     }
@@ -5247,7 +5370,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] bad MMR addr or size [0x%08llX] size %d",
-		bfin_target.name, core, addr, write_size);
+		bfin_target.name, cpu->first_core + core, addr, write_size);
       return RP_VAL_TARGETRET_ERR;
     }
 
@@ -5257,7 +5380,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] bad MMR size [0x%08llX] size %d",
-		    bfin_target.name, core, addr, write_size);
+		    bfin_target.name, cpu->first_core + core, addr, write_size);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
@@ -5265,7 +5388,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] odd MMR addr [0x%08llX]",
-		    bfin_target.name, core, addr);
+		    bfin_target.name, cpu->first_core + core, addr);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
@@ -5293,7 +5416,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
     {
       ret = memory_write (core, (uint32_t) addr, buf, write_size);
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	if (!cpu->cores[i].is_locked
 	    && !cpu->cores[i].is_corefault
 	    && !cpu->cores[i].is_running)
@@ -5304,7 +5427,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] cannot write memory [0x%08llX]",
-		bfin_target.name, core, addr);
+		bfin_target.name, cpu->first_core + core, addr);
       return RP_VAL_TARGETRET_ERR;
     }
 
@@ -5312,7 +5435,7 @@ done:
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_write_mem () through Core [%d]",
-	    bfin_target.name, core);
+	    bfin_target.name, cpu->first_core + core);
 
   if (ret < 0)
     return RP_VAL_TARGETRET_ERR;
@@ -5337,7 +5460,7 @@ bfin_resume_from_current (int step, int sig)
 
   assert (cpu);
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].is_locked)
 	continue;
@@ -5366,7 +5489,7 @@ bfin_resume_from_current (int step, int sig)
 	return RP_VAL_TARGETRET_OK;
     }
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].is_locked)
 	continue;
@@ -5444,7 +5567,7 @@ bfin_log_emucause (int core, uint16_t cause, uint32_t rete, uint32_t fp)
 {
   bfin_log (RP_VAL_LOGLEVEL_INFO,
 	    "%s: [%d] %s: PC [0x%08X] FP [0x%08X]",
-	    bfin_target.name, core, emucause_infos[cause], rete, fp);
+	    bfin_target.name, cpu->first_core + core, emucause_infos[cause], rete, fp);
 }
 
 /* Target method */
@@ -5477,11 +5600,11 @@ bfin_wait_partial (int first,
 
   /* If we have any interesting pending event,
      report it instead of resume.  */
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!cpu->cores[i].is_locked
 	&& !cpu->cores[i].leave_stopped && cpu->cores[i].status_pending_p)
       {
-	part_t *part = cpu->chain->parts->parts[i];
+	part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
 	sprintf (status_string, "T%02d", cpu->cores[i].pending_signal);
 	cp = &status_string[3];
@@ -5501,7 +5624,7 @@ bfin_wait_partial (int first,
 	    cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
 	    cp = bfin_out_treg_value (cp, BFIN_FP_REGNUM, fp);
 	  }
-	if (cpu->chain->parts->len > 1)
+	if (cpu->core_num > 1)
 	  sprintf (cp, "thread:%x;", THREAD_ID (i));
 
 	cpu->cores[i].status_pending_p = 0;
@@ -5526,7 +5649,7 @@ bfin_wait_partial (int first,
 
   *more = TRUE;
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].leave_stopped)
 	continue;
@@ -5535,7 +5658,7 @@ bfin_wait_partial (int first,
 	  && cpu->cores[i].is_locked)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
-		    "%s: [%d] core unlocking...", bfin_target.name, i);
+		    "%s: [%d] core unlocking...", bfin_target.name, cpu->first_core + i);
 
 	  /* Set pending hardware breakpoints and watchpoints.  */
 
@@ -5579,7 +5702,7 @@ bfin_wait_partial (int first,
 	  cpu->cores[i].is_running = 1;
 
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
-		    "%s: [%d] done", bfin_target.name, i);
+		    "%s: [%d] done", bfin_target.name, cpu->first_core + i);
 	}
       if (core_dbgstat_is_core_fault (i)
 	  || core_dbgstat_is_emuready (i))
@@ -5589,13 +5712,13 @@ bfin_wait_partial (int first,
       else if (core_dbgstat_is_idle (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
-		    "%s: [%d] core is in idle mode", bfin_target.name, i);
+		    "%s: [%d] core is in idle mode", bfin_target.name, cpu->first_core + i);
 	}
       else if (core_dbgstat_is_in_reset (i) && !core_sticky_in_reset (i))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] core is currently being reset",
-		    bfin_target.name, i);
+		    bfin_target.name, cpu->first_core + i);
 	}
     }
 
@@ -5606,7 +5729,7 @@ bfin_wait_partial (int first,
   else
     {
       emulation_trigger ();
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	cpu->cores[i].is_running = 0;
     }
 
@@ -5615,9 +5738,9 @@ bfin_wait_partial (int first,
   dbgstat_get ();
   emupc_get ();
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
-      part_t *part = cpu->chain->parts->parts[i];
+      part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
       if (cpu->cores[i].leave_stopped)
 	continue;
@@ -5631,7 +5754,7 @@ bfin_wait_partial (int first,
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] a double fault has occured EMUPC [0x%08X]",
-		    bfin_target.name, i, core_emupc_get (i));
+		    bfin_target.name, cpu->first_core + i, core_emupc_get (i));
 
 	  sig = RP_SIGNAL_TRAP;
 	  cpu->cores[i].is_corefault = 1;
@@ -5707,11 +5830,11 @@ bfin_wait_partial (int first,
 	  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 		    "%s: [%d] unhandled debug status [0x%08X] EMUPC [0x%08X]",
 		    bfin_target.name,
-		    i, BFIN_PART_DBGSTAT (part), BFIN_PART_EMUPC (part));
+		    cpu->first_core + i, BFIN_PART_DBGSTAT (part), BFIN_PART_EMUPC (part));
 	}
     }
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].leave_stopped)
 	continue;
@@ -5739,7 +5862,7 @@ bfin_wait_partial (int first,
 	      cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
 	      cp = bfin_out_treg_value (cp, BFIN_FP_REGNUM, fp);
 	    }
-	  if (cpu->chain->parts->len > 1)
+	  if (cpu->core_num > 1)
 	    sprintf (cp, "thread:%x;", THREAD_ID (i));
 
 	  cpu->cores[i].status_pending_p = 0;
@@ -5748,7 +5871,7 @@ bfin_wait_partial (int first,
 	  cpu->continue_core = i;
 
 	  /* Consume all interrupts.  */
-	  for (i = 0; i < cpu->chain->parts->len; i++)
+	  for (i = 0; i < cpu->core_num; i++)
 	    if (cpu->cores[i].status_pending_p
 		&& cpu->cores[i].is_interrupted
 		&& cpu->cores[i].pending_signal == RP_SIGNAL_INTERRUPT)
@@ -5851,7 +5974,7 @@ bfin_threadinfo_query (int first, char *out_buf, int out_buf_size)
   static int i;
 
   if (first)
-    i = cpu->chain->parts->len - 1;
+    i = cpu->core_num - 1;
   else
     i--;
 
@@ -5880,7 +6003,7 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
 
   core = PART_NO (thread->val);
 
-  if (core < 0 || core >= cpu->chain->parts->len)
+  if (core < 0 || core >= cpu->core_num)
     return RP_VAL_TARGETRET_ERR;
 
   cp = out_buf;
@@ -5893,7 +6016,7 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
       cp += strlen (cp);
     }
 
-  part = cpu->chain->parts->parts[core];
+  part = cpu->chain->parts->parts[cpu->first_core + core];
   sprintf (cp, " DBGSTAT [0x%04X]", BFIN_PART_DBGSTAT (part));
 
   if (strlen (out_buf) >= out_buf_size)
@@ -5910,7 +6033,7 @@ bfin_packetsize_query (char *out_buf, int out_buf_size)
   int size;
 
   size = RP_PARAM_INOUTBUF_SIZE - 1;
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (size > cpu->cores[i].l1_map.l1_data_a_end
 	- cpu->cores[i].l1_map.l1_data_a)
       size = cpu->cores[i].l1_map.l1_data_a_end
@@ -5957,7 +6080,7 @@ bfin_add_break (int type, uint64_t addr, int len)
     case 1:
       if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
 	{
-	  for (i = 0; i < cpu->chain->parts->len; i++)
+	  for (i = 0; i < cpu->core_num; i++)
 	    if (addr >= cpu->cores[i].l1_map.l1
 		&& addr < cpu->cores[i].l1_map.l1_end)
 	      {
@@ -5972,7 +6095,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 
 		bfin_log (RP_VAL_LOGLEVEL_ERR,
 			  "%s: [%d] no more hardware breakpoint available",
-			  bfin_target.name, i);
+			  bfin_target.name, cpu->first_core + i);
 		return RP_VAL_TARGETRET_ERR;
 	      }
 
@@ -5982,7 +6105,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	{
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	    if (cpu->cores[i].hwbps[j] == -1)
@@ -5992,15 +6115,15 @@ bfin_add_break (int type, uint64_t addr, int len)
 	    break;
 	}
 
-      if (i < cpu->chain->parts->len)
+      if (i < cpu->core_num)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] no more hardware breakpoint available",
-		    bfin_target.name, i);
+		    bfin_target.name, cpu->first_core + i);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	  if (cpu->cores[i].hwbps[j] == -1)
 	    {
@@ -6030,7 +6153,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 
   if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
     {
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	if (addr >= cpu->cores[i].l1_map.l1
 	    && addr < cpu->cores[i].l1_map.l1_end)
 	  {
@@ -6064,7 +6187,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: [%d] no more hardware watchpoint available",
-		      bfin_target.name, i);
+		      bfin_target.name, cpu->first_core + i);
 	    return RP_VAL_TARGETRET_ERR;
 	  }
 
@@ -6074,7 +6197,7 @@ bfin_add_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!bfin_force_range_wp
 	&& len <= 4
 	&& cpu->cores[i].hwwps[0].addr != -1
@@ -6085,15 +6208,15 @@ bfin_add_break (int type, uint64_t addr, int len)
 		 || cpu->cores[i].hwwps[1].addr != -1))
       break;
 
-  if (i < cpu->chain->parts->len)
+  if (i < cpu->core_num)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] no more hardware breakpoint available",
-		bfin_target.name, i);
+		bfin_target.name, cpu->first_core + i);
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!bfin_force_range_wp && len <= 4)
       {
 	j = cpu->cores[i].hwwps[0].addr == -1 ? 0 : 1;
@@ -6144,7 +6267,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
     case 1:
       if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
 	{
-	  for (i = 0; i < cpu->chain->parts->len; i++)
+	  for (i = 0; i < cpu->core_num; i++)
 	    if (addr >= cpu->cores[i].l1_map.l1
 		&& addr < cpu->cores[i].l1_map.l1_end)
 	      {
@@ -6159,7 +6282,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 
 		bfin_log (RP_VAL_LOGLEVEL_ERR,
 			  "%s: [%d] no hardware breakpoint at 0x%08llX",
-			  bfin_target.name, i, addr);
+			  bfin_target.name, cpu->first_core + i, addr);
 		return RP_VAL_TARGETRET_ERR;
 	      }
 
@@ -6169,7 +6292,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	{
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	    if (cpu->cores[i].hwbps[j] == addr)
@@ -6179,15 +6302,15 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	    break;
 	}
 
-      if (i < cpu->chain->parts->len)
+      if (i < cpu->core_num)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] no hardware breakpoint at 0x%08llX",
-		    bfin_target.name, i, addr);
+		    bfin_target.name, cpu->first_core + i, addr);
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	  if (cpu->cores[i].hwbps[j] == addr)
 	    {
@@ -6217,7 +6340,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 
   if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
     {
-      for (i = 0; i < cpu->chain->parts->len; i++)
+      for (i = 0; i < cpu->core_num; i++)
 	if (addr >= cpu->cores[i].l1_map.l1
 	    && addr < cpu->cores[i].l1_map.l1_end)
 	  {
@@ -6259,7 +6382,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: [%d] no hardware watchpoint at 0x%08llX length %d",
-		      bfin_target.name, i, addr, len);
+		      bfin_target.name, cpu->first_core + i, addr, len);
 	    return RP_VAL_TARGETRET_ERR;
 	  }
 
@@ -6269,7 +6392,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!bfin_force_range_wp
 	&& len <= 4
 	&& (cpu->cores[i].hwwps[0].addr != addr
@@ -6288,15 +6411,15 @@ bfin_remove_break (int type, uint64_t addr, int len)
 		 || cpu->cores[i].hwwps[1].mode != mode))
       break;
 
-  if (i < cpu->chain->parts->len)
+  if (i < cpu->core_num)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] no hardware breakpoint at 0x%08llX length %d",
-		bfin_target.name, i, addr, len);
+		bfin_target.name, cpu->first_core + i, addr, len);
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->chain->parts->len; i++)
+  for (i = 0; i < cpu->core_num; i++)
     if (!bfin_force_range_wp && len <= 4)
       {
 	j = (cpu->cores[i].hwwps[0].addr == addr

@@ -1,3 +1,83 @@
+2009-09-29  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (THREAD_ID): Adjust for multi-processor.
+	(PART_NO): Likewise.
+	(ALL_CORES): Likewise.
+	(ANY_CORE): Likewise.
+	(bfin_processor): Define.
+	(struct _bfin_cpu): Add first_core and core_num.
+	(core_scan_select): Adjust for multi-processor.
+	(CORE_DBGCTL_CLEAR_OR_SET_BIT): Likewise.
+	(CORE_DBGCTL_IS): Likewise.
+	(CORE_DBGSTAT_BIT_IS): Likewise.
+	(core_dbgstat_emucause): Likewise.
+	(core_dbgstat_get): Likewise.
+	(core_emupc_get): Likewise.
+	(core_dbgstat_clear_ovfs): Likewise.
+	(dbgstat_show): Likewise.
+	(core_dbgstat_show): Likewise.
+	(dbgctl_show): Likewise.
+	(core_wait_emuready): Likewise.
+	(core_sticky_in_reset): Likewise.
+	(core_wait_in_reset): Likewise.
+	(core_wait_reset): Likewise.
+	(core_emuir_set): Likewise.
+	(core_emuir_set_2): Likewise.
+	(core_emudat_get): Likewise.
+	(core_emudat_defer_get): Likewise.
+	(core_emudat_get_done): Likewise.
+	(core_emudat_set): Likewise.
+	(core_register_get): Likewise.
+	(core_register_set): Likewise.
+	(wpu_init): Likewise.
+	(wpu_enable): Likewise.
+	(wpu_disable): Likewise.
+	(wpstat_get): Likewise.
+	(wpstat_clear): Likewise.
+	(core_wpstat_clear): Likewise.
+	(core_emulation_enable): Likewise.
+	(core_emulation_trigger): Likewise.
+	(core_emulation_return): Likewise.
+	(core_emulation_disable): Likewise.
+	(mmr_read_clobber_r0): Likewise.
+	(mmr_read): Likewise.
+	(mmr_write): Likewise.
+	(sdram_init): Likewise.
+	(ddr_init): Likewise.
+	(dcache_enable): Likewise.
+	(icache_enable): Likewise.
+	(dma_sram_write): Likewise.
+	(itest_read_clobber_r0): Likewise.
+	(itest_write_clobber_r0): Likewise.
+	(test_context_save_clobber_r0): Likewise.
+	(test_context_restore_clobber_r0): Likewise.
+	(itest_sram_read): Likewise.
+	(itest_sram_write): Likewise.
+	(sram_read): Likewise.
+	(srame_write): Likewise.
+	(core_single_step): Likewise.
+	(core_cache_status_get): Likewise.
+	(jc_process): Likewise.
+	(bfin_help): Add --processor.
+	(bfin_open): Deal with --processor and adjust for multi-processor.
+	(bfin_connect): Adjust for multi-processor.
+	(bfin_disconnect): Likewise.
+	(bfin_stop): Likewise.
+	(bfin_set_gen_thread): Likewise.
+	(bffn_set_ctrl_thread): Likewise.
+	(bfin_read_single_register): Likewise.
+	(bfin_write_single_register): Likewise.
+	(bfin_read_mem): Likewise.
+	(bfin_write_mem): Likewise.
+	(bfin_resume_from_current): Likewise.
+	(bfin_log_emucause): Likewise.
+	(bfin_wait_partial): Likewise.
+	(bfin_threadinfo_query): Likewise.
+	(bfin_threadextrainfo_query): Likewise.
+	(bfin_packetsize_query): Likewise.
+	(bfin_add_break): Likewise.
+	(bfin_remove_break): Likewise.
+
 2009-09-10  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (struct _bfin_core): Remove dcplbs_valid_p,
