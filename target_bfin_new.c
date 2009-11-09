@@ -502,6 +502,20 @@ typedef struct _bfin_l1_map
   uint32_t l1_end;
 } bfin_l1_map;
 
+static bfin_l1_map bf50x_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff804000,
+  .l1_data_a_cache	= 0xff804000,
+  .l1_data_a_cache_end	= 0xff808000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa04000,
+  .l1_code_cache	= 0xffa04000,
+  .l1_code_cache_end	= 0xffa08000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb01000,
+  .l1_end		= 0xffc00000,
+};
 static bfin_l1_map bf52x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
@@ -649,6 +663,20 @@ typedef struct _bfin_mem_map
   uint32_t coremmr;
 } bfin_mem_map;
 
+static bfin_mem_map bf50x_mem_map = {
+  .sdram		= 0,
+  .sdram_end		= 0,
+  .async_mem		= 0x20000000,
+  .flash		= 0x20000000,
+  .flash_end		= 0x20400000,  /* Only valid for BF504F and BF506F.  */
+  .async_mem_end	= 0x20400000,  /* Only valid for BF504F and BF506F.  */
+  .boot_rom		= 0xef000000,
+  .boot_rom_end		= 0xef001000,
+  .l1			= 0xff800000,
+  .l1_end		= 0xffc00000,
+  .sysmmr		= 0xffc00000,
+  .coremmr		= 0xffe00000,
+};
 static bfin_mem_map bf52x_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x20000000,
@@ -3947,7 +3975,7 @@ bfin_open (int argc,
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00E00
 
-     BF52x BF534/6/7 BF54x BF51x
+     BF52x BF534/6/7 BF54x BF51x BF50x
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00F00
 
@@ -3963,9 +3991,16 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF526") ||
-      !strcmp (chain->parts->parts[cpu->first_core]->part, "BF527") ||
-      !strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
+  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF506"))
+    {
+      cpu->mdma_d0 = 0xffc00f00;
+      cpu->mdma_s0 = 0xffc00f40;
+      cpu->mem_map = bf50x_mem_map;
+      cpu->cores[0].l1_map = bf50x_l1_map;
+    }
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF526") ||
+	   !strcmp (chain->parts->parts[cpu->first_core]->part, "BF527") ||
+	   !strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
     {
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
