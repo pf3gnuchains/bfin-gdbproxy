@@ -516,6 +516,24 @@ static bfin_l1_map bf50x_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
+static bfin_l1_map bf51x_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff804000,
+  .l1_data_a_cache	= 0xff804000,
+  .l1_data_a_cache_end	= 0xff808000,
+  .l1_data_b		= 0xff900000,
+  .l1_data_b_end	= 0xff904000,
+  .l1_data_b_cache	= 0xff904000,
+  .l1_data_b_cache_end	= 0xff908000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa08000,
+  .l1_code_cache	= 0xffa10000,
+  .l1_code_cache_end	= 0xffa14000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb01000,
+  .l1_end		= 0xffc00000,
+};
 static bfin_l1_map bf52x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
@@ -3998,9 +4016,15 @@ bfin_open (int argc,
       cpu->mem_map = bf50x_mem_map;
       cpu->cores[0].l1_map = bf50x_l1_map;
     }
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
+    {
+      cpu->mdma_d0 = 0xffc00f00;
+      cpu->mdma_s0 = 0xffc00f40;
+      cpu->mem_map = bf52x_mem_map;
+      cpu->cores[0].l1_map = bf51x_l1_map;
+    }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF526") ||
-	   !strcmp (chain->parts->parts[cpu->first_core]->part, "BF527") ||
-	   !strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
+	   !strcmp (chain->parts->parts[cpu->first_core]->part, "BF527"))
     {
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
