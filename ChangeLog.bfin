@@ -1,3 +1,7 @@
+2009-11-12  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bf54x_l1_map): Fix l1_code_end.
+
 2009-09-29  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (THREAD_ID): Adjust for multi-processor.
