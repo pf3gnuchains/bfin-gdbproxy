@@ -1,3 +1,36 @@
+2009-12-07  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (rti_limit): Define.
+	(emupc_get): Add a new argument.
+	(core_emupc_get): Add a new argument.
+	(emupc_show): New.
+	(core_emupc_show): New.
+	(emupc_reset): New.
+	(memory_read): Rename to ...
+	(memory_read_1): ... this.
+	(memory_read): New.
+	(dma_copy): Call emupc_reset.
+	(memory_write): Rename to ...
+	(memory_write_1): ... this.
+	(memory_write): New.
+	(itest_sram_read): Rename to ...
+	(itest_sram_read_1): ... this.
+	(itest_sram_read): New.
+	(itest_sram_write): Rename to ...
+	(itest_sram_write_1): ... this.
+	(itest_sram_write): New.
+	(bfin_open): Calculate rti_limit.
+	(bfin_connect): Call emupc_reset.
+	(bfin_read_single_register): Likewise.
+	(bfin_write_single_register): Likewise.
+	(bfin_read_mem): Likewise.
+	(bfin_write_mem): Likewise.
+	(bfin_resume_from_current): Likewise.
+	(bfin_resume_from_addr): Likewise.
+	(bfin_wait_partial): Likewise.
+	(bfin_add_break): Likewise.
+	(bfin_remove_break): Likewise.
+
 2009-11-12  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bf54x_l1_map): Fix l1_code_end.

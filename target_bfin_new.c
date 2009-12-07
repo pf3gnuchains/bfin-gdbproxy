@@ -471,6 +471,7 @@ static uint32_t bfin_frequency = 0;
 static int bfin_processor = -1;
 static struct timespec bfin_loop_wait_first_ts = {0, 50000000};
 static struct timespec bfin_loop_wait_ts = {0, 10000000};
+static int rti_limit = INT_MAX;
 
 typedef struct _bfin_swbp
 {
@@ -1101,15 +1102,56 @@ core_dbgstat_get (int core)
 }
 
 static void
-emupc_get (void)
+emupc_get (int save)
 {
-  chain_emupc_get (cpu->chain);
+  chain_emupc_get (cpu->chain, save);
 }
 
 static uint32_t
-core_emupc_get (int core)
+core_emupc_get (int core, int save)
 {
-  return part_emupc_get (cpu->chain, cpu->first_core + core);
+  return part_emupc_get (cpu->chain, cpu->first_core + core, save);
+}
+
+static void
+emupc_show (const char *id)
+{
+  part_t *part;
+  int i;
+
+  chain_emupc_get (cpu->chain, 0);
+  for (i = 0; i < cpu->core_num; i++)
+    {
+      part = cpu->chain->parts->parts[cpu->first_core + i];
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] EMUPC [0x%08x] <%s>",
+		cpu->first_core + i, BFIN_PART_EMUPC (part), id);
+    }
+}
+
+static void
+core_emupc_show (int core, const char *id)
+{
+  part_t *part;
+  part_emupc_get (cpu->chain, cpu->first_core + core, 0);
+  part = cpu->chain->parts->parts[cpu->first_core + core];
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] EMUPC [0x%08x] <%s>",
+	    cpu->first_core + core, BFIN_PART_EMUPC (part), id);
+}
+
+static void
+emupc_reset (void)
+{
+  uint32_t new_pc[cpu->chain->parts->len];
+  int i;
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset EMUPC");
+
+  for (i = 0; i < cpu->core_num; i++)
+    new_pc[i + cpu->first_core] = cpu->cores[i].l1_map.l1_code;
+
+  emupc_show ("before");
+  chain_emupc_reset (cpu->chain, new_pc);
+  emupc_show ("after");
 }
 
 static void
@@ -2430,7 +2472,7 @@ icache_flush (int core, uint32_t addr, int size)
 }
 
 static int
-memory_read (int core, uint32_t addr, uint8_t *buf, int size)
+memory_read_1 (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint32_t p0, r0;
   int count1 = 0, count2 = 0, count3 = 0;
@@ -2523,6 +2565,36 @@ finish_read:
   return 0;
 }
 
+static int
+memory_read (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  int s;
+
+  if ((addr & 0x3) != 0)
+    {
+      s = 4 - (addr & 0x3);
+      s = size < s ? size : s;
+      memory_read_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  while (size > 0)
+    {
+      emupc_reset ();
+
+      /* The overhead should be no larger than 0x20.  */
+      s = (rti_limit - 0x20) * 4;
+      s = size < s ? size : s;
+      memory_read_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  return 0;
+}
 
 static void
 dma_context_save_clobber_p0r0 (int core, uint32_t base, bfin_dma *dma)
@@ -2573,6 +2645,8 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
   uint16_t s0_irq_status, d0_irq_status;
   int ret;
   struct timespec dma_wait = {0, 50000000};
+
+  emupc_reset ();
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -2751,7 +2825,7 @@ finish_dma_copy:
 
 
 static int
-memory_write (int core, uint32_t addr, uint8_t *buf, int size)
+memory_write_1 (int core, uint32_t addr, uint8_t *buf, int size)
 {
   uint32_t p0, r0;
   int dcplb_enabled;
@@ -2820,6 +2894,36 @@ finish_write:
   return 0;
 }
 
+static int
+memory_write (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  int s;
+
+  if ((addr & 0x3) != 0)
+    {
+      s = 4 - (addr & 0x3);
+      s = size < s ? size : s;
+      memory_write_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  while (size > 0)
+    {
+      emupc_reset ();
+
+      /* The overhead should be no larger than 0x20.  */
+      s = (rti_limit - 0x20) * 4;
+      s = size < s ? size : s;
+      memory_write_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  return 0;
+}
 
 
 static int
@@ -3001,7 +3105,7 @@ test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
 }
 
 static int
-itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
+itest_sram_read_1 (int core, uint32_t addr, uint8_t *buf, int size)
 {
   bfin_test_data test_data_save;
   uint32_t p0, r0;
@@ -3056,7 +3160,38 @@ itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 }
 
 static int
-itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
+itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  int s;
+
+  if ((addr & 0x7) != 0)
+    {
+      s = 8 - (addr & 0x7);
+      s = size < s ? size : s;
+      itest_sram_read_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  while (size > 0)
+    {
+      emupc_reset ();
+
+      /* The overhead should be no larger than 0x20.  */
+      s = (rti_limit - 0x20) / 25 * 32;
+      s = size < s ? size : s;
+      itest_sram_read_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  return 0;
+}
+
+static int
+itest_sram_write_1 (int core, uint32_t addr, uint8_t *buf, int size)
 {
   bfin_test_data test_data_save;
   uint32_t p0, r0;
@@ -3112,6 +3247,37 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
+
+  return 0;
+}
+
+static int
+itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
+{
+  int s;
+
+  if ((addr & 0x7) != 0)
+    {
+      s = 8 - (addr & 0x7);
+      s = size < s ? size : s;
+      itest_sram_write_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
+
+  while (size > 0)
+    {
+      emupc_reset ();
+
+      /* The overhead should be no larger than 0x20.  */
+      s = (rti_limit - 0x20) / 25 * 32;
+      s = size < s ? size : s;
+      itest_sram_write_1 (core, addr, buf, s);
+      size -= s;
+      addr += s;
+      buf += s;
+    }
 
   return 0;
 }
@@ -4276,6 +4442,15 @@ bfin_open (int argc,
       abort ();
     }
 
+  /* Assume only 32-bit instruction are used in gdbproxy.  */
+  for (i = 0; i < cpu->core_num; i++)
+    {
+      int tmp;
+      tmp = (cpu->cores[i].l1_map.l1_code_end - cpu->cores[i].l1_map.l1_code) / 8;
+      if (rti_limit > tmp)
+	rti_limit = tmp;
+    }
+
   /* Let --sdram-size and --flash-size override the board settting.  */
   if (sdram_size != -1)
     cpu->mem_map.sdram_end = sdram_size;
@@ -4375,6 +4550,8 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   /* Stop the processor.  */
   emulation_enable ();
   emulation_trigger ();
+
+  emupc_reset ();
 
   dbgstat_get ();
 
@@ -4750,6 +4927,7 @@ bfin_read_single_register (unsigned int reg_no,
     }
   else
     {
+      emupc_reset ();
       cpu->cores[core].registers[reg_no]
 	= core_register_get (core, map_gdb_core[reg_no]);
       data_buf[0] = cpu->cores[core].registers[reg_no] & 0xff;
@@ -4878,6 +5056,7 @@ bfin_write_single_register (unsigned int reg_no,
 
   cpu->cores[core].registers[reg_no] = value;
 
+  emupc_reset ();
   core_register_set (core, map_gdb_core[reg_no],
 		     cpu->cores[core].registers[reg_no]);
 
@@ -4948,6 +5127,8 @@ bfin_read_mem (uint64_t addr,
 	    return RP_VAL_TARGETRET_ERR;
 	  }
       }
+
+  emupc_reset ();
 
   if (addr < cpu->mem_map.l1 || addr >= cpu->mem_map.l1_end)
     goto skip_l1;
@@ -5269,6 +5450,8 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  }
       }
 
+  emupc_reset ();
+
   if (addr < cpu->mem_map.l1 || addr >= cpu->mem_map.l1_end)
     goto skip_l1;
 
@@ -5519,6 +5702,8 @@ bfin_resume_from_current (int step, int sig)
 
   assert (cpu);
 
+  emupc_reset ();
+
   for (i = 0; i < cpu->core_num; i++)
     {
       if (cpu->cores[i].is_locked)
@@ -5607,6 +5792,8 @@ bfin_resume_from_addr (int step, int sig, uint64_t addr)
 
   assert (cpu);
 
+  emupc_reset ();
+
   core_register_set (cpu->continue_core, REG_RETE, addr);
 
   return bfin_resume_from_current (step, sig);
@@ -5663,13 +5850,11 @@ bfin_wait_partial (int first,
     if (!cpu->cores[i].is_locked
 	&& !cpu->cores[i].leave_stopped && cpu->cores[i].status_pending_p)
       {
-	part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
-
 	sprintf (status_string, "T%02d", cpu->cores[i].pending_signal);
 	cp = &status_string[3];
 	if (cpu->cores[i].is_corefault)
 	  {
-	    pc = BFIN_PART_EMUPC (part);
+	    pc = cpu->cores[i].pending_stop_pc;
 	    cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
 	  }
 	else
@@ -5794,8 +5979,9 @@ bfin_wait_partial (int first,
 
   /* All cores are stopped. Check their status.  */
 
+  emupc_get (1);
+  emupc_reset ();
   dbgstat_get ();
-  emupc_get ();
 
   for (i = 0; i < cpu->core_num; i++)
     {
@@ -5813,14 +5999,14 @@ bfin_wait_partial (int first,
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] a double fault has occured EMUPC [0x%08X]",
-		    bfin_target.name, cpu->first_core + i, core_emupc_get (i));
+		    bfin_target.name, cpu->first_core + i, BFIN_PART_EMUPC_ORIG (part));
 
 	  sig = RP_SIGNAL_TRAP;
 	  cpu->cores[i].is_corefault = 1;
 	  cpu->cores[i].status_pending_p = 1;
 	  cpu->cores[i].pending_is_breakpoint = 0;
 	  cpu->cores[i].pending_signal = sig;
-	  cpu->cores[i].pending_stop_pc = BFIN_PART_EMUPC (part);
+	  cpu->cores[i].pending_stop_pc = BFIN_PART_EMUPC_ORIG (part);
 	}
       else if (core_dbgstat_is_emuready (i))
 	{
@@ -5889,7 +6075,7 @@ bfin_wait_partial (int first,
 	  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 		    "%s: [%d] unhandled debug status [0x%08X] EMUPC [0x%08X]",
 		    bfin_target.name,
-		    cpu->first_core + i, BFIN_PART_DBGSTAT (part), BFIN_PART_EMUPC (part));
+		    cpu->first_core + i, BFIN_PART_DBGSTAT (part), BFIN_PART_EMUPC_ORIG (part));
 	}
     }
 
@@ -6121,6 +6307,8 @@ bfin_add_break (int type, uint64_t addr, int len)
 	    "%s: bfin_add_break (%d, 0x%08llx, %d)",
 	    bfin_target.name, type, addr, len);
 
+  emupc_reset ();
+
   switch (type)
     {
     case 0:
@@ -6310,6 +6498,8 @@ bfin_remove_break (int type, uint64_t addr, int len)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_remove_break(%d, 0x%08llx, %d)",
 	    bfin_target.name, type, addr, len);
+
+  emupc_reset ();
 
   switch (type)
     {
