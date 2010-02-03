@@ -1,3 +1,21 @@
+2010-02-03  Mike Frysinger  <michael.frysinger@analog.com>
+
+	* target_bfin_new.c (bfin_target, bf50x_l1_map, bf51x_l1_map,
+	bf52x_l1_map, bf533_l1_map, bf537_l1_map, bf538_l1_map, bf54x_l1_map,
+	bf561_a_l1_map, bf561_b_l1_map, bf50x_mem_map, bf52x_mem_map,
+	bf533_mem_map, bf537_mem_map, bf538_mem_map, bf54x_mem_map,
+	bf561_mem_map, bf527_ezkit_sdram_config, bf533_ezkit_sdram_config,
+	bf533_stamp_sdram_config, bf537_ezkit_sdram_config,
+	bf538f_ezkit_sdram_config, bf561_ezkit_sdram_config,
+	bf548_ezkit_ddr_config): Add const markings.
+	(_bfin_core.l1_map): Change to a const pointer.
+	(_bfin_cpu.sdram_config, _bfin_cpu.ddr_config): Likewise.
+	(emupc_reset, core_dcache_enable, core_icache_enable, dma_sram_read,
+	dma_sram_write, bfin_open, bfin_write_single_register, bfin_read_mem,
+	bfin_write_mem, bfin_packetsize_query, bfin_add_break,
+	bfin_remove_break): Change "l1_map." to "l1_map->".
+	(bfin_open): Change l1_map assignments from copies to addresses.
+
 2010-02-03  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (wait_emuready): Remove.

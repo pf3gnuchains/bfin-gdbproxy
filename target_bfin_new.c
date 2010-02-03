@@ -427,7 +427,7 @@ static int bfin_add_break (int type, uint64_t addr, int len);
 static int bfin_remove_break (int type, uint64_t addr, int len);
 
 /* Global target descriptor */
-rp_target bfin_target = {
+const rp_target bfin_target = {
   NULL,
   "bfin",
   "Blackfin JTAG target",
@@ -503,7 +503,7 @@ typedef struct _bfin_l1_map
   uint32_t l1_end;
 } bfin_l1_map;
 
-static bfin_l1_map bf50x_l1_map = {
+static const bfin_l1_map bf50x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -517,7 +517,7 @@ static bfin_l1_map bf50x_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf51x_l1_map = {
+static const bfin_l1_map bf51x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -535,7 +535,7 @@ static bfin_l1_map bf51x_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf52x_l1_map = {
+static const bfin_l1_map bf52x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -553,7 +553,7 @@ static bfin_l1_map bf52x_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf533_l1_map = {
+static const bfin_l1_map bf533_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -571,7 +571,7 @@ static bfin_l1_map bf533_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf537_l1_map = {
+static const bfin_l1_map bf537_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -589,7 +589,7 @@ static bfin_l1_map bf537_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf538_l1_map = {
+static const bfin_l1_map bf538_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -607,7 +607,7 @@ static bfin_l1_map bf538_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf54x_l1_map = {
+static const bfin_l1_map bf54x_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -627,7 +627,7 @@ static bfin_l1_map bf54x_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf561_a_l1_map = {
+static const bfin_l1_map bf561_a_l1_map = {
   .l1			= 0xff800000,
   .l1_data_a		= 0xff800000,
   .l1_data_a_end	= 0xff804000,
@@ -645,7 +645,7 @@ static bfin_l1_map bf561_a_l1_map = {
   .l1_scratch_end	= 0xffb01000,
   .l1_end		= 0xffc00000,
 };
-static bfin_l1_map bf561_b_l1_map = {
+static const bfin_l1_map bf561_b_l1_map = {
   .l1			= 0xff400000,
   .l1_data_a		= 0xff400000,
   .l1_data_a_end	= 0xff404000,
@@ -682,7 +682,7 @@ typedef struct _bfin_mem_map
   uint32_t coremmr;
 } bfin_mem_map;
 
-static bfin_mem_map bf50x_mem_map = {
+static const bfin_mem_map bf50x_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0,
   .async_mem		= 0x20000000,
@@ -696,7 +696,7 @@ static bfin_mem_map bf50x_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
-static bfin_mem_map bf52x_mem_map = {
+static const bfin_mem_map bf52x_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
@@ -710,7 +710,7 @@ static bfin_mem_map bf52x_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
-static bfin_mem_map bf533_mem_map = {
+static const bfin_mem_map bf533_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x08000000,
   .async_mem		= 0x20000000,
@@ -724,7 +724,7 @@ static bfin_mem_map bf533_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
-static bfin_mem_map bf537_mem_map = {
+static const bfin_mem_map bf537_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
@@ -738,7 +738,7 @@ static bfin_mem_map bf537_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
-static bfin_mem_map bf538_mem_map = {
+static const bfin_mem_map bf538_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x08000000,
   .async_mem		= 0x20000000,
@@ -752,7 +752,7 @@ static bfin_mem_map bf538_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
-static bfin_mem_map bf54x_mem_map = {
+static const bfin_mem_map bf54x_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
@@ -768,7 +768,7 @@ static bfin_mem_map bf54x_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
-static bfin_mem_map bf561_mem_map = {
+static const bfin_mem_map bf561_mem_map = {
   .sdram		= 0,
   .sdram_end		= 0x20000000,
   .async_mem		= 0x20000000,
@@ -847,7 +847,7 @@ typedef struct _bfin_core
   int pending_signal;
   uint32_t pending_stop_pc;
 
-  bfin_l1_map l1_map;
+  const bfin_l1_map *l1_map;
   uint32_t registers[BFIN_NUM_REGS];
   uint32_t wpiactl;
   uint32_t wpdactl;
@@ -866,37 +866,37 @@ typedef struct _bfin_sdram_config
   uint32_t sdgctl;
 } bfin_sdram_config;
 
-static bfin_sdram_config bf527_ezkit_sdram_config = {
+static const bfin_sdram_config bf527_ezkit_sdram_config = {
   .sdrrc = 0x0407,
   .sdbctl = 0x0025,
   .sdgctl = 0x0091998d,
 };
 
-static bfin_sdram_config bf533_ezkit_sdram_config = {
+static const bfin_sdram_config bf533_ezkit_sdram_config = {
   .sdrrc = 0x01a0,
   .sdbctl = 0x0025,
   .sdgctl = 0x0091998d,
 };
 
-static bfin_sdram_config bf533_stamp_sdram_config = {
+static const bfin_sdram_config bf533_stamp_sdram_config = {
   .sdrrc = 0x01a0,
   .sdbctl = 0x0025,
   .sdgctl = 0x0091998d,
 };
 
-static bfin_sdram_config bf537_ezkit_sdram_config = {
+static const bfin_sdram_config bf537_ezkit_sdram_config = {
   .sdrrc = 0x03a0,
   .sdbctl = 0x0025,
   .sdgctl = 0x0091998d,
 };
 
-static bfin_sdram_config bf538f_ezkit_sdram_config = {
+static const bfin_sdram_config bf538f_ezkit_sdram_config = {
   .sdrrc = 0x03f6,
   .sdbctl = 0x0025,
   .sdgctl = 0x0091998d,
 };
 
-static bfin_sdram_config bf561_ezkit_sdram_config = {
+static const bfin_sdram_config bf561_ezkit_sdram_config = {
   .sdrrc = 0x01cf,
   .sdbctl = 0x0013,
   .sdgctl = 0x0091998d,
@@ -909,7 +909,7 @@ typedef struct _bfin_ddr_config
   uint32_t ddrctl2;
 } bfin_ddr_config;
 
-static bfin_ddr_config bf548_ezkit_ddr_config = {
+static const bfin_ddr_config bf548_ezkit_ddr_config = {
   .ddrctl0 = 0x218A8411,
   .ddrctl1 = 0x20022222,
   .ddrctl2 = 0x00000021,
@@ -921,8 +921,8 @@ typedef struct _bfin_cpu
   bfin_swbp *swbps;
   bfin_board board;
   bfin_mem_map mem_map;
-  bfin_sdram_config *sdram_config;
-  bfin_ddr_config *ddr_config;
+  const bfin_sdram_config *sdram_config;
+  const bfin_ddr_config *ddr_config;
   uint32_t mdma_s0;
   uint32_t mdma_d0;
 
@@ -1147,7 +1147,7 @@ emupc_reset (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset EMUPC");
 
   for (i = 0; i < cpu->core_num; i++)
-    new_pc[i + cpu->first_core] = cpu->cores[i].l1_map.l1_code;
+    new_pc[i + cpu->first_core] = cpu->cores[i].l1_map->l1_code;
 
   emupc_show ("before");
   chain_emupc_reset (cpu->chain, new_pc);
@@ -2288,15 +2288,15 @@ core_dcache_enable (int core, int method)
     }
 
   i = 0;
-  if (cpu->cores[core].l1_map.l1_data_a)
+  if (cpu->cores[core].l1_map->l1_data_a)
     {
-      dcplbs[i].addr = cpu->cores[core].l1_map.l1_data_a;
+      dcplbs[i].addr = cpu->cores[core].l1_map->l1_data_a;
       dcplbs[i].data = L1_DMEMORY;
       i++;
     }
-  if (cpu->cores[core].l1_map.l1_data_b)
+  if (cpu->cores[core].l1_map->l1_data_b)
     {
-      dcplbs[i].addr = cpu->cores[core].l1_map.l1_data_b;
+      dcplbs[i].addr = cpu->cores[core].l1_map->l1_data_b;
       dcplbs[i].data = L1_DMEMORY;
       i++;
     }
@@ -2384,9 +2384,9 @@ core_icache_enable (int core)
     }
 
   i = 0;
-  if (cpu->cores[core].l1_map.l1_code)
+  if (cpu->cores[core].l1_map->l1_code)
     {
-      icplbs[i].addr = cpu->cores[core].l1_map.l1_code;
+      icplbs[i].addr = cpu->cores[core].l1_map->l1_code;
       icplbs[i].data = L1_IMEMORY;
       i++;
     }
@@ -2939,13 +2939,13 @@ dma_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   if (tmp == 0)
     abort ();
 
-  memory_read (core, cpu->cores[core].l1_map.l1_data_a, tmp, size);
+  memory_read (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
 
-  ret = dma_copy (core, cpu->cores[core].l1_map.l1_data_a, addr, size);
+  ret = dma_copy (core, cpu->cores[core].l1_map->l1_data_a, addr, size);
 
-  memory_read (core, cpu->cores[core].l1_map.l1_data_a, buf, size);
+  memory_read (core, cpu->cores[core].l1_map->l1_data_a, buf, size);
 
-  memory_write (core, cpu->cores[core].l1_map.l1_data_a, tmp, size);
+  memory_write (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
 
   free (tmp);
 
@@ -2960,10 +2960,10 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 
   assert (size > 0);
 
-  assert (cpu->cores[core].l1_map.l1_data_a);
+  assert (cpu->cores[core].l1_map->l1_data_a);
 
-  assert (size <= cpu->cores[core].l1_map.l1_data_a_end
-	  - cpu->cores[core].l1_map.l1_data_a);
+  assert (size <= cpu->cores[core].l1_map->l1_data_a_end
+	  - cpu->cores[core].l1_map->l1_data_a);
 
   tmp = (uint8_t *) malloc (size);
   if (tmp == 0)
@@ -2973,13 +2973,13 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 	    "dma_sram_write (core [%d], addr [0x%08X], size [0x%X])",
 	    cpu->first_core + core, addr, size);
 
-  memory_read (core, cpu->cores[core].l1_map.l1_data_a, tmp, size);
+  memory_read (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
 
-  memory_write (core, cpu->cores[core].l1_map.l1_data_a, buf, size);
+  memory_write (core, cpu->cores[core].l1_map->l1_data_a, buf, size);
 
-  ret = dma_copy (core, addr, cpu->cores[core].l1_map.l1_data_a, size);
+  ret = dma_copy (core, addr, cpu->cores[core].l1_map->l1_data_a, size);
 
-  memory_write (core, cpu->cores[core].l1_map.l1_data_a, tmp, size);
+  memory_write (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
 
   free (tmp);
 
@@ -4194,14 +4194,14 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf50x_mem_map;
-      cpu->cores[0].l1_map = bf50x_l1_map;
+      cpu->cores[0].l1_map = &bf50x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
     {
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf52x_mem_map;
-      cpu->cores[0].l1_map = bf51x_l1_map;
+      cpu->cores[0].l1_map = &bf51x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF526") ||
 	   !strcmp (chain->parts->parts[cpu->first_core]->part, "BF527"))
@@ -4209,14 +4209,14 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf52x_mem_map;
-      cpu->cores[0].l1_map = bf52x_l1_map;
+      cpu->cores[0].l1_map = &bf52x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF533"))
     {
       cpu->mdma_d0 = 0xffc00e00;
       cpu->mdma_s0 = 0xffc00e40;
       cpu->mem_map = bf533_mem_map;
-      cpu->cores[0].l1_map = bf533_l1_map;
+      cpu->cores[0].l1_map = &bf533_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF534") ||
            !strcmp (chain->parts->parts[cpu->first_core]->part, "BF537"))
@@ -4224,14 +4224,14 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf537_mem_map;
-      cpu->cores[0].l1_map = bf537_l1_map;
+      cpu->cores[0].l1_map = &bf537_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF538"))
     {
       cpu->mdma_d0 = 0xffc00e00;
       cpu->mdma_s0 = 0xffc00e40;
       cpu->mem_map = bf538_mem_map;
-      cpu->cores[0].l1_map = bf538_l1_map;
+      cpu->cores[0].l1_map = &bf538_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF548") ||
            !strcmp (chain->parts->parts[cpu->first_core]->part, "BF548M"))
@@ -4239,15 +4239,15 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf54x_mem_map;
-      cpu->cores[0].l1_map = bf54x_l1_map;
+      cpu->cores[0].l1_map = &bf54x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF561"))
     {
       cpu->mdma_d0 = 0xffc01800;
       cpu->mdma_s0 = 0xffc01840;
       cpu->mem_map = bf561_mem_map;
-      cpu->cores[1].l1_map = bf561_a_l1_map;
-      cpu->cores[0].l1_map = bf561_b_l1_map;
+      cpu->cores[1].l1_map = &bf561_a_l1_map;
+      cpu->cores[0].l1_map = &bf561_b_l1_map;
     }
   else
     {
@@ -4460,7 +4460,7 @@ bfin_open (int argc,
   for (i = 0; i < cpu->core_num; i++)
     {
       int tmp;
-      tmp = (cpu->cores[i].l1_map.l1_code_end - cpu->cores[i].l1_map.l1_code) / 8;
+      tmp = (cpu->cores[i].l1_map->l1_code_end - cpu->cores[i].l1_map->l1_code) / 8;
       if (rti_limit > tmp)
 	rti_limit = tmp;
     }
@@ -5013,12 +5013,12 @@ bfin_write_single_register (unsigned int reg_no,
   if (map_gdb_core[reg_no] == REG_RETE
       && value >= cpu->mem_map.l1
       && value < cpu->mem_map.l1_end
-      && !((value >= cpu->cores[core].l1_map.l1_code
-	    && value < cpu->cores[core].l1_map.l1_code_end)
-	   || (value >= cpu->cores[core].l1_map.l1_code_cache
-	       && value < cpu->cores[core].l1_map.l1_code_cache_end)
-	   || (value >= cpu->cores[core].l1_map.l1_code_rom
-	       && value < cpu->cores[core].l1_map.l1_code_rom_end)))
+      && !((value >= cpu->cores[core].l1_map->l1_code
+	    && value < cpu->cores[core].l1_map->l1_code_end)
+	   || (value >= cpu->cores[core].l1_map->l1_code_cache
+	       && value < cpu->cores[core].l1_map->l1_code_cache_end)
+	   || (value >= cpu->cores[core].l1_map->l1_code_rom
+	       && value < cpu->cores[core].l1_map->l1_code_rom_end)))
     {
       if (!bfin_auto_switch)
 	{
@@ -5029,12 +5029,12 @@ bfin_write_single_register (unsigned int reg_no,
 	}
 
       for (i = 0; i < cpu->core_num; i++)
-	if ((value >= cpu->cores[i].l1_map.l1_code
-	     && value < cpu->cores[i].l1_map.l1_code_end)
-	    || (value >= cpu->cores[i].l1_map.l1_code_cache
-		&& value < cpu->cores[i].l1_map.l1_code_cache_end)
-	    || (value >= cpu->cores[i].l1_map.l1_code_rom
-		&& value < cpu->cores[i].l1_map.l1_code_rom_end))
+	if ((value >= cpu->cores[i].l1_map->l1_code
+	     && value < cpu->cores[i].l1_map->l1_code_end)
+	    || (value >= cpu->cores[i].l1_map->l1_code_cache
+		&& value < cpu->cores[i].l1_map->l1_code_cache_end)
+	    || (value >= cpu->cores[i].l1_map->l1_code_rom
+		&& value < cpu->cores[i].l1_map->l1_code_rom_end))
 	  {
 	    if (cpu->cores[i].is_locked)
 	      {
@@ -5157,21 +5157,21 @@ bfin_read_mem (uint64_t addr,
       else
 	core = avail_core;
 
-      if (addr >= cpu->cores[i].l1_map.l1
-	  && addr < cpu->cores[i].l1_map.l1_end)
+      if (addr >= cpu->cores[i].l1_map->l1
+	  && addr < cpu->cores[i].l1_map->l1_end)
 	core_cache_status_get (i);
       else
 	continue;
 
-      if (addr >= cpu->cores[i].l1_map.l1_code
-	  && addr < cpu->cores[i].l1_map.l1_code_end)
+      if (addr >= cpu->cores[i].l1_map->l1_code
+	  && addr < cpu->cores[i].l1_map->l1_code_end)
 	{
 	  if (!cpu->cores[i].l1_code_cache_enabled
-	      && (cpu->cores[i].l1_map.l1_code_end
-		  == cpu->cores[i].l1_map.l1_code_cache))
-	    end = cpu->cores[i].l1_map.l1_code_cache_end;
+	      && (cpu->cores[i].l1_map->l1_code_end
+		  == cpu->cores[i].l1_map->l1_code_cache))
+	    end = cpu->cores[i].l1_map->l1_code_cache_end;
 	  else
-	    end = cpu->cores[i].l1_map.l1_code_end;
+	    end = cpu->cores[i].l1_map->l1_code_end;
 
 	  if (addr + req_size > end)
 	    req_size = end - addr;
@@ -5180,33 +5180,33 @@ bfin_read_mem (uint64_t addr,
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_code_cache_enabled
-	       && addr >= cpu->cores[i].l1_map.l1_code_cache
-	       && addr < cpu->cores[i].l1_map.l1_code_cache_end)
+	       && addr >= cpu->cores[i].l1_map->l1_code_cache
+	       && addr < cpu->cores[i].l1_map->l1_code_cache_end)
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map.l1_code_cache_end)
-	    req_size = cpu->cores[i].l1_map.l1_code_cache_end - addr;
+	  if (addr + req_size > cpu->cores[i].l1_map->l1_code_cache_end)
+	    req_size = cpu->cores[i].l1_map->l1_code_cache_end - addr;
 
 	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_code_rom
-	       && addr < cpu->cores[i].l1_map.l1_code_rom_end)
+      else if (addr >= cpu->cores[i].l1_map->l1_code_rom
+	       && addr < cpu->cores[i].l1_map->l1_code_rom_end)
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map.l1_code_rom_end)
-	    req_size = cpu->cores[i].l1_map.l1_code_rom_end - addr;
+	  if (addr + req_size > cpu->cores[i].l1_map->l1_code_rom_end)
+	    req_size = cpu->cores[i].l1_map->l1_code_rom_end - addr;
 
 	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_data_a
-	       && addr < cpu->cores[i].l1_map.l1_data_a_end)
+      else if (addr >= cpu->cores[i].l1_map->l1_data_a
+	       && addr < cpu->cores[i].l1_map->l1_data_a_end)
 	{
 	  if (!cpu->cores[i].l1_data_a_cache_enabled
-	      && (cpu->cores[i].l1_map.l1_data_a_end
-		  == cpu->cores[i].l1_map.l1_data_a_cache))
-	    end = cpu->cores[i].l1_map.l1_data_a_cache_end;
+	      && (cpu->cores[i].l1_map->l1_data_a_end
+		  == cpu->cores[i].l1_map->l1_data_a_cache))
+	    end = cpu->cores[i].l1_map->l1_data_a_cache_end;
 	  else
-	    end = cpu->cores[i].l1_map.l1_data_a_end;
+	    end = cpu->cores[i].l1_map->l1_data_a_end;
 
 	  if (addr + req_size > end)
 	    req_size = end - addr;
@@ -5218,11 +5218,11 @@ bfin_read_mem (uint64_t addr,
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_a_cache_enabled
-	       && addr >= cpu->cores[i].l1_map.l1_data_a_cache
-	       && addr < cpu->cores[i].l1_map.l1_data_a_cache_end)
+	       && addr >= cpu->cores[i].l1_map->l1_data_a_cache
+	       && addr < cpu->cores[i].l1_map->l1_data_a_cache_end)
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map.l1_data_a_cache_end)
-	    req_size = cpu->cores[i].l1_map.l1_data_a_cache_end - addr;
+	  if (addr + req_size > cpu->cores[i].l1_map->l1_data_a_cache_end)
+	    req_size = cpu->cores[i].l1_map->l1_data_a_cache_end - addr;
 
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
@@ -5230,15 +5230,15 @@ bfin_read_mem (uint64_t addr,
 	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_data_b
-	       && addr < cpu->cores[i].l1_map.l1_data_b_end)
+      else if (addr >= cpu->cores[i].l1_map->l1_data_b
+	       && addr < cpu->cores[i].l1_map->l1_data_b_end)
 	{
 	  if (!cpu->cores[i].l1_data_b_cache_enabled
-	      && (cpu->cores[i].l1_map.l1_data_b_end
-		  == cpu->cores[i].l1_map.l1_data_b_cache))
-	    end = cpu->cores[i].l1_map.l1_data_b_cache_end;
+	      && (cpu->cores[i].l1_map->l1_data_b_end
+		  == cpu->cores[i].l1_map->l1_data_b_cache))
+	    end = cpu->cores[i].l1_map->l1_data_b_cache_end;
 	  else
-	    end = cpu->cores[i].l1_map.l1_data_b_end;
+	    end = cpu->cores[i].l1_map->l1_data_b_end;
 
 	  if (addr + req_size > end)
 	    req_size = end - addr;
@@ -5250,11 +5250,11 @@ bfin_read_mem (uint64_t addr,
 	  goto done;
 	}
       else if (! cpu->cores[i].l1_data_b_cache_enabled
-	       && addr >= cpu->cores[i].l1_map.l1_data_b_cache
-	       && addr < cpu->cores[i].l1_map.l1_data_b_cache_end)
+	       && addr >= cpu->cores[i].l1_map->l1_data_b_cache
+	       && addr < cpu->cores[i].l1_map->l1_data_b_cache_end)
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map.l1_data_b_cache_end)
-	    req_size = cpu->cores[i].l1_map.l1_data_b_cache_end - addr;
+	  if (addr + req_size > cpu->cores[i].l1_map->l1_data_b_cache_end)
+	    req_size = cpu->cores[i].l1_map->l1_data_b_cache_end - addr;
 
 	  if (i == core)
 	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
@@ -5262,17 +5262,17 @@ bfin_read_mem (uint64_t addr,
 	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_scratch
-	       && addr < cpu->cores[i].l1_map.l1_scratch_end
+      else if (addr >= cpu->cores[i].l1_map->l1_scratch
+	       && addr < cpu->cores[i].l1_map->l1_scratch_end
 	       && i == core)
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map.l1_scratch_end)
-	    req_size = cpu->cores[i].l1_map.l1_scratch_end - addr;
+	  if (addr + req_size > cpu->cores[i].l1_map->l1_scratch_end)
+	    req_size = cpu->cores[i].l1_map->l1_scratch_end - addr;
 	  ret = memory_read (core, (uint32_t) addr, buf, req_size);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1
-	       && addr < cpu->cores[i].l1_map.l1_end)
+      else if (addr >= cpu->cores[i].l1_map->l1
+	       && addr < cpu->cores[i].l1_map->l1_end)
 	{
 	  if (!reject_invalid_mem)
 	    {
@@ -5479,19 +5479,19 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
       else
 	core = avail_core;
 
-      if (addr >= cpu->cores[i].l1_map.l1
-	  && addr < cpu->cores[i].l1_map.l1_end)
+      if (addr >= cpu->cores[i].l1_map->l1
+	  && addr < cpu->cores[i].l1_map->l1_end)
 	core_cache_status_get (i);
       else
 	continue;
 
-      if (addr >= cpu->cores[i].l1_map.l1_code
-	  && addr < cpu->cores[i].l1_map.l1_code_end
+      if (addr >= cpu->cores[i].l1_map->l1_code
+	  && addr < cpu->cores[i].l1_map->l1_code_end
 	  && ((!cpu->cores[i].l1_code_cache_enabled
-	       && (cpu->cores[i].l1_map.l1_code_end
-		   == cpu->cores[i].l1_map.l1_code_cache)
-	       && (end = cpu->cores[i].l1_map.l1_code_cache_end))
-	      || (end = cpu->cores[i].l1_map.l1_code_end))
+	       && (cpu->cores[i].l1_map->l1_code_end
+		   == cpu->cores[i].l1_map->l1_code_cache)
+	       && (end = cpu->cores[i].l1_map->l1_code_cache_end))
+	      || (end = cpu->cores[i].l1_map->l1_code_end))
 	  && addr + write_size <= end)
 	{
 	  ret = sram_write (core, (uint32_t) addr, buf, write_size, i != core);
@@ -5499,7 +5499,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  if (i == core)
 	    icache_flush (i, addr, write_size);
 
-	  if (addr == cpu->cores[i].l1_map.l1_code
+	  if (addr == cpu->cores[i].l1_map->l1_code
 	      && bfin_unlock_on_load && cpu->cores[i].is_locked)
 	    {
 	      uint16_t sica_syscr;
@@ -5532,20 +5532,20 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_code_cache_enabled
-	       && addr >= cpu->cores[i].l1_map.l1_code_cache
-	       && addr < cpu->cores[i].l1_map.l1_code_cache_end
-	       && addr + write_size <= cpu->cores[i].l1_map.l1_code_cache_end)
+	       && addr >= cpu->cores[i].l1_map->l1_code_cache
+	       && addr < cpu->cores[i].l1_map->l1_code_cache_end
+	       && addr + write_size <= cpu->cores[i].l1_map->l1_code_cache_end)
 	{
 	  ret = sram_write (core, (uint32_t) addr, buf, write_size, i != core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_data_a
-	       && addr < cpu->cores[i].l1_map.l1_data_a_end
+      else if (addr >= cpu->cores[i].l1_map->l1_data_a
+	       && addr < cpu->cores[i].l1_map->l1_data_a_end
 	       && ((!cpu->cores[i].l1_data_a_cache_enabled
-		    && (cpu->cores[i].l1_map.l1_data_a_end
-			== cpu->cores[i].l1_map.l1_data_a_cache)
-		    && (end = cpu->cores[i].l1_map.l1_data_a_cache_end))
-		   || (end = cpu->cores[i].l1_map.l1_data_a_end))
+		    && (cpu->cores[i].l1_map->l1_data_a_end
+			== cpu->cores[i].l1_map->l1_data_a_cache)
+		    && (end = cpu->cores[i].l1_map->l1_data_a_cache_end))
+		   || (end = cpu->cores[i].l1_map->l1_data_a_end))
 	       && addr + write_size <= end)
 	{
 	  if (i == core)
@@ -5555,9 +5555,9 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_a_cache_enabled
-	       && addr >= cpu->cores[i].l1_map.l1_data_a_cache
-	       && addr < cpu->cores[i].l1_map.l1_data_a_cache_end
-	       && addr + write_size <= cpu->cores[i].l1_map.l1_data_a_cache_end)
+	       && addr >= cpu->cores[i].l1_map->l1_data_a_cache
+	       && addr < cpu->cores[i].l1_map->l1_data_a_cache_end
+	       && addr + write_size <= cpu->cores[i].l1_map->l1_data_a_cache_end)
 	{
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
@@ -5565,13 +5565,13 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_data_b
-	       && addr < cpu->cores[i].l1_map.l1_data_b_end
+      else if (addr >= cpu->cores[i].l1_map->l1_data_b
+	       && addr < cpu->cores[i].l1_map->l1_data_b_end
 	       && ((!cpu->cores[i].l1_data_b_cache_enabled
-		    && (cpu->cores[i].l1_map.l1_data_b_end
-			== cpu->cores[i].l1_map.l1_data_b_cache)
-		    && (end = cpu->cores[i].l1_map.l1_data_b_cache_end))
-		   || (end = cpu->cores[i].l1_map.l1_data_b_end))
+		    && (cpu->cores[i].l1_map->l1_data_b_end
+			== cpu->cores[i].l1_map->l1_data_b_cache)
+		    && (end = cpu->cores[i].l1_map->l1_data_b_cache_end))
+		   || (end = cpu->cores[i].l1_map->l1_data_b_end))
 	       && addr + write_size <= end)
 	{
 	  if (i == core)
@@ -5581,9 +5581,9 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  goto done;
 	}
       else if (!cpu->cores[i].l1_data_b_cache_enabled
-	       && addr >= cpu->cores[i].l1_map.l1_data_b_cache
-	       && addr < cpu->cores[i].l1_map.l1_data_b_cache_end
-	       && addr + write_size <= cpu->cores[i].l1_map.l1_data_b_cache_end)
+	       && addr >= cpu->cores[i].l1_map->l1_data_b_cache
+	       && addr < cpu->cores[i].l1_map->l1_data_b_cache_end
+	       && addr + write_size <= cpu->cores[i].l1_map->l1_data_b_cache_end)
 	{
 	  if (i == core)
 	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
@@ -5591,16 +5591,16 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1_scratch
-	       && addr < cpu->cores[i].l1_map.l1_scratch_end
+      else if (addr >= cpu->cores[i].l1_map->l1_scratch
+	       && addr < cpu->cores[i].l1_map->l1_scratch_end
 	       && i == core
-	       && addr + write_size <= cpu->cores[i].l1_map.l1_scratch_end)
+	       && addr + write_size <= cpu->cores[i].l1_map->l1_scratch_end)
 	{
 	  ret = memory_write (core, (uint32_t) addr, buf, write_size);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map.l1
-	       && addr < cpu->cores[i].l1_map.l1_end)
+      else if (addr >= cpu->cores[i].l1_map->l1
+	       && addr < cpu->cores[i].l1_map->l1_end)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] cannot write reserved L1 [0x%08llX] size %d",
@@ -6293,10 +6293,10 @@ bfin_packetsize_query (char *out_buf, int out_buf_size)
 
   size = RP_PARAM_INOUTBUF_SIZE - 1;
   for (i = 0; i < cpu->core_num; i++)
-    if (size > cpu->cores[i].l1_map.l1_data_a_end
-	- cpu->cores[i].l1_map.l1_data_a)
-      size = cpu->cores[i].l1_map.l1_data_a_end
-	- cpu->cores[i].l1_map.l1_data_a;
+    if (size > cpu->cores[i].l1_map->l1_data_a_end
+	- cpu->cores[i].l1_map->l1_data_a)
+      size = cpu->cores[i].l1_map->l1_data_a_end
+	- cpu->cores[i].l1_map->l1_data_a;
 
   /* 0x4000 is the largest packet size GDB would like.  */
   if (size > 0x4000)
@@ -6342,8 +6342,8 @@ bfin_add_break (int type, uint64_t addr, int len)
       if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
 	{
 	  for (i = 0; i < cpu->core_num; i++)
-	    if (addr >= cpu->cores[i].l1_map.l1
-		&& addr < cpu->cores[i].l1_map.l1_end)
+	    if (addr >= cpu->cores[i].l1_map->l1
+		&& addr < cpu->cores[i].l1_map->l1_end)
 	      {
 		for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 		  if (cpu->cores[i].hwbps[j] == -1)
@@ -6415,8 +6415,8 @@ bfin_add_break (int type, uint64_t addr, int len)
   if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
     {
       for (i = 0; i < cpu->core_num; i++)
-	if (addr >= cpu->cores[i].l1_map.l1
-	    && addr < cpu->cores[i].l1_map.l1_end)
+	if (addr >= cpu->cores[i].l1_map->l1
+	    && addr < cpu->cores[i].l1_map->l1_end)
 	  {
 	    if (!bfin_force_range_wp
 		&& len <= 4
@@ -6531,8 +6531,8 @@ bfin_remove_break (int type, uint64_t addr, int len)
       if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
 	{
 	  for (i = 0; i < cpu->core_num; i++)
-	    if (addr >= cpu->cores[i].l1_map.l1
-		&& addr < cpu->cores[i].l1_map.l1_end)
+	    if (addr >= cpu->cores[i].l1_map->l1
+		&& addr < cpu->cores[i].l1_map->l1_end)
 	      {
 		for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 		  if (cpu->cores[i].hwbps[j] == addr)
@@ -6604,8 +6604,8 @@ bfin_remove_break (int type, uint64_t addr, int len)
   if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
     {
       for (i = 0; i < cpu->core_num; i++)
-	if (addr >= cpu->cores[i].l1_map.l1
-	    && addr < cpu->cores[i].l1_map.l1_end)
+	if (addr >= cpu->cores[i].l1_map->l1
+	    && addr < cpu->cores[i].l1_map->l1_end)
 	  {
 	    if (!bfin_force_range_wp
 		&& len <= 4
