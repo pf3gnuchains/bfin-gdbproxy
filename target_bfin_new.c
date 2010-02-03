@@ -1256,15 +1256,15 @@ dbgctl_show (const char *id)
 }
 
 static void
-wait_emuready (void)
+check_emuready (void)
 {
-  chain_wait_emuready (cpu->chain);
+  chain_check_emuready (cpu->chain);
 }
 
 static void
-core_wait_emuready (int core)
+core_check_emuready (int core)
 {
-  part_wait_emuready (cpu->chain, cpu->first_core + core);
+  part_check_emuready (cpu->chain, cpu->first_core + core);
 }
 
 static int
@@ -3444,7 +3444,7 @@ core_single_step (int core)
   if (!cpu->cores[core].is_stepping)
     core_dbgctl_bit_set_esstep (core, UPDATE);
   core_emuir_set (core, INSN_RTE, RUNTEST);
-  core_wait_emuready (core);
+  core_check_emuready (core);
   if (!cpu->cores[core].is_stepping)
     core_dbgctl_bit_clear_esstep (core, UPDATE);
 }
@@ -3789,7 +3789,7 @@ bfin_help (const char *prog_name)
   printf (" --connect=STRING        JTAG connection string\n");
   printf ("                         (default %s)\n", default_jtag_connect);
   printf (" --frequency=FREQUENCY   set the cable frequency\n");
-  printf (" --wait-emuready         wait for EMUREADY in emulator operations\n");
+  printf (" --check-emuready        check for EMUREADY in emulator operations\n");
   printf (" --enable-dcache=METHOD  enable all data SRAM caches\n");
   printf (" --enable-icache         enable all instruction SRAM caches\n");
   printf (" --flash-size=BYTES      specify the size of flash\n");
@@ -3806,6 +3806,8 @@ bfin_help (const char *prog_name)
   printf (" --use-dma               Use DMA to access Instruction SRAM\n");
   printf ("                         Default ITEST or DTEST is used when possible\n");
   printf (" --jc-port=PORT          use specified port for JTAG communication\n");
+  printf (" --wait-clocks=NUM       wait the specified number of clocks in Run-Test/Idle\n");
+  printf ("                         so instruction in EMUIR could be completed\n");
   printf ("\n");
 
   return;
@@ -3842,7 +3844,7 @@ bfin_open (int argc,
     {"enable-dcache", required_argument, 0, 9},
     {"enable-icache", no_argument, 0, 10},
     {"reset", no_argument, 0, 11},
-    {"wait-emuready", no_argument, 0, 12},
+    {"check-emuready", no_argument, 0, 12},
     {"no-switch-on-load", no_argument, 0, 13},
     {"connect", required_argument, 0, 14},
     {"reject-invalid-mem", no_argument, 0, 15},
@@ -3850,6 +3852,7 @@ bfin_open (int argc,
     {"jc-port", required_argument, 0, 17},
     {"frequency", required_argument, 0, 18},
     {"processor", required_argument, 0, 19},
+    {"wait-clocks", required_argument, 0, 20},
     {NULL, 0, 0, 0}
   };
 
@@ -3872,8 +3875,8 @@ bfin_open (int argc,
 
   /* Process options */
 
-  /* Default we don't wait EMUREADY */
-  bfin_wait_emuready = 0;
+  /* Default we don't check EMUREADY */
+  bfin_check_emuready = 0;
 
   optind = 1;
   for (;;)
@@ -3990,7 +3993,7 @@ bfin_open (int argc,
 	  break;
 
 	case 12:
-	  bfin_wait_emuready = 1;
+	  bfin_check_emuready = 1;
 	  break;
 
 	case 13:
@@ -4031,6 +4034,17 @@ bfin_open (int argc,
 	      bfin_log (RP_VAL_LOGLEVEL_ERR,
 			"%s: bad processor number %d",
 			bfin_target.name, bfin_processor);
+	      exit (1);
+	    }
+	  break;
+
+	case 20:
+	  bfin_wait_clocks = atoi (optarg);
+	  if (bfin_wait_clocks < 0)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad wait clocks number %d",
+			bfin_target.name, bfin_wait_clocks);
 	      exit (1);
 	    }
 	  break;
@@ -4617,7 +4631,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	    sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
 	    sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
 	    mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
-	    core_wait_emuready (i);
+	    core_check_emuready (i);
 	    cpu->cores[i].is_locked = 0;
 	    core_wpu_init (i);
 
@@ -5060,7 +5074,7 @@ bfin_write_single_register (unsigned int reg_no,
   core_register_set (core, map_gdb_core[reg_no],
 		     cpu->cores[core].registers[reg_no]);
 
-  core_wait_emuready (core);
+  core_check_emuready (core);
 
   return RP_VAL_TARGETRET_OK;
 }
@@ -5496,7 +5510,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	      sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
 	      sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
 	      mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
-	      core_wait_emuready (i);
+	      core_check_emuready (i);
 	      cpu->cores[i].is_locked = 0;
 	      core_wpu_init (i);
 	      if (bfin_enable_dcache)
@@ -5682,7 +5696,7 @@ done:
   if (ret < 0)
     return RP_VAL_TARGETRET_ERR;
 
-  core_wait_emuready (core);
+  core_check_emuready (core);
 
   return RP_VAL_TARGETRET_OK;
 }

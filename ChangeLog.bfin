@@ -1,3 +1,19 @@
+2010-02-03  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (wait_emuready): Remove.
+	(check_emuready): New.
+	(core_wait_emuready): Remove.
+	(core_check_emuready): New.
+	(core_single_step): Call core_check_emuready instead of
+	core_wait_emuready.
+	(bfin_help): Remove --wait-emuready.
+	Add --check-emuready and --wait-clocks.
+	(bfin_open): Likewise.
+	(bfin_connect): Call core_check_emuready instead of
+	core_wait_emuready.
+	(bfin_write_single_register): Likewise.
+	(bfin_write_mem): Likewise.
+
 2009-12-07  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (rti_limit): Define.
