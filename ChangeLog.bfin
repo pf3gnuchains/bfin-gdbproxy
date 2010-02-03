@@ -1,7 +1,7 @@
 2010-02-03  Mike Frysinger  <michael.frysinger@analog.com>
 
-	* target_bfin_new.c (bfin_target, bf50x_l1_map, bf51x_l1_map,
-	bf52x_l1_map, bf533_l1_map, bf537_l1_map, bf538_l1_map, bf54x_l1_map,
+	* target_bfin_new.c (bf50x_l1_map, bf51x_l1_map, bf52x_l1_map,
+	bf533_l1_map, bf537_l1_map, bf538_l1_map, bf54x_l1_map,
 	bf561_a_l1_map, bf561_b_l1_map, bf50x_mem_map, bf52x_mem_map,
 	bf533_mem_map, bf537_mem_map, bf538_mem_map, bf54x_mem_map,
 	bf561_mem_map, bf527_ezkit_sdram_config, bf533_ezkit_sdram_config,

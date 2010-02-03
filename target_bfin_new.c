@@ -427,7 +427,7 @@ static int bfin_add_break (int type, uint64_t addr, int len);
 static int bfin_remove_break (int type, uint64_t addr, int len);
 
 /* Global target descriptor */
-const rp_target bfin_target = {
+rp_target bfin_target = {
   NULL,
   "bfin",
   "Blackfin JTAG target",
