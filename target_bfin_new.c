@@ -42,13 +42,18 @@
 #include "circ_buf.h"
 #include "rpmisc.h"
 
-#include "part.h"
-#include "chain.h"
-#include "tap.h"
-#include "state.h"
-#include "cmd.h"
-#include "jtag.h"
-#include "bfin.h"
+#include <urjtag/cable.h>
+#include <urjtag/part.h>
+#include <urjtag/part_instruction.h>
+#include <urjtag/chain.h>
+#include <urjtag/tap.h>
+#include <urjtag/tap_state.h>
+#include <urjtag/tap_register.h>
+#include <urjtag/data_register.h>
+#include <urjtag/cmd.h>
+#include <urjtag/jtag.h>
+#include <urjtag/parse.h>
+#include <urjtag/bfin.h>
 
 #ifndef MIN
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
@@ -917,7 +922,7 @@ static const bfin_ddr_config bf548_ezkit_ddr_config = {
 
 typedef struct _bfin_cpu
 {
-  chain_t *chain;
+  urj_chain_t *chain;
   bfin_swbp *swbps;
   bfin_board board;
   bfin_mem_map mem_map;
@@ -981,8 +986,8 @@ core_scan_select (int core, int scan)
       chain_dbgctl_bit_set_##name (cpu->chain);				\
     else								\
       chain_dbgctl_bit_clear_##name (cpu->chain);			\
-    chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ?	\
-				     EXITMODE_IDLE : EXITMODE_UPDATE);	\
+    urj_tap_chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ? \
+				     URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);	\
   }
 
 #define DBGCTL_SET_BIT(name)						\
@@ -1008,8 +1013,8 @@ core_scan_select (int core, int scan)
       part_dbgctl_bit_set_##name (cpu->chain, cpu->first_core + core);	\
     else								\
       part_dbgctl_bit_clear_##name (cpu->chain, cpu->first_core + core); \
-    chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ?	\
-				     EXITMODE_IDLE : EXITMODE_UPDATE);	\
+    urj_tap_chain_shift_data_registers_mode (cpu->chain, 0, 1, runtest ? \
+				     URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);	\
   }
 
 #define CORE_DBGCTL_SET_BIT(name)					\
@@ -1116,7 +1121,7 @@ core_emupc_get (int core, int save)
 static void
 emupc_show (const char *id)
 {
-  part_t *part;
+  urj_part_t *part;
   int i;
 
   chain_emupc_get (cpu->chain, 0);
@@ -1131,7 +1136,7 @@ emupc_show (const char *id)
 static void
 core_emupc_show (int core, const char *id)
 {
-  part_t *part;
+  urj_part_t *part;
   part_emupc_get (cpu->chain, cpu->first_core + core, 0);
   part = cpu->chain->parts->parts[cpu->first_core + core];
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] EMUPC [0x%08x] <%s>",
@@ -1169,7 +1174,7 @@ core_dbgstat_clear_ovfs (int core)
 static void
 dbgstat_show (const char *id)
 {
-  part_t *part;
+  urj_part_t *part;
   char buf[1024];
   int i;
 
@@ -1210,7 +1215,7 @@ dbgstat_show (const char *id)
 static void
 core_dbgstat_show (int core, const char *id)
 {
-  part_t *part;
+  urj_part_t *part;
 
   assert (id != NULL);
 
@@ -1223,7 +1228,7 @@ core_dbgstat_show (int core, const char *id)
 static void
 dbgctl_show (const char *id)
 {
-  part_t *part;
+  urj_part_t *part;
   char buf[1024];
   int i;
 
@@ -1301,32 +1306,32 @@ static void
 emuir_set_same (uint64_t insn, int runtest)
 {
   chain_emuir_set_same (cpu->chain, insn,
-			runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+			runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
 core_emuir_set (int core, uint64_t insn, int runtest)
 {
   part_emuir_set (cpu->chain, cpu->first_core + core, insn,
-		  runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+		  runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
 emuir_set_same_2 (uint64_t insn1, uint64_t insn2, int runtest)
 {
   chain_emuir_set_same_2 (cpu->chain, insn1, insn2,
-			  runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+			  runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
 core_emuir_set_2 (int core, uint64_t insn1, uint64_t insn2, int runtest)
 {
   part_emuir_set_2 (cpu->chain, cpu->first_core + core, insn1, insn2,
-		    runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+		    runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
-emudat_clear_emudif (tap_register *r)
+emudat_clear_emudif (urj_tap_register_t *r)
 {
   /* If the register size is larger than 32 bits, clear EMUDIF.  */
   if (r->len == 34 || r->len == 40 || r->len == 48)
@@ -1342,28 +1347,28 @@ static uint32_t
 core_emudat_get (int core, int runtest)
 {
   return part_emudat_get (cpu->chain, cpu->first_core + core,
-			  runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+			  runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
 core_emudat_defer_get (int core, int runtest)
 {
   part_emudat_defer_get (cpu->chain, cpu->first_core + core,
-			 runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+			 runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static uint32_t
 core_emudat_get_done (int core, int runtest)
 {
   return part_emudat_get_done (cpu->chain, cpu->first_core + core,
-			       runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+			       runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
 core_emudat_set (int core, uint32_t value, int runtest)
 {
   part_emudat_set (cpu->chain, cpu->first_core + core, value,
-		   runtest ? EXITMODE_IDLE : EXITMODE_UPDATE);
+		   runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 /* Forward declarations */
@@ -2993,7 +2998,7 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 static void
 itest_read_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 {
-  part_t *part;
+  urj_part_t *part;
   uint32_t test_command;
   uint32_t test_command_addr;
   uint32_t data1, data0;
@@ -3029,7 +3034,7 @@ itest_read_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 static void
 itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 {
-  part_t *part;
+  urj_part_t *part;
   uint32_t test_command;
   uint32_t test_command_addr;
   uint32_t data1, data0;
@@ -3063,7 +3068,7 @@ itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 static void
 test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 {
-  part_t *part;
+  urj_part_t *part;
   uint32_t test_command_addr;
   uint32_t test_data1_addr, test_data0_addr;
 
@@ -3082,7 +3087,7 @@ test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 static void
 test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
 {
-  part_t *part;
+  urj_part_t *part;
   uint32_t test_command_addr;
   uint32_t test_data1_addr, test_data0_addr;
 
@@ -3112,7 +3117,7 @@ itest_sram_read_1 (int core, uint32_t addr, uint8_t *buf, int size)
   uint8_t data[8];
   uint8_t *ptr;
   uint32_t test_command_addr;
-  part_t *part;
+  urj_part_t *part;
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -3198,7 +3203,7 @@ itest_sram_write_1 (int core, uint32_t addr, uint8_t *buf, int size)
   uint8_t data[8];
   uint8_t *ptr;
   uint32_t test_command_addr;
-  part_t *part;
+  urj_part_t *part;
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
@@ -3288,7 +3293,7 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 static int
 sram_read (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 {
-  part_t *part;
+  urj_part_t *part;
   uint32_t test_command;
 
   assert (!dma_p || cpu->mdma_d0 != 0);
@@ -3305,7 +3310,7 @@ sram_read (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 static int
 sram_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 {
-  part_t *part;
+  urj_part_t *part;
   uint32_t test_command;
 
   assert (!dma_p || cpu->mdma_d0 != 0);
@@ -3586,7 +3591,7 @@ static void set_fd_nonblock (int fd)
 }
 
 /* Helper function to decode/dump an EMUDAT 40bit register */
-static void jc_emudat_show (tap_register *r, const char *id)
+static void jc_emudat_show (urj_tap_register_t *r, const char *id)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: jc: %sjtag 0x%08"PRIx64"%s%s",
 	    bfin_target.name, id, emudat_value (r),
@@ -3596,7 +3601,7 @@ static void jc_emudat_show (tap_register *r, const char *id)
 /* If EMUDAT_OUT is valid (the Blackfin sending data to us), read it from JTAG
  * chain and store it in the net circular buffer
  */
-static void jc_maybe_queue (tap_register *rif, tap_register *rof)
+static void jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
 {
   static uint32_t in_len;
   const char *fmt;
@@ -3637,8 +3642,8 @@ static void jc_maybe_queue (tap_register *rif, tap_register *rof)
 static void jc_process (int core)
 {
   static uint32_t out_len;
-  part_t *part;
-  tap_register *rof, *rif;
+  urj_part_t *part;
+  urj_tap_register_t *rof, *rif;
   uint64_t value;
 
   core_scan_select (core, EMUDAT_SCAN);
@@ -3648,7 +3653,7 @@ static void jc_process (int core)
   rif = part->active_instruction->data_register->in;
 
   rif->data[33] = 0;
-  chain_shift_data_registers (cpu->chain, 1);
+  urj_tap_chain_shift_data_registers (cpu->chain, 1);
 
   jc_emudat_show (rif, "I-");
   jc_emudat_show (rof, "O-");
@@ -3690,7 +3695,7 @@ static void jc_process (int core)
       jc_emudat_show (rif, fmt);
 
       /* Shift out the datum */
-      chain_shift_data_registers (cpu->chain, 1);
+      urj_tap_chain_shift_data_registers (cpu->chain, 1);
       jc_emudat_show (rif, "I-");
       jc_emudat_show (rof, "O-");
       jc_maybe_queue (rif, rof);
@@ -3818,7 +3823,7 @@ static int
 bfin_open (int argc,
 	   char *const argv[], const char *prog_name, log_func log_fn)
 {
-  chain_t *chain;
+  urj_chain_t *chain;
   int i;
   bfin_board board;
   int sdram_size;
@@ -4075,7 +4080,7 @@ bfin_open (int argc,
       return RP_VAL_TARGETRET_ERR;
     }
 
-  chain = chain_alloc ();
+  chain = urj_tap_chain_alloc ();
 
   if (!chain)
     {
@@ -4084,7 +4089,7 @@ bfin_open (int argc,
       return RP_VAL_TARGETRET_ERR;
     }
 
-  jtag_parse_line (chain, connect_string);
+  urj_parse_line (chain, connect_string);
 
   if (!chain->cable)
     {
@@ -4094,9 +4099,9 @@ bfin_open (int argc,
     }
 
   if (bfin_frequency != 0)
-    cable_set_frequency (chain->cable, bfin_frequency);
+    urj_tap_cable_set_frequency (chain->cable, bfin_frequency);
 
-  cmd_run (chain, cmd_detect);
+  urj_cmd_run (chain, cmd_detect);
   if (!chain->parts || !chain->parts->len)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4146,7 +4151,7 @@ bfin_open (int argc,
   for (i = first_core; i < core_num; i++)
     {
       chain->active_part = i;
-      cmd_run (chain, cmd_script);
+      urj_cmd_run (chain, cmd_script);
     }
 
   /* TODO initbus */
@@ -4156,7 +4161,7 @@ bfin_open (int argc,
   cpu = (bfin_cpu *) malloc (sizeof (bfin_cpu) + sizeof (bfin_core) * core_num);
   if (!cpu)
     {
-      parts_free (chain->parts);
+      urj_part_parts_free (chain->parts);
       chain->parts = 0;
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: cpu allocation failed", bfin_target.name);
@@ -4254,7 +4259,7 @@ bfin_open (int argc,
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: unsupported processor '%s'",
 		bfin_target.name, chain->parts->parts[0]->part);
-      parts_free (chain->parts);
+      urj_part_parts_free (chain->parts);
       chain->parts = 0;
       free (cpu);
       return RP_VAL_TARGETRET_ERR;
@@ -4502,7 +4507,7 @@ bfin_close (void)
 
   emulation_disable ();
 
-  chain_free (cpu->chain);
+  urj_tap_chain_free (cpu->chain);
   free (cpu);
   cpu = NULL;
 }
@@ -4572,7 +4577,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   need_reset = 0;
   for (i = 0; i < cpu->core_num; i++)
     {
-      part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
+      urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
       /* If there is core fault, we have to give it a reset.  */
       if (core_dbgstat_is_core_fault (i))
@@ -4614,7 +4619,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	&& (!core_dbgstat_is_in_reset (i)
 	    || core_sticky_in_reset (i)))
       {
-	part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
+	urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
 	bfin_log (RP_VAL_LOGLEVEL_INFO,
 		  "[%d] locked: DBGSTAT [0x%04X]", cpu->first_core + i, BFIN_PART_DBGSTAT (part));
@@ -4673,7 +4678,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
       for (i = 0; i < cpu->core_num; i++)
 	{
-	  part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
+	  urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
 	  if (!cpu->cores[i].is_locked)
 	    {
@@ -5999,7 +6004,7 @@ bfin_wait_partial (int first,
 
   for (i = 0; i < cpu->core_num; i++)
     {
-      part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
+      urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
       if (cpu->cores[i].leave_stopped)
 	continue;
@@ -6258,7 +6263,7 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
 {
   int core;
   char *cp;
-  part_t *part;
+  urj_part_t *part;
 
   core = PART_NO (thread->val);
 

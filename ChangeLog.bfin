@@ -1,3 +1,15 @@
+2010-02-05  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c: Adapt to the latest upstream UrJTAG.
+	* configure.in: Default with_jtag_dir to be ../urjtag.
+	* configure: Regenerate.
+	* gnulib/lib/Makefile.in: Regenerate.
+	* config.h.in: Update.
+	* Makefile.am (gdbproxy_LDADD): Adapt to the latest upstream
+	UrJTAG.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Update.
+
 2010-02-03  Mike Frysinger  <michael.frysinger@analog.com>
 
 	* target_bfin_new.c (bf50x_l1_map, bf51x_l1_map, bf52x_l1_map,

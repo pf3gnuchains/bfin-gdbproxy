@@ -2909,7 +2909,7 @@ if test "${with_jtag_builddir+set}" = set; then
 fi
 
 if test "x$with_jtag_dir" = "x" ; then
-	test -d ../jtag && with_jtag_dir="../jtag"
+	test -d ../urjtag && with_jtag_dir="../urjtag"
 fi
 test "x$with_jtag_srcdir" = "x" && with_jtag_srcdir=$with_jtag_dir
 test "x$with_jtag_builddir" = "x" && with_jtag_builddir=$with_jtag_dir
@@ -29574,10 +29574,11 @@ pkg_failed=no
 { $as_echo "$as_me:$LINENO: checking for LIBFTDI" >&5
 $as_echo_n "checking for LIBFTDI... " >&6; }
 
-if test -n "$LIBFTDI_CFLAGS"; then
-    pkg_cv_LIBFTDI_CFLAGS="$LIBFTDI_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
+if test -n "$PKG_CONFIG"; then
+    if test -n "$LIBFTDI_CFLAGS"; then
+        pkg_cv_LIBFTDI_CFLAGS="$LIBFTDI_CFLAGS"
+    else
+        if test -n "$PKG_CONFIG" && \
     { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libftdi\"") >&5
   ($PKG_CONFIG --exists --print-errors "libftdi") 2>&5
   ac_status=$?
@@ -29587,13 +29588,15 @@ if test -n "$LIBFTDI_CFLAGS"; then
 else
   pkg_failed=yes
 fi
- else
-    pkg_failed=untried
+    fi
+else
+	pkg_failed=untried
 fi
-if test -n "$LIBFTDI_LIBS"; then
-    pkg_cv_LIBFTDI_LIBS="$LIBFTDI_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
+if test -n "$PKG_CONFIG"; then
+    if test -n "$LIBFTDI_LIBS"; then
+        pkg_cv_LIBFTDI_LIBS="$LIBFTDI_LIBS"
+    else
+        if test -n "$PKG_CONFIG" && \
     { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libftdi\"") >&5
   ($PKG_CONFIG --exists --print-errors "libftdi") 2>&5
   ac_status=$?
@@ -29603,8 +29606,9 @@ if test -n "$LIBFTDI_LIBS"; then
 else
   pkg_failed=yes
 fi
- else
-    pkg_failed=untried
+    fi
+else
+	pkg_failed=untried
 fi
 
 
@@ -29617,9 +29621,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        LIBFTDI_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libftdi" 2>&1`
+	        LIBFTDI_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "libftdi"`
         else
-	        LIBFTDI_PKG_ERRORS=`$PKG_CONFIG --print-errors "libftdi" 2>&1`
+	        LIBFTDI_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "libftdi"`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$LIBFTDI_PKG_ERRORS" >&5
@@ -29641,10 +29645,11 @@ pkg_failed=no
 { $as_echo "$as_me:$LINENO: checking for LIBUSB" >&5
 $as_echo_n "checking for LIBUSB... " >&6; }
 
-if test -n "$LIBUSB_CFLAGS"; then
-    pkg_cv_LIBUSB_CFLAGS="$LIBUSB_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
+if test -n "$PKG_CONFIG"; then
+    if test -n "$LIBUSB_CFLAGS"; then
+        pkg_cv_LIBUSB_CFLAGS="$LIBUSB_CFLAGS"
+    else
+        if test -n "$PKG_CONFIG" && \
     { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libusb\"") >&5
   ($PKG_CONFIG --exists --print-errors "libusb") 2>&5
   ac_status=$?
@@ -29654,13 +29659,15 @@ if test -n "$LIBUSB_CFLAGS"; then
 else
   pkg_failed=yes
 fi
- else
-    pkg_failed=untried
+    fi
+else
+	pkg_failed=untried
 fi
-if test -n "$LIBUSB_LIBS"; then
-    pkg_cv_LIBUSB_LIBS="$LIBUSB_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
+if test -n "$PKG_CONFIG"; then
+    if test -n "$LIBUSB_LIBS"; then
+        pkg_cv_LIBUSB_LIBS="$LIBUSB_LIBS"
+    else
+        if test -n "$PKG_CONFIG" && \
     { ($as_echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"libusb\"") >&5
   ($PKG_CONFIG --exists --print-errors "libusb") 2>&5
   ac_status=$?
@@ -29670,8 +29677,9 @@ if test -n "$LIBUSB_LIBS"; then
 else
   pkg_failed=yes
 fi
- else
-    pkg_failed=untried
+    fi
+else
+	pkg_failed=untried
 fi
 
 
@@ -29684,9 +29692,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        LIBUSB_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libusb" 2>&1`
+	        LIBUSB_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "libusb"`
         else
-	        LIBUSB_PKG_ERRORS=`$PKG_CONFIG --print-errors "libusb" 2>&1`
+	        LIBUSB_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "libusb"`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$LIBUSB_PKG_ERRORS" >&5

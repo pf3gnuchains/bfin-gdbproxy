@@ -23,7 +23,7 @@ AC_ARG_WITH([jtag-dir], [AS_HELP_STRING([--with-jtag-dir=<dir>],[path to jtag di
 AC_ARG_WITH([jtag-srcdir], [AS_HELP_STRING([--with-jtag-srcdir=<dir>],[path to jtag source directory])])
 AC_ARG_WITH([jtag-builddir], [AS_HELP_STRING([--with-jtag-builddir=<dir>],[path to jtag build directory])])
 if test "x$with_jtag_dir" = "x" ; then
-	test -d ../jtag && with_jtag_dir="../jtag"
+	test -d ../urjtag && with_jtag_dir="../urjtag"
 fi
 test "x$with_jtag_srcdir" = "x" && with_jtag_srcdir=$with_jtag_dir
 test "x$with_jtag_builddir" = "x" && with_jtag_builddir=$with_jtag_dir
