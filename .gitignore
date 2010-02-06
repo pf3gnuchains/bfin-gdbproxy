@@ -1,0 +1,65 @@
+#
+# general globs
+#
+*~
+*.o
+*.lo
+*.la
+
+#
+# debugging files
+#
+core
+.gdb_history
+.gbdinit
+
+#
+# patch related files
+#
+*.orig
+*.rej
+*.patch
+
+#
+# general autotool files
+#
+.deps
+.libs
+Makefile
+Makefile.in
+
+#
+# specific autotool files
+#
+/ABOUT-NLS
+/aclocal.m4
+/autom4te.cache
+/config.cache
+/config.h
+/config.h.in
+/config.log
+/config.status
+/configure
+/INSTALL
+/libtool
+/m4
+/stamp-h1
+/tools
+
+#
+# gnulib files
+#
+/gnulib/lib/alloca.h
+/gnulib/lib/libgnu.a
+/gnulib/lib/math.h
+/gnulib/lib/signal.h
+/gnulib/lib/stdio.h
+/gnulib/lib/string.h
+/gnulib/lib/time.h
+/gnulib/lib/unistd.h
+
+#
+# urjtag generated files
+#
+/gdbproxy
+/gdbproxy.info
