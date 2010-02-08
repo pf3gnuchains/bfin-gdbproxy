@@ -1,3 +1,11 @@
+2010-02-08  Jie Zhang  <jie.zhang@analog.com>
+
+	* Makefile.in: Regenerate.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+	* configure.in: Don't check libusb.
+	* gnulib/lib/Makefile.in: Regenerate.
+
 2010-02-05  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c: Adapt to the latest upstream UrJTAG.

@@ -113,14 +113,14 @@ AC_CHECK_LIB(readline, readline, [], [
     ], [-lcurses])
 ])
 PKG_CHECK_MODULES(LIBFTDI, libftdi, [LIBS="$LIBS $LIBFTDI_LIBS" CFLAGS="$CFLAGS $LIBFTDI_CFLAGS"], [:;])
-PKG_CHECK_MODULES(LIBUSB, libusb, [LIBS="$LIBS $LIBUSB_LIBS" CFLAGS="$CFLAGS $LIBUSB_CFLAGS"], [
-  AC_PATH_TOOL(LIBUSB_CONFIG, libusb-config, no)
-  AS_IF([test "x$LIBUSB_CONFIG" != "xno"], [
-    LIBS="$LIBS `$LIBUSB_CONFIG --libs`"
-  ],[
-    AC_CHECK_LIB(usb, usb_get_busses)
-  ])
-])
+dnl PKG_CHECK_MODULES(LIBUSB, libusb, [LIBS="$LIBS $LIBUSB_LIBS" CFLAGS="$CFLAGS $LIBUSB_CFLAGS"], [
+dnl   AC_PATH_TOOL(LIBUSB_CONFIG, libusb-config, no)
+dnl   AS_IF([test "x$LIBUSB_CONFIG" != "xno"], [
+dnl     LIBS="$LIBS `$LIBUSB_CONFIG --libs`"
+dnl   ],[
+dnl     AC_CHECK_LIB(usb, usb_get_busses)
+dnl   ])
+dnl ])
 AC_CHECK_LIB(intl, libintl_gettext)
 
 
