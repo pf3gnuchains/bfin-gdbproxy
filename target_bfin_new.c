@@ -4165,7 +4165,7 @@ bfin_open (int argc,
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00E00
 
-     BF52x BF534/6/7 BF54x BF51x BF50x
+     BF52x BF534/6/7 BF54x BF51x BF50x BF59x
 
      #define MDMA_D0_NEXT_DESC_PTR      0xFFC00F00
 
@@ -4181,7 +4181,8 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF506"))
+  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF506") ||
+      !strcmp (chain->parts->parts[cpu->first_core]->part, "BF592"))
     {
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
