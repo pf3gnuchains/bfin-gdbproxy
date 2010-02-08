@@ -75,6 +75,8 @@
 #include <stdarg.h>
 #include <inttypes.h>
 
+#include <urjtag/jtag.h>
+
 #ifdef  HAVE_GETOPT_LONG_ONLY
 #ifndef HAVE_GETOPT_H
  #error "configuration error: unexpected combination"
@@ -1145,36 +1147,6 @@ static void handle_breakpoint_command(char * const in_buf,
     rp_write_retval(ret, out_buf);
 }
 
-const char *jtag_argv0; /* workaround until upstream urjtag moves this into local chain */
-#ifdef GDBPROXY_RELOCATABLE
-
-extern char *make_relative_prefix (const char *progname, const char *bin_prefix, const char *prefix);
-
-const char *gdbproxy_argv0;
-
-const char *gdbproxy_get_data_dir(void)
-{
-	static char *gdbproxy_data_dir = NULL;
-
-    if (gdbproxy_data_dir)
-        return gdbproxy_data_dir;
-
-    gdbproxy_data_dir = make_relative_prefix(gdbproxy_argv0, GDBPROXY_BIN_DIR, GDBPROXY_DATA_DIR);
-    if (!gdbproxy_data_dir)
-        gdbproxy_data_dir = GDBPROXY_DATA_DIR;
-
-    return gdbproxy_data_dir;
-}
-
-#else
-
-const char *gdbproxy_get_data_dir(void)
-{
-	return GDBPROXY_DATA_DIR;
-}
-
-#endif
-
 int main (int argc, char **argv)
 {
     rp_target *t;
@@ -1191,11 +1163,6 @@ int main (int argc, char **argv)
     int implemented;
     int in_len;
     int quiet;
-
-    jtag_argv0 = argv[0];
-#ifdef GDBPROXY_RELOCATABLE
-    gdbproxy_argv0 = argv[0];
-#endif
 
     /* Option descriptors */
     static struct option long_options[] =
@@ -1217,6 +1184,8 @@ int main (int argc, char **argv)
     static char in_buf[RP_PARAM_INOUTBUF_SIZE];
     static char out_buf[RP_PARAM_INOUTBUF_SIZE];
     static char status_string[RP_PARAM_INOUTBUF_SIZE];
+
+    urj_set_argv0 (argv[0]);
 
 #ifdef WIN32
 #define PATHSEP '\\'

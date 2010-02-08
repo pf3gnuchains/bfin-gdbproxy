@@ -3833,8 +3833,6 @@ bfin_open (int argc,
 
   char *connect_string = default_jtag_connect;
   char *cmd_detect[2] = {"detect", NULL};
-  char *cmd_script[3] = {"include", NULL, NULL};
-  const char *gdbproxy_datapath = gdbproxy_get_data_dir();
 
   /* Option descriptors */
   static struct option long_options[] = {
@@ -3864,10 +3862,6 @@ bfin_open (int argc,
   assert (!cpu);
   assert (prog_name != NULL);
   assert (log_fn != NULL);
-
-  /* Setup datapath */
-  cmd_script[1] = malloc(strlen(gdbproxy_datapath) + 6);
-  sprintf(cmd_script[1], "%s/bfin", gdbproxy_datapath);
 
   /* Set log */
   bfin_log = log_fn;
@@ -4146,13 +4140,6 @@ bfin_open (int argc,
     core_num = 2;
   else
     core_num = 1;
-
-  /* Add Blackfin emulation instructions and registers.  */
-  for (i = first_core; i < core_num; i++)
-    {
-      chain->active_part = i;
-      urj_cmd_run (chain, cmd_script);
-    }
 
   /* TODO initbus */
 

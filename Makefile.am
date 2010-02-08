@@ -48,15 +48,12 @@ gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target
 
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
-	-I$(jtag_srcdir)/include \
-	-DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
+	-I$(jtag_srcdir)/include
 gdbproxy_LDADD = \
 	$(jtag_builddir)/src/.libs/liburjtag.a \
 	-lm \
 	$(top_builddir)/gnulib/lib/libgnu.a \
 	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP) $(LIBINTL)
-
-dist_pkgdata_DATA = bfin
 
 info_TEXINFOS = gdbproxy.texi
 

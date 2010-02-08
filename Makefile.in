@@ -47,7 +47,6 @@
 # This is a part of gdbproxy - a remote proxy server for gdb 
 #
 
-
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
 VPATH = @srcdir@
@@ -72,12 +71,12 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 bin_PROGRAMS = gdbproxy$(EXEEXT)
-DIST_COMMON = README $(am__configure_deps) $(dist_pkgdata_DATA) \
-	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(srcdir)/config.h.in $(srcdir)/stamp-vti \
-	$(srcdir)/version.texi $(top_srcdir)/configure AUTHORS COPYING \
-	ChangeLog INSTALL NEWS THANKS TODO config.guess config.sub \
-	depcomp install-sh mdate-sh missing mkinstalldirs texinfo.tex
+DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
+	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
+	$(srcdir)/stamp-vti $(srcdir)/version.texi \
+	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
+	THANKS TODO config.guess config.sub depcomp install-sh \
+	mdate-sh missing mkinstalldirs texinfo.tex
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/gnulib/m4/00gnulib.m4 \
@@ -150,7 +149,7 @@ mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(infodir)" \
-	"$(DESTDIR)$(man1dir)" "$(DESTDIR)$(pkgdatadir)"
+	"$(DESTDIR)$(man1dir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am__gdbproxy_SOURCES_DIST = copying.c init.c remote.c gdbproxy.c \
@@ -195,14 +194,6 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 man1dir = $(mandir)/man1
 NROFF = nroff
 MANS = $(man_MANS)
-am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
-am__vpath_adj = case $$p in \
-    $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
-    *) f=$$p;; \
-  esac;
-am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-dist_pkgdataDATA_INSTALL = $(INSTALL_DATA)
-DATA = $(dist_pkgdata_DATA)
 ETAGS = etags
 CTAGS = ctags
 DIST_SUBDIRS = $(SUBDIRS)
@@ -254,8 +245,6 @@ EOVERFLOW_VALUE = @EOVERFLOW_VALUE@
 ERRNO_H = @ERRNO_H@
 EXEEXT = @EXEEXT@
 FLOAT_H = @FLOAT_H@
-GDBPROXY_RELOCATABLE_FALSE = @GDBPROXY_RELOCATABLE_FALSE@
-GDBPROXY_RELOCATABLE_TRUE = @GDBPROXY_RELOCATABLE_TRUE@
 GETOPT_H = @GETOPT_H@
 GL_COND_LIBTOOL_FALSE = @GL_COND_LIBTOOL_FALSE@
 GL_COND_LIBTOOL_TRUE = @GL_COND_LIBTOOL_TRUE@
@@ -552,7 +541,6 @@ PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
 PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
-PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
@@ -716,8 +704,7 @@ AUTOMAKE_OPTIONS = gnu
 gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
-	-I$(jtag_srcdir)/include \
-	-DGDBPROXY_BIN_DIR=\"$(bindir)\" -DGDBPROXY_DATA_DIR=\"$(pkgdatadir)\"
+	-I$(jtag_srcdir)/include
 
 gdbproxy_LDADD = \
 	$(jtag_builddir)/src/.libs/liburjtag.a \
@@ -725,7 +712,6 @@ gdbproxy_LDADD = \
 	$(top_builddir)/gnulib/lib/libgnu.a \
 	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP) $(LIBINTL)
 
-dist_pkgdata_DATA = bfin
 info_TEXINFOS = gdbproxy.texi
 man_MANS = gdbproxy.1
 EXTRA_DIST = gdbproxy.1 Makefile.am bootstrap gnulib/m4/gnulib-cache.m4
@@ -943,13 +929,10 @@ dist-info: $(INFO_DEPS)
 	    $(srcdir)/*) base=`echo "$$base" | sed "s|^$$srcdirstrip/||"`;; \
 	  esac; \
 	  if test -f $$base; then d=.; else d=$(srcdir); fi; \
-	  base_i=`echo "$$base" | sed 's|\.info$$||;s|$$|.i|'`; \
-	  for file in $$d/$$base $$d/$$base-[0-9] $$d/$$base-[0-9][0-9] $$d/$$base_i[0-9] $$d/$$base_i[0-9][0-9]; do \
-	    if test -f $$file; then \
-	      relfile=`expr "$$file" : "$$d/\(.*\)"`; \
-	      test -f $(distdir)/$$relfile || \
-		cp -p $$file $(distdir)/$$relfile; \
-	    else :; fi; \
+	  for file in $$d/$$base*; do \
+	    relfile=`expr "$$file" : "$$d/\(.*\)"`; \
+	    test -f $(distdir)/$$relfile || \
+	      cp -p $$file $(distdir)/$$relfile; \
 	  done; \
 	done
 
@@ -1010,23 +993,6 @@ uninstall-man1:
 	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
 	  echo " rm -f '$(DESTDIR)$(man1dir)/$$inst'"; \
 	  rm -f "$(DESTDIR)$(man1dir)/$$inst"; \
-	done
-install-dist_pkgdataDATA: $(dist_pkgdata_DATA)
-	@$(NORMAL_INSTALL)
-	test -z "$(pkgdatadir)" || $(mkdir_p) "$(DESTDIR)$(pkgdatadir)"
-	@list='$(dist_pkgdata_DATA)'; for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  f=$(am__strip_dir) \
-	  echo " $(dist_pkgdataDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(pkgdatadir)/$$f'"; \
-	  $(dist_pkgdataDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(pkgdatadir)/$$f"; \
-	done
-
-uninstall-dist_pkgdataDATA:
-	@$(NORMAL_UNINSTALL)
-	@list='$(dist_pkgdata_DATA)'; for p in $$list; do \
-	  f=$(am__strip_dir) \
-	  echo " rm -f '$(DESTDIR)$(pkgdatadir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(pkgdatadir)/$$f"; \
 	done
 
 # This directory's subdirectories are mostly independent; you can cd
@@ -1308,10 +1274,10 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-recursive
-all-am: Makefile $(INFO_DEPS) $(PROGRAMS) $(MANS) $(DATA) config.h
+all-am: Makefile $(INFO_DEPS) $(PROGRAMS) $(MANS) config.h
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(infodir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(pkgdatadir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(infodir)" "$(DESTDIR)$(man1dir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: install-recursive
@@ -1363,7 +1329,7 @@ info: info-recursive
 
 info-am: $(INFO_DEPS)
 
-install-data-am: install-dist_pkgdataDATA install-info-am install-man
+install-data-am: install-info-am install-man
 
 install-exec-am: install-binPROGRAMS
 
@@ -1424,8 +1390,7 @@ ps: ps-recursive
 
 ps-am: $(PSS)
 
-uninstall-am: uninstall-binPROGRAMS uninstall-dist_pkgdataDATA \
-	uninstall-info-am uninstall-man
+uninstall-am: uninstall-binPROGRAMS uninstall-info-am uninstall-man
 
 uninstall-info: uninstall-info-recursive
 
@@ -1439,17 +1404,16 @@ uninstall-man: uninstall-man1
 	distclean-recursive distclean-tags distcleancheck distdir \
 	distuninstallcheck dvi dvi-am html html-am info info-am \
 	install install-am install-binPROGRAMS install-data \
-	install-data-am install-dist_pkgdataDATA install-exec \
-	install-exec-am install-info install-info-am install-man \
-	install-man1 install-strip installcheck installcheck-am \
-	installdirs installdirs-am maintainer-clean \
-	maintainer-clean-aminfo maintainer-clean-generic \
-	maintainer-clean-recursive maintainer-clean-vti mostlyclean \
-	mostlyclean-aminfo mostlyclean-compile mostlyclean-generic \
-	mostlyclean-recursive mostlyclean-vti pdf pdf-am ps ps-am tags \
-	tags-recursive uninstall uninstall-am uninstall-binPROGRAMS \
-	uninstall-dist_pkgdataDATA uninstall-info-am uninstall-man \
-	uninstall-man1
+	install-data-am install-exec install-exec-am install-info \
+	install-info-am install-man install-man1 install-strip \
+	installcheck installcheck-am installdirs installdirs-am \
+	maintainer-clean maintainer-clean-aminfo \
+	maintainer-clean-generic maintainer-clean-recursive \
+	maintainer-clean-vti mostlyclean mostlyclean-aminfo \
+	mostlyclean-compile mostlyclean-generic mostlyclean-recursive \
+	mostlyclean-vti pdf pdf-am ps ps-am tags tags-recursive \
+	uninstall uninstall-am uninstall-binPROGRAMS uninstall-info-am \
+	uninstall-man uninstall-man1
 
 
 .rc.o:

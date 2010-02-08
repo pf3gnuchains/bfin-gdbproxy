@@ -60,9 +60,6 @@
 /* Define as the word index where to find the sign of 'float'. */
 #undef FLT_SIGNBIT_WORD
 
-/* define for relocatable paths */
-#undef GDBPROXY_RELOCATABLE
-
 /* Define if gettimeofday clobbers the localtime buffer. */
 #undef GETTIMEOFDAY_CLOBBERS_LOCALTIME
 
@@ -284,7 +281,7 @@
 /* Define to 1 if you have the `strnlen' function. */
 #undef HAVE_STRNLEN
 
-/* Define to 1 if `sa_sigaction' is a member of `struct sigaction'. */
+/* Define to 1 if `sa_sigaction' is member of `struct sigaction'. */
 #undef HAVE_STRUCT_SIGACTION_SA_SIGACTION
 
 /* Define to 1 if the system has the type `struct sockaddr_storage'. */
@@ -458,9 +455,6 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
-
-/* Define to the home page for this package. */
-#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
