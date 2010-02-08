@@ -471,7 +471,7 @@ rp_target bfin_target = {
   bfin_threadextrainfo_query,
   bfin_packetsize_query,
 };
-static char default_jtag_connect[] = "cable gnICE";
+static char default_jtag_connect[] = "cable probe";
 static uint32_t bfin_frequency = 0;
 static int bfin_processor = -1;
 static struct timespec bfin_loop_wait_first_ts = {0, 50000000};
