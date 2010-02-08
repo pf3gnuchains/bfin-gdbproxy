@@ -1273,7 +1273,7 @@ int main (int argc, char **argv)
         }
     }
 
-    if (optind >= argc)
+    if (optind > argc)
     {
         rp_usage();
         exit(1);
@@ -1291,13 +1291,17 @@ int main (int argc, char **argv)
         printf("'--copying' option for details.\n\n");
     }
 
-    /* Find the target */
-    for (t = rp_t_list;  t;  t = t->next)
-    {
-        assert(t->name != NULL);
-        if (strcmp(t->name, argv[optind]) == 0)
-            break;
-    }
+    /* Default to first target */
+    if (optind == argc)
+        t = rp_t_list;
+    else
+        /* Find the target */
+        for (t = rp_t_list;  t;  t = t->next)
+        {
+            assert(t->name != NULL);
+            if (strcmp(t->name, argv[optind]) == 0)
+                break;
+        }
     if (t == NULL)
     {
         printf("Target %s not present,\n", argv[optind]);

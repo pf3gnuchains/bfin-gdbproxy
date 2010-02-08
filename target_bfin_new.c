@@ -4064,7 +4064,7 @@ bfin_open (int argc,
       bfin_init_sdram = 0;
     }
 
-  if (optind != argc)
+  if (optind != argc && argc)
     {
       /* Bad number of arguments.  */
       bfin_log (RP_VAL_LOGLEVEL_ERR,
