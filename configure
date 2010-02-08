@@ -1052,8 +1052,6 @@ CPPFLAGS
 LDFLAGS
 CFLAGS
 CC
-jtag_libsvf
-jtag_libbsdl
 jtag_builddir
 jtag_srcdir
 am__untar
@@ -2907,13 +2905,6 @@ jtag_builddir=$with_jtag_builddir
 
 { $as_echo "$as_me:$LINENO: result: src=$jtag_srcdir build=$jtag_builddir" >&5
 $as_echo "src=$jtag_srcdir build=$jtag_builddir" >&6; }
-
-jtag_libbsdl="$with_jtag_builddir/src/bsdl/libbsdl.a"
-test -e "$jtag_libbsdl" || jtag_libbsdl=""
-
-jtag_libsvf="$with_jtag_builddir/src/svf/libsvf.a"
-test -e "$jtag_libsvf" || jtag_libsvf=""
-
 
 # Check for programs
 { $as_echo "$as_me:$LINENO: checking whether ${MAKE-make} sets \$(MAKE)" >&5
