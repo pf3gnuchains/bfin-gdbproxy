@@ -161,9 +161,9 @@ am_gdbproxy_OBJECTS = copying.$(OBJEXT) init.$(OBJEXT) \
 	serial.$(OBJEXT) target_bfin_new.$(OBJEXT) $(am__objects_1)
 gdbproxy_OBJECTS = $(am_gdbproxy_OBJECTS)
 am__DEPENDENCIES_1 =
-gdbproxy_DEPENDENCIES = $(jtag_builddir)/src/.libs/liburjtag.a \
+gdbproxy_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 	$(top_builddir)/gnulib/lib/libgnu.a $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -495,8 +495,6 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
-LIBFTDI_CFLAGS = @LIBFTDI_CFLAGS@
-LIBFTDI_LIBS = @LIBFTDI_LIBS@
 LIBGNU_LIBDEPS = @LIBGNU_LIBDEPS@
 LIBGNU_LTLIBDEPS = @LIBGNU_LTLIBDEPS@
 LIBINTL = @LIBINTL@
@@ -634,6 +632,8 @@ SYS_TIME_H = @SYS_TIME_H@
 SYS_TIME_H_DEFINES_STRUCT_TIMESPEC = @SYS_TIME_H_DEFINES_STRUCT_TIMESPEC@
 TIME_H_DEFINES_STRUCT_TIMESPEC = @TIME_H_DEFINES_STRUCT_TIMESPEC@
 UNISTD_H_HAVE_WINSOCK2_H = @UNISTD_H_HAVE_WINSOCK2_H@
+URJTAG_CFLAGS = @URJTAG_CFLAGS@
+URJTAG_LIBS = @URJTAG_LIBS@
 USE_RC_SOURCES_FALSE = @USE_RC_SOURCES_FALSE@
 USE_RC_SOURCES_TRUE = @USE_RC_SOURCES_TRUE@
 VERSION = @VERSION@
@@ -673,8 +673,6 @@ htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
-jtag_builddir = @jtag_builddir@
-jtag_srcdir = @jtag_srcdir@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
@@ -702,13 +700,13 @@ AUTOMAKE_OPTIONS = gnu
 gdbproxy_SOURCES = copying.c init.c remote.c gdbproxy.c rpmisc.c serial.c target_bfin_new.c gdbproxy.h rpmisc.h serial.h $(RC_SOURCES)
 AM_CPPFLAGS = \
 	-I$(top_builddir)/gnulib/lib -I$(top_srcdir)/gnulib/lib \
-	-I$(jtag_srcdir)/include
+	$(URJTAG_CFLAGS)
 
 gdbproxy_LDADD = \
-	$(jtag_builddir)/src/.libs/liburjtag.a \
+	$(URJTAG_LIBS) \
 	-lm \
 	$(top_builddir)/gnulib/lib/libgnu.a \
-	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP) $(LIBINTL)
+	$(LIB_CLOCK_GETTIME) $(LIB_NANOSLEEP)
 
 info_TEXINFOS = gdbproxy.texi
 man_MANS = gdbproxy.1

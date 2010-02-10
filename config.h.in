@@ -174,12 +174,6 @@
 /* Define if the ldexp function is available in libc. */
 #undef HAVE_LDEXP_IN_LIBC
 
-/* Define to 1 if you have the `intl' library (-lintl). */
-#undef HAVE_LIBINTL
-
-/* Define to 1 if you have the `readline' library (-lreadline). */
-#undef HAVE_LIBREADLINE
-
 /* Define to 1 if the system has the type `long long int'. */
 #undef HAVE_LONG_LONG_INT
 
