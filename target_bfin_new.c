@@ -364,7 +364,13 @@ static int map_gdb_core[] = {
   REG_USP, REG_SEQSTAT, REG_SYSCFG, REG_RETI, REG_RETX, REG_RETN, REG_RETE,
 
   /* Pseudo Registers */
-  REG_RETE, -1 /* REG_CC */ , -1, -1, -1, -1, -1,
+  REG_RETE,
+  -1 /* REG_CC */,
+  -1 /* REG_TEXT_ADDR */,
+  -1 /* REG_TEXT_END_ADDR */,
+  -1 /* REG_DATA_ADDR */,
+  -1 /* REG_FDPIC_EXEC_REGNUM */,
+  -1 /* REG_FDPIC_INTERP_REGNUM */,
 
   /* MMRs */
   -1				/* REG_IPEND */
@@ -4924,6 +4930,19 @@ bfin_read_single_register (unsigned int reg_no,
 		"%s: [%d] CORE FAULT core cannot read register [%d]",
 		bfin_target.name, cpu->first_core + core, reg_no);
       memset (avail_buf, 0, reg_size);
+    }
+  /* The CC register is a pseudo register that is part of ASTAT (bit 5).  */
+  else if (reg_no == BFIN_CC_REGNUM)
+    {
+      uint32_t val;
+      reg_no = BFIN_ASTAT_REGNUM;
+      emupc_reset ();
+      val = (core_register_get (core, map_gdb_core[reg_no]) >> 5) & 1;
+      data_buf[0] = val & 0xff;
+      data_buf[1] = (val >> 8) & 0xff;
+      data_buf[2] = (val >> 16) & 0xff;
+      data_buf[3] = (val >> 24) & 0xff;
+      memset (avail_buf, 1, reg_size);
     }
   /* In GDB testsuite, we have to pretend these registers have value 0
      to get some tests PASS.  */
