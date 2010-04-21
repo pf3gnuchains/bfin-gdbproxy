@@ -964,8 +964,12 @@ static int bfin_init_sdram = 0;
 static int bfin_reset = 0;
 static int bfin_enable_dcache = CACHE_DISABLED;
 static int bfin_enable_icache = 0;
-static int reject_invalid_mem = 0;
 static int use_dma = 0;
+
+#define INVALID_MEM_ACCESS_IGNORE 0
+#define INVALID_MEM_ACCESS_REJECT 1
+#define INVALID_MEM_ACCESS_ALLOW 2
+static int invalid_mem_access = INVALID_MEM_ACCESS_ALLOW;
 
 
 /* Local functions */
@@ -3809,7 +3813,8 @@ bfin_help (const char *prog_name)
   printf (" --loop-wait=USEC        wait USEC microseconds in wait loop (default 10000)\n");
   printf (" --no-auto-switch        Don't automatically switch to the core\n");
   printf ("                         which contains the address set to PC\n");
-  printf (" --reject-invalid-mem    make invalid memory addresses a hard error\n");
+  printf (" --invalid-mem-access={ignore,reject,allow}\n");
+  printf ("                         Ignore/Reject/Allow unknown/invalid memory accesses\n");
   printf (" --reset                 do a core and system reset when gdb connects\n");
   printf (" --sdram-size=BYTES      specify the size of SDRAM\n");
   printf (" --unlock-on-connect     unlock core when gdb connects\n");
@@ -3856,7 +3861,7 @@ bfin_open (int argc,
     {"check-emuready", no_argument, 0, 12},
     {"no-switch-on-load", no_argument, 0, 13},
     {"connect", required_argument, 0, 14},
-    {"reject-invalid-mem", no_argument, 0, 15},
+    {"invalid-mem-access", required_argument, 0, 15},
     {"use-dma", no_argument, 0, 16},
     {"jc-port", required_argument, 0, 17},
     {"frequency", required_argument, 0, 18},
@@ -4010,7 +4015,19 @@ bfin_open (int argc,
 	  break;
 
 	case 15:
-	  reject_invalid_mem = 1;
+	  if (!strcmp (optarg, "ignore"))
+	    invalid_mem_access = INVALID_MEM_ACCESS_IGNORE;
+	  else if (!strcmp (optarg, "reject"))
+	    invalid_mem_access = INVALID_MEM_ACCESS_REJECT;
+	  else if (!strcmp (optarg, "allow"))
+	    invalid_mem_access = INVALID_MEM_ACCESS_ALLOW;
+	  else
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad invalid memory behavior %s",
+			bfin_target.name, optarg);
+	      exit (1);
+	    }
 	  break;
 
 	case 16:
@@ -5093,6 +5110,32 @@ bfin_write_single_register (unsigned int reg_no,
 
 /* Target method */
 static int
+bfin_read_inv_mem (int core, uint64_t addr, uint8_t *buf, int *req_size)
+{
+  switch (invalid_mem_access)
+    {
+    case INVALID_MEM_ACCESS_IGNORE:
+      /* fill with invalid bytes */
+      buf[0] = 0xad;
+      *req_size = 1;
+      return 0;
+
+    case INVALID_MEM_ACCESS_REJECT:
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: [%d] cannot read reserved memory [0x%08llX]",
+		bfin_target.name, core, addr);
+      return RP_VAL_TARGETRET_ERR;
+
+    default:
+    case INVALID_MEM_ACCESS_ALLOW:
+      /* Use DMA for unknown memory to be safe as it shouldn't trigger
+         crap like IVGHW, and it'll always work with L1 inst SRAM.  */
+      return dma_sram_read (core, addr, buf, *req_size);
+    }
+}
+
+/* Target method */
+static int
 bfin_read_mem (uint64_t addr,
 	       uint8_t *buf, int req_size, int *actual_size)
 {
@@ -5286,19 +5329,8 @@ bfin_read_mem (uint64_t addr,
       else if (addr >= cpu->cores[i].l1_map->l1
 	       && addr < cpu->cores[i].l1_map->l1_end)
 	{
-	  if (!reject_invalid_mem)
-	    {
-	      /* fill with invalid bytes */
-	      buf[0] = 0xad;
-	      req_size = 1;
-	      ret = 0;
-	      goto done;
-	    }
-
-	  bfin_log (RP_VAL_LOGLEVEL_ERR,
-		    "%s: [%d] cannot read reserved L1 [0x%08llX]",
-		    bfin_target.name, cpu->first_core + i, addr);
-	  return RP_VAL_TARGETRET_ERR;
+	  ret = bfin_read_inv_mem (core, addr, buf, &req_size);
+	  goto done;
 	}
     }
 
@@ -5388,19 +5420,7 @@ bfin_read_mem (uint64_t addr,
     }
   else
     {
-      if (!reject_invalid_mem)
-	{
-	  /* fill with invalid bytes */
-	  buf[0] = 0xad;
-	  req_size = 1;
-	  ret = 0;
-	  goto done;
-	}
-
-      bfin_log (RP_VAL_LOGLEVEL_ERR,
-		"%s: [%d] cannot read reserved memory [0x%08llX]",
-		bfin_target.name, cpu->first_core + core, addr);
-      return RP_VAL_TARGETRET_ERR;
+      ret = bfin_read_inv_mem (core, addr, buf, &req_size);
     }
 
 done:
