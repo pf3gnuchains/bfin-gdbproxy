@@ -966,10 +966,11 @@ static int bfin_enable_dcache = CACHE_DISABLED;
 static int bfin_enable_icache = 0;
 static int use_dma = 0;
 
-#define INVALID_MEM_ACCESS_IGNORE 0
-#define INVALID_MEM_ACCESS_REJECT 1
-#define INVALID_MEM_ACCESS_ALLOW 2
-static int invalid_mem_access = INVALID_MEM_ACCESS_ALLOW;
+#define INVALID_MEM_ACCESS_IGNORE     0
+#define INVALID_MEM_ACCESS_REJECT     1
+#define INVALID_MEM_ACCESS_ALLOW_DMA  2
+#define INVALID_MEM_ACCESS_ALLOW_CORE 3
+static int invalid_mem_access = INVALID_MEM_ACCESS_IGNORE;
 
 
 /* Local functions */
@@ -3813,7 +3814,7 @@ bfin_help (const char *prog_name)
   printf (" --loop-wait=USEC        wait USEC microseconds in wait loop (default 10000)\n");
   printf (" --no-auto-switch        Don't automatically switch to the core\n");
   printf ("                         which contains the address set to PC\n");
-  printf (" --invalid-mem-access={ignore,reject,allow}\n");
+  printf (" --invalid-mem-access={ignore,reject,allow-dma,allow-core}\n");
   printf ("                         Ignore/Reject/Allow unknown/invalid memory accesses\n");
   printf (" --reset                 do a core and system reset when gdb connects\n");
   printf (" --sdram-size=BYTES      specify the size of SDRAM\n");
@@ -4019,8 +4020,10 @@ bfin_open (int argc,
 	    invalid_mem_access = INVALID_MEM_ACCESS_IGNORE;
 	  else if (!strcmp (optarg, "reject"))
 	    invalid_mem_access = INVALID_MEM_ACCESS_REJECT;
-	  else if (!strcmp (optarg, "allow"))
-	    invalid_mem_access = INVALID_MEM_ACCESS_ALLOW;
+	  else if (!strcmp (optarg, "allow-dma"))
+	    invalid_mem_access = INVALID_MEM_ACCESS_ALLOW_DMA;
+	  else if (!strcmp (optarg, "allow-core"))
+	    invalid_mem_access = INVALID_MEM_ACCESS_ALLOW_CORE;
 	  else
 	    {
 	      bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -5126,11 +5129,19 @@ bfin_read_inv_mem (int core, uint64_t addr, uint8_t *buf, int *req_size)
 		bfin_target.name, core, addr);
       return RP_VAL_TARGETRET_ERR;
 
-    default:
-    case INVALID_MEM_ACCESS_ALLOW:
+    case INVALID_MEM_ACCESS_ALLOW_DMA:
       /* Use DMA for unknown memory to be safe as it shouldn't trigger
          crap like IVGHW, and it'll always work with L1 inst SRAM.  */
       return dma_sram_read (core, addr, buf, *req_size);
+
+    case INVALID_MEM_ACCESS_ALLOW_CORE:
+      return memory_read (core, addr, buf, *req_size);
+
+    default:
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: [%d] unknown reserved memory mode %d [0x%08llX]",
+		bfin_target.name, core, invalid_mem_access, addr);
+      return RP_VAL_TARGETRET_ERR;
     }
 }
 
