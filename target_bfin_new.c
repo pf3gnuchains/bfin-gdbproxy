@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Analog Devices, Inc.
+/* Copyright (C) 2008-2010 Analog Devices, Inc.
 
    This file is subject to the terms and conditions of the GNU
    General Public License as published by the Free Software
@@ -57,6 +57,9 @@
 
 #ifndef MIN
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
+#endif
+#ifndef MAX
+#define MAX(x,y) ((x) < (y) ? (y) : (x))
 #endif
 
 /* MMRs definitions */
@@ -796,6 +799,10 @@ static const bfin_mem_map bf561_mem_map = {
   .coremmr		= 0xffe00000,
 };
 
+#define IN_RANGE(addr, lo, hi) ((addr) >= (lo) && (addr) < (hi))
+#define IN_MAP(addr, map) IN_RANGE (addr, map, map##_end)
+#define MAP_LEN(map) ((map##_end) - (map))
+
 typedef struct _bfin_dma
 {
   uint32_t next_desc_ptr;
@@ -951,8 +958,8 @@ typedef struct _bfin_cpu
   bfin_core cores[0];
 } bfin_cpu;
 
-int big_endian = 0;
-int debug_mode = 0;
+#define for_each_core(i, c) \
+  for (c = &cpu->cores[i = 0]; i < (cpu)->core_num; c = &cpu->cores[++i])
 
 static log_func bfin_log;
 static bfin_cpu *cpu = NULL;
@@ -1158,12 +1165,13 @@ static void
 emupc_reset (void)
 {
   uint32_t new_pc[cpu->chain->parts->len];
+  bfin_core *c;
   int i;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset EMUPC");
 
-  for (i = 0; i < cpu->core_num; i++)
-    new_pc[i + cpu->first_core] = cpu->cores[i].l1_map->l1_code;
+  for_each_core (i, c)
+    new_pc[i + cpu->first_core] = c->l1_map->l1_code;
 
   emupc_show ("before");
   chain_emupc_reset (cpu->chain, new_pc);
@@ -1422,6 +1430,7 @@ wpu_init (void)
 {
   uint32_t *p0, *r0;
   uint32_t wpiactl, wpdactl;
+  bfin_core *c;
   int i;
 
   p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
@@ -1455,10 +1464,10 @@ wpu_init (void)
   register_set_same (REG_R0, 0);
   emuir_set_same (gen_store32_offset (REG_P0, WPSTAT - WPIACTL, REG_R0), RUNTEST);
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      cpu->cores[i].wpiactl = wpiactl;
-      cpu->cores[i].wpdactl = wpdactl;
+      c->wpiactl = wpiactl;
+      c->wpdactl = wpdactl;
     }
 
   register_set (REG_P0, p0);
@@ -1512,6 +1521,7 @@ static void
 wpu_enable (void)
 {
   uint32_t *p0, *r0, *r0new;
+  bfin_core *c;
   int i;
 
   p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
@@ -1525,10 +1535,10 @@ wpu_enable (void)
   register_get (REG_R0, r0);
 
   register_set_same (REG_P0, WPIACTL);
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      cpu->cores[i].wpiactl |= WPIACTL_WPPWR;
-      r0new[i] = cpu->cores[i].wpdactl;
+      c->wpiactl |= WPIACTL_WPPWR;
+      r0new[i] = c->wpdactl;
     }
   register_set (REG_R0, r0new);
   emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
@@ -1564,6 +1574,7 @@ static void
 wpu_disable (void)
 {
   uint32_t *p0, *r0, *r0new;
+  bfin_core *c;
   int i;
 
   p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
@@ -1577,10 +1588,10 @@ wpu_disable (void)
   register_get (REG_R0, r0);
 
   register_set_same (REG_P0, WPIACTL);
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      cpu->cores[i].wpiactl &= ~WPIACTL_WPPWR;
-      r0new[i] = cpu->cores[i].wpdactl;
+      c->wpiactl &= ~WPIACTL_WPPWR;
+      r0new[i] = c->wpdactl;
     }
   register_set (REG_R0, r0new);
   emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
@@ -1756,6 +1767,7 @@ static void
 wpstat_get (void)
 {
   uint32_t *p0, *r0, *wpstat;
+  bfin_core *c;
   int i;
 
   p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
@@ -1771,8 +1783,8 @@ wpstat_get (void)
   register_set_same (REG_P0, WPSTAT);
   emuir_set_same (gen_load32_offset (REG_R0, REG_P0, 0), RUNTEST);
   register_get (REG_R0, wpstat);
-  for (i = 0; i < cpu->core_num; i++)
-    cpu->cores[i].wpstat = wpstat[i];
+  for_each_core (i, c)
+    c->wpstat = wpstat[i];
 
   register_set (REG_P0, p0);
   register_set (REG_R0, r0);
@@ -1787,6 +1799,7 @@ static void
 wpstat_clear (void)
 {
   uint32_t *p0, *r0, *wpstat;
+  bfin_core *c;
   int i;
 
   p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
@@ -1801,14 +1814,14 @@ wpstat_clear (void)
 
   register_set_same (REG_P0, WPSTAT);
 
-  for (i = 0; i < cpu->core_num; i++)
-    wpstat[i] = cpu->cores[i].wpstat;
+  for_each_core (i, c)
+    wpstat[i] = c->wpstat;
   register_set (REG_R0, wpstat);
 
   emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
 
-  for (i = 0; i < cpu->core_num; i++)
-    cpu->cores[i].wpstat = 0;
+  for_each_core (i, c)
+    c->wpstat = 0;
 
   register_set (REG_P0, p0);
   register_set (REG_R0, r0);
@@ -2113,13 +2126,11 @@ bfin_sdram_init (int core)
 static int
 sdram_init (void)
 {
-  int core;
+  bfin_core *c;
   int i;
 
-  for (i = 0; i < cpu->core_num; i++)
-    if (!cpu->cores[i].is_locked
-	&& !cpu->cores[i].is_corefault
-	&& !cpu->cores[i].is_running)
+  for_each_core (i, c)
+    if (!c->is_locked && !c->is_corefault && !c->is_running)
       break;
 
   if (i == cpu->core_num)
@@ -2130,9 +2141,7 @@ sdram_init (void)
       return -1;
     }
   else
-    core = i;
-
-  return bfin_sdram_init (core);
+    return bfin_sdram_init (i);
 }
 
 static int
@@ -2140,16 +2149,14 @@ ddr_init (void)
 {
   uint32_t p0, r0;
   uint32_t value;
-  int core;
+  bfin_core *c;
   int i;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG2,
 	    "%s: ddr_init ()", bfin_target.name);
 
-  for (i = 0; i < cpu->core_num; i++)
-    if (!cpu->cores[i].is_locked
-	&& !cpu->cores[i].is_corefault
-	&& !cpu->cores[i].is_running)
+  for_each_core (i, c)
+    if (!c->is_locked && !c->is_corefault && !c->is_running)
       break;
 
   if (i == cpu->core_num)
@@ -2159,27 +2166,25 @@ ddr_init (void)
 		bfin_target.name);
       return -1;
     }
-  else
-    core = i;
 
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
+  p0 = core_register_get (i, REG_P0);
+  r0 = core_register_get (i, REG_R0);
 
-  core_register_set (core, REG_P0, EBIU_DDRCTL0);
+  core_register_set (i, REG_P0, EBIU_DDRCTL0);
 
-  value = mmr_read_clobber_r0 (core, EBIU_RSTCTL - EBIU_DDRCTL0, 2);
-  mmr_write_clobber_r0 (core, EBIU_RSTCTL - EBIU_DDRCTL0, value | 0x1, 2);
-  core_emuir_set (core, INSN_SSYNC, RUNTEST);
+  value = mmr_read_clobber_r0 (i, EBIU_RSTCTL - EBIU_DDRCTL0, 2);
+  mmr_write_clobber_r0 (i, EBIU_RSTCTL - EBIU_DDRCTL0, value | 0x1, 2);
+  core_emuir_set (i, INSN_SSYNC, RUNTEST);
 
-  mmr_write_clobber_r0 (core, 0, cpu->ddr_config->ddrctl0, 4);
-  mmr_write_clobber_r0 (core, EBIU_DDRCTL1 - EBIU_DDRCTL0,
+  mmr_write_clobber_r0 (i, 0, cpu->ddr_config->ddrctl0, 4);
+  mmr_write_clobber_r0 (i, EBIU_DDRCTL1 - EBIU_DDRCTL0,
 			cpu->ddr_config->ddrctl1, 4);
-  mmr_write_clobber_r0 (core, EBIU_DDRCTL2 - EBIU_DDRCTL0,
+  mmr_write_clobber_r0 (i, EBIU_DDRCTL2 - EBIU_DDRCTL0,
 			cpu->ddr_config->ddrctl2, 4);
-  core_emuir_set (core, INSN_SSYNC, RUNTEST);
+  core_emuir_set (i, INSN_SSYNC, RUNTEST);
 
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
+  core_register_set (i, REG_P0, p0);
+  core_register_set (i, REG_R0, r0);
   return 0;
 }
 
@@ -2355,24 +2360,21 @@ core_dcache_enable (int core, int method)
 static void
 dcache_enable (int method)
 {
+  bfin_core *c;
   int i;
 
-  for (i = 0; i < cpu->core_num; i++)
-    {
-      if (cpu->cores[i].is_locked
-	  || cpu->cores[i].is_corefault
-	  || cpu->cores[i].is_running)
-	{
-	  cpu->cores[i].l1_data_a_cache_enabled = 0;
-	  cpu->cores[i].l1_data_b_cache_enabled = 0;
-	}
-      else
-	{
-	  core_dcache_enable (i, method);
-	  cpu->cores[i].l1_data_a_cache_enabled = 1;
-	  cpu->cores[i].l1_data_b_cache_enabled = 1;
-	}
-    }
+  for_each_core (i, c)
+    if (c->is_locked || c->is_corefault || c->is_running)
+      {
+	c->l1_data_a_cache_enabled = 0;
+	c->l1_data_b_cache_enabled = 0;
+      }
+    else
+      {
+	core_dcache_enable (i, method);
+	c->l1_data_a_cache_enabled = 1;
+	c->l1_data_b_cache_enabled = 1;
+      }
 }
 
 static void
@@ -2440,20 +2442,19 @@ core_icache_enable (int core)
 static void
 icache_enable (void)
 {
+  bfin_core *c;
   int i;
 
-  for (i = 0; i < cpu->core_num; i++)
-    {
-      if (cpu->cores[i].is_locked
-	  || cpu->cores[i].is_corefault
-	  || cpu->cores[i].is_running)
-	cpu->cores[i].l1_code_cache_enabled = 0;
-      else
-	{
-	  core_icache_enable (i);
-	  cpu->cores[i].l1_code_cache_enabled = 1;
-	}
-    }
+  for_each_core (i, c)
+    if (c->is_locked || c->is_corefault || c->is_running)
+      {
+	c->l1_code_cache_enabled = 0;
+      }
+    else
+      {
+	core_icache_enable (i);
+	c->l1_code_cache_enabled = 1;
+      }
 }
 
 static void
@@ -2941,12 +2942,14 @@ memory_write (int core, uint32_t addr, uint8_t *buf, int size)
   return 0;
 }
 
-
 static int
 dma_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
+  uint32_t l1_addr;
   uint8_t *tmp;
   int ret;
+
+  l1_addr = cpu->cores[core].l1_map->l1_data_a;
 
   assert (size > 0);
   assert (size < 0x4000);
@@ -2955,13 +2958,13 @@ dma_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
   if (tmp == 0)
     abort ();
 
-  memory_read (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
+  memory_read (core, l1_addr, tmp, size);
 
-  ret = dma_copy (core, cpu->cores[core].l1_map->l1_data_a, addr, size);
+  ret = dma_copy (core, l1_addr, addr, size);
 
-  memory_read (core, cpu->cores[core].l1_map->l1_data_a, buf, size);
+  memory_read (core, l1_addr, buf, size);
 
-  memory_write (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
+  memory_write (core, l1_addr, tmp, size);
 
   free (tmp);
 
@@ -2971,15 +2974,17 @@ dma_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
 static int
 dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
+  uint32_t l1_addr;
   uint8_t *tmp;
   int ret;
 
+  l1_addr = cpu->cores[core].l1_map->l1_data_a;
+
   assert (size > 0);
 
-  assert (cpu->cores[core].l1_map->l1_data_a);
+  assert (l1_addr);
 
-  assert (size <= cpu->cores[core].l1_map->l1_data_a_end
-	  - cpu->cores[core].l1_map->l1_data_a);
+  assert (size <= MAP_LEN (cpu->cores[core].l1_map->l1_data_a));
 
   tmp = (uint8_t *) malloc (size);
   if (tmp == 0)
@@ -2989,13 +2994,13 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 	    "dma_sram_write (core [%d], addr [0x%08X], size [0x%X])",
 	    cpu->first_core + core, addr, size);
 
-  memory_read (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
+  memory_read (core, l1_addr, tmp, size);
 
-  memory_write (core, cpu->cores[core].l1_map->l1_data_a, buf, size);
+  memory_write (core, l1_addr, buf, size);
 
-  ret = dma_copy (core, addr, cpu->cores[core].l1_map->l1_data_a, size);
+  ret = dma_copy (core, addr, l1_addr, size);
 
-  memory_write (core, cpu->cores[core].l1_map->l1_data_a, tmp, size);
+  memory_write (core, l1_addr, tmp, size);
 
   free (tmp);
 
@@ -3319,6 +3324,15 @@ sram_read (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 }
 
 static int
+core_memory_read (int core, uint32_t addr, uint8_t *buf, int size, int local)
+{
+  if (local)
+    return memory_read (core, addr, buf, size);
+  else
+    return sram_read (core, addr, buf, size, 1);
+}
+
+static int
 sram_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
 {
   urj_part_t *part;
@@ -3335,6 +3349,14 @@ sram_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
     return itest_sram_write (core, addr, buf, size);
 }
 
+static int
+core_memory_write (int core, uint32_t addr, uint8_t *buf, int size, int local)
+{
+  if (local)
+    return memory_write (core, addr, buf, size);
+  else
+    return sram_write (core, addr, buf, size, 1);
+}
 
 static uint8_t bfin_breakpoint_16[] = { 0x25, 0x0 };
 static uint8_t bfin_breakpoint_32[] = { 0x25, 0x0, 0x0, 0x0 };
@@ -3836,6 +3858,7 @@ bfin_open (int argc,
 	   char *const argv[], const char *prog_name, log_func log_fn)
 {
   urj_chain_t *chain;
+  bfin_core *c;
   int i;
   bfin_board board;
   int sdram_size;
@@ -3892,13 +3915,13 @@ bfin_open (int argc,
   optind = 1;
   for (;;)
     {
-      int c;
+      int opt;
       int option_index;
 
-      c = getopt_long (argc, argv, "+", long_options, &option_index);
-      if (c == -1)
+      opt = getopt_long (argc, argv, "+", long_options, &option_index);
+      if (opt == -1)
 	break;
-      switch (c)
+      switch (opt)
 	{
 	case 1:
 	  if (strcmp (optarg, "bf527-ezkit") == 0)
@@ -4476,10 +4499,10 @@ bfin_open (int argc,
     }
 
   /* Assume only 32-bit instruction are used in gdbproxy.  */
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
       int tmp;
-      tmp = (cpu->cores[i].l1_map->l1_code_end - cpu->cores[i].l1_map->l1_code) / 8;
+      tmp = (c->l1_map->l1_code_end - c->l1_map->l1_code) / 8;
       if (rti_limit > tmp)
 	rti_limit = tmp;
     }
@@ -4530,6 +4553,7 @@ bfin_close (void)
 static int
 bfin_connect (char *status_string, int status_string_len, int *can_restart)
 {
+  bfin_core *c;
   int i, j;
   char *cp;
   int need_reset;
@@ -4553,30 +4577,30 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   assert (cpu->swbps == NULL);
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
       /* We won't use IDCODE_SCAN in debugging. Set it as
          default, such that new scan will be selected.  */
-      cpu->cores[i].scan = IDCODE_SCAN;
-      cpu->cores[i].leave_stopped = 0;
-      cpu->cores[i].is_running = 1;
-      cpu->cores[i].is_interrupted = 0;
-      cpu->cores[i].is_stepping = 0;
-      cpu->cores[i].is_locked = 0;
-      cpu->cores[i].is_corefault = 0;
-      cpu->cores[i].status_pending_p = 0;
-      cpu->cores[i].dmem_control_valid_p = 0;
-      cpu->cores[i].imem_control_valid_p = 0;
-      cpu->cores[i].wpiactl = 0;
-      cpu->cores[i].wpdactl = 0;
-      cpu->cores[i].wpstat = 0;
+      c->scan = IDCODE_SCAN;
+      c->leave_stopped = 0;
+      c->is_running = 1;
+      c->is_interrupted = 0;
+      c->is_stepping = 0;
+      c->is_locked = 0;
+      c->is_corefault = 0;
+      c->status_pending_p = 0;
+      c->dmem_control_valid_p = 0;
+      c->imem_control_valid_p = 0;
+      c->wpiactl = 0;
+      c->wpdactl = 0;
+      c->wpstat = 0;
       for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-	cpu->cores[i].hwbps[j] = -1;
+	c->hwbps[j] = -1;
       for (j = 0; j < RP_BFIN_MAX_HWWATCHPOINTS; j++)
 	{
-	  cpu->cores[i].hwwps[j].addr = -1;
-	  cpu->cores[i].hwwps[j].len = 0;
-	  cpu->cores[i].hwwps[j].mode = WPDA_DISABLE;
+	  c->hwwps[j].addr = -1;
+	  c->hwwps[j].len = 0;
+	  c->hwwps[j].mode = WPDA_DISABLE;
 	}
     }
 
@@ -4589,7 +4613,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   dbgstat_get ();
 
   need_reset = 0;
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
       urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
@@ -4628,7 +4652,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   dbgstat_get ();
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     if (core_dbgstat_is_emuack (i)
 	&& (!core_dbgstat_is_in_reset (i)
 	    || core_sticky_in_reset (i)))
@@ -4637,8 +4661,8 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
 	bfin_log (RP_VAL_LOGLEVEL_INFO,
 		  "[%d] locked: DBGSTAT [0x%04X]", cpu->first_core + i, BFIN_PART_DBGSTAT (part));
-	cpu->cores[i].is_locked = 1;
-	cpu->cores[i].is_running = 0;
+	c->is_locked = 1;
+	c->is_running = 0;
 
 	if (bfin_unlock_on_connect)
 	  {
@@ -4651,7 +4675,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	    sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
 	    mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
 	    core_check_emuready (i);
-	    cpu->cores[i].is_locked = 0;
+	    c->is_locked = 0;
 	    core_wpu_init (i);
 
 	    bfin_log (RP_VAL_LOGLEVEL_INFO,
@@ -4660,7 +4684,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
       }
     else
       {
-	cpu->cores[i].is_running = 0;
+	c->is_running = 0;
 	core_wpu_init (i);
       }
 
@@ -4670,7 +4694,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 		"%s: SDRAM init failed", bfin_target.name);
       return RP_VAL_TARGETRET_ERR;
     }
-	
+
   if (bfin_init_sdram && cpu->ddr_config && ddr_init () != 0)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
@@ -4690,11 +4714,11 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
       dbgstat_get ();
 
-      for (i = 0; i < cpu->core_num; i++)
+      for_each_core (i, c)
 	{
 	  urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
-	  if (!cpu->cores[i].is_locked)
+	  if (!c->is_locked)
 	    {
 	      rete = core_register_get (i, REG_RETE);
 	      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -4736,6 +4760,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 static int
 bfin_disconnect (void)
 {
+  bfin_core *c;
   int i;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -4743,17 +4768,17 @@ bfin_disconnect (void)
 
   wpu_disable ();
 
-  for (i = 0; i < cpu->core_num; i++)
-    if (cpu->cores[i].is_stepping)
+  for_each_core (i, c)
+    if (c->is_stepping)
       {
 	core_dbgctl_bit_clear_esstep (i, UPDATE);
-	cpu->cores[i].is_stepping = 0;
+	c->is_stepping = 0;
       }
 
   emulation_return ();
 
-  for (i = 0; i < cpu->core_num; i++)
-    cpu->cores[i].is_running = 1;
+  for_each_core (i, c)
+    c->is_running = 1;
 
   return RP_VAL_TARGETRET_OK;
 }
@@ -4783,25 +4808,26 @@ bfin_restart (void)
 static void
 bfin_stop (void)
 {
+  bfin_core *c;
   int i;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_stop ()", bfin_target.name);
 
   assert (cpu);
 
-  for (i = 0; i < cpu->core_num; i++)
-    if (cpu->cores[i].is_stepping)
+  for_each_core (i, c)
+    if (c->is_stepping)
       {
 	core_dbgctl_bit_clear_esstep (i, UPDATE);
-	cpu->cores[i].is_stepping = 0;
+	c->is_stepping = 0;
       }
 
   emulation_trigger ();
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      cpu->cores[i].is_interrupted = 1;
-      cpu->cores[i].is_running = 0;
+      c->is_interrupted = 1;
+      c->is_running = 0;
     }
 }
 
@@ -4837,6 +4863,7 @@ bfin_set_gen_thread (rp_thread_ref *thread)
 static int
 bfin_set_ctrl_thread (rp_thread_ref *thread)
 {
+  bfin_core *c;
   int i, core;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -4845,15 +4872,15 @@ bfin_set_ctrl_thread (rp_thread_ref *thread)
   if (thread->val == ALL_THREADS)
     {
       cpu->continue_core = ALL_CORES;
-      for (i = 0; i < cpu->core_num; i++)
-	cpu->cores[i].leave_stopped = 0;
+      for_each_core (i, c)
+	c->leave_stopped = 0;
     }
   else if (thread->val == ANY_THREAD)
     {
       if (cpu->continue_core == INVALID_CORE)
 	cpu->continue_core = cpu->core_a;
-      for (i = 0; i < cpu->core_num; i++)
-	cpu->cores[i].leave_stopped = 0;
+      for_each_core (i, c)
+	c->leave_stopped = 0;
     }
   else
     {
@@ -4863,11 +4890,11 @@ bfin_set_ctrl_thread (rp_thread_ref *thread)
 	return RP_VAL_TARGETRET_ERR;
 
       cpu->continue_core = core;
-      for (i = 0; i < cpu->core_num; i++)
+      for_each_core (i, c)
 	if (i == core)
-	  cpu->cores[i].leave_stopped = 0;
+	  c->leave_stopped = 0;
 	else
-	  cpu->cores[i].leave_stopped = 1;
+	  c->leave_stopped = 1;
     }
 
   return RP_VAL_TARGETRET_OK;
@@ -4994,6 +5021,7 @@ bfin_write_single_register (unsigned int reg_no,
   int reg_size;
   uint32_t value;
   int core;
+  bfin_core *c;
   int i;
 
   assert (cpu);
@@ -5042,15 +5070,10 @@ bfin_write_single_register (unsigned int reg_no,
 
   /* Setting RETE to an address that the general core cannot
      execute from is mostly a user error. Catch it.  */
-  if (map_gdb_core[reg_no] == REG_RETE
-      && value >= cpu->mem_map.l1
-      && value < cpu->mem_map.l1_end
-      && !((value >= cpu->cores[core].l1_map->l1_code
-	    && value < cpu->cores[core].l1_map->l1_code_end)
-	   || (value >= cpu->cores[core].l1_map->l1_code_cache
-	       && value < cpu->cores[core].l1_map->l1_code_cache_end)
-	   || (value >= cpu->cores[core].l1_map->l1_code_rom
-	       && value < cpu->cores[core].l1_map->l1_code_rom_end)))
+  if (map_gdb_core[reg_no] == REG_RETE && IN_MAP (value, cpu->mem_map.l1) &&
+      !(IN_MAP (value, cpu->cores[core].l1_map->l1_code) ||
+	IN_MAP (value, cpu->cores[core].l1_map->l1_code_cache) ||
+	IN_MAP (value, cpu->cores[core].l1_map->l1_code_rom)))
     {
       if (!bfin_auto_switch)
 	{
@@ -5060,15 +5083,12 @@ bfin_write_single_register (unsigned int reg_no,
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->core_num; i++)
-	if ((value >= cpu->cores[i].l1_map->l1_code
-	     && value < cpu->cores[i].l1_map->l1_code_end)
-	    || (value >= cpu->cores[i].l1_map->l1_code_cache
-		&& value < cpu->cores[i].l1_map->l1_code_cache_end)
-	    || (value >= cpu->cores[i].l1_map->l1_code_rom
-		&& value < cpu->cores[i].l1_map->l1_code_rom_end))
+      for_each_core (i, c)
+	if (IN_MAP (value, c->l1_map->l1_code) ||
+	    IN_MAP (value, c->l1_map->l1_code_cache) ||
+	    IN_MAP (value, c->l1_map->l1_code_rom))
 	  {
-	    if (cpu->cores[i].is_locked)
+	    if (c->is_locked)
 	      {
 		bfin_log (RP_VAL_LOGLEVEL_ERR,
 			  "%s: [%d] locked core cannot write register [%d]",
@@ -5076,7 +5096,7 @@ bfin_write_single_register (unsigned int reg_no,
 		return RP_VAL_TARGETRET_ERR;
 	      }
 
-	    if (cpu->cores[i].is_corefault)
+	    if (c->is_corefault)
 	      {
 		bfin_log (RP_VAL_LOGLEVEL_ERR,
 			  "%s: [%d] CORE FAULT core cannot write register [%d]",
@@ -5150,6 +5170,7 @@ static int
 bfin_read_mem (uint64_t addr,
 	       uint8_t *buf, int req_size, int *actual_size)
 {
+  bfin_core *c;
   int i, ret;
   int avail_core, core;
   uint32_t value;
@@ -5187,13 +5208,10 @@ bfin_read_mem (uint64_t addr,
 
   avail_core = cpu->general_core;
 
-  if (cpu->cores[avail_core].is_locked
-      || cpu->cores[avail_core].is_corefault)
-    for (i = 0; i < cpu->core_num; i++)
+  if (cpu->cores[avail_core].is_locked || cpu->cores[avail_core].is_corefault)
+    for_each_core (i, c)
       {
-	if (!cpu->cores[i].is_locked
-	    && !cpu->cores[i].is_corefault
-	    && !cpu->cores[i].is_running)
+	if (!c->is_locked && !c->is_corefault && !c->is_running)
 	  {
 	    avail_core = i;
 	    break;
@@ -5210,135 +5228,109 @@ bfin_read_mem (uint64_t addr,
 
   emupc_reset ();
 
-  if (addr < cpu->mem_map.l1 || addr >= cpu->mem_map.l1_end)
+  if (!IN_MAP (addr, cpu->mem_map.l1))
     goto skip_l1;
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
       /* Use the core for its L1 memory if possible.  */
-      if (!cpu->cores[i].is_locked
-	  && !cpu->cores[i].is_corefault
-	  && !cpu->cores[i].is_running)
+      if (!c->is_locked && !c->is_corefault && !c->is_running)
 	core = i;
       else
 	core = avail_core;
 
-      if (addr >= cpu->cores[i].l1_map->l1
-	  && addr < cpu->cores[i].l1_map->l1_end)
+      if (IN_MAP (addr, c->l1_map->l1))
 	core_cache_status_get (i);
       else
 	continue;
 
-      if (addr >= cpu->cores[i].l1_map->l1_code
-	  && addr < cpu->cores[i].l1_map->l1_code_end)
+      if (IN_MAP (addr, c->l1_map->l1_code))
 	{
-	  if (!cpu->cores[i].l1_code_cache_enabled
-	      && (cpu->cores[i].l1_map->l1_code_end
-		  == cpu->cores[i].l1_map->l1_code_cache))
-	    end = cpu->cores[i].l1_map->l1_code_cache_end;
+	  if (!c->l1_code_cache_enabled &&
+	      (c->l1_map->l1_code_end == c->l1_map->l1_code_cache))
+	    end = c->l1_map->l1_code_cache_end;
 	  else
-	    end = cpu->cores[i].l1_map->l1_code_end;
+	    end = c->l1_map->l1_code_end;
 
 	  if (addr + req_size > end)
 	    req_size = end - addr;
 
-	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
+	  ret = sram_read (core, addr, buf, req_size, i != core);
 	  goto done;
 	}
-      else if (!cpu->cores[i].l1_code_cache_enabled
-	       && addr >= cpu->cores[i].l1_map->l1_code_cache
-	       && addr < cpu->cores[i].l1_map->l1_code_cache_end)
+      else if (!c->l1_code_cache_enabled &&
+	       IN_MAP (addr, c->l1_map->l1_code_cache))
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map->l1_code_cache_end)
-	    req_size = cpu->cores[i].l1_map->l1_code_cache_end - addr;
+	  if (addr + req_size > c->l1_map->l1_code_cache_end)
+	    req_size = c->l1_map->l1_code_cache_end - addr;
 
-	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
+	  ret = sram_read (core, addr, buf, req_size, i != core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_code_rom
-	       && addr < cpu->cores[i].l1_map->l1_code_rom_end)
+      else if (IN_MAP (addr, c->l1_map->l1_code_rom))
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map->l1_code_rom_end)
-	    req_size = cpu->cores[i].l1_map->l1_code_rom_end - addr;
+	  if (addr + req_size > c->l1_map->l1_code_rom_end)
+	    req_size = c->l1_map->l1_code_rom_end - addr;
 
-	  ret = sram_read (core, (uint32_t) addr, buf, req_size, i != core);
+	  ret = sram_read (core, addr, buf, req_size, i != core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_data_a
-	       && addr < cpu->cores[i].l1_map->l1_data_a_end)
+      else if (IN_MAP (addr, c->l1_map->l1_data_a))
 	{
-	  if (!cpu->cores[i].l1_data_a_cache_enabled
-	      && (cpu->cores[i].l1_map->l1_data_a_end
-		  == cpu->cores[i].l1_map->l1_data_a_cache))
-	    end = cpu->cores[i].l1_map->l1_data_a_cache_end;
+	  if (!c->l1_data_a_cache_enabled &&
+	      (c->l1_map->l1_data_a_end == c->l1_map->l1_data_a_cache))
+	    end = c->l1_map->l1_data_a_cache_end;
 	  else
-	    end = cpu->cores[i].l1_map->l1_data_a_end;
+	    end = c->l1_map->l1_data_a_end;
 
 	  if (addr + req_size > end)
 	    req_size = end - addr;
 
-	  if (i == core)
-	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
-	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
+	  ret = core_memory_read (core, addr, buf, req_size, i == core);
 	  goto done;
 	}
-      else if (!cpu->cores[i].l1_data_a_cache_enabled
-	       && addr >= cpu->cores[i].l1_map->l1_data_a_cache
-	       && addr < cpu->cores[i].l1_map->l1_data_a_cache_end)
+      else if (!c->l1_data_a_cache_enabled &&
+	       IN_MAP (addr, c->l1_map->l1_data_a_cache))
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map->l1_data_a_cache_end)
-	    req_size = cpu->cores[i].l1_map->l1_data_a_cache_end - addr;
+	  if (addr + req_size > c->l1_map->l1_data_a_cache_end)
+	    req_size = c->l1_map->l1_data_a_cache_end - addr;
 
-	  if (i == core)
-	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
-	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
+	  ret = core_memory_read (core, addr, buf, req_size, i == core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_data_b
-	       && addr < cpu->cores[i].l1_map->l1_data_b_end)
+      else if (IN_MAP (addr, c->l1_map->l1_data_b))
 	{
-	  if (!cpu->cores[i].l1_data_b_cache_enabled
-	      && (cpu->cores[i].l1_map->l1_data_b_end
-		  == cpu->cores[i].l1_map->l1_data_b_cache))
-	    end = cpu->cores[i].l1_map->l1_data_b_cache_end;
+	  if (!c->l1_data_b_cache_enabled
+	      && (c->l1_map->l1_data_b_end
+		  == c->l1_map->l1_data_b_cache))
+	    end = c->l1_map->l1_data_b_cache_end;
 	  else
-	    end = cpu->cores[i].l1_map->l1_data_b_end;
+	    end = c->l1_map->l1_data_b_end;
 
 	  if (addr + req_size > end)
 	    req_size = end - addr;
 
-	  if (i == core)
-	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
-	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
+	  ret = core_memory_read (core, addr, buf, req_size, i == core);
 	  goto done;
 	}
-      else if (! cpu->cores[i].l1_data_b_cache_enabled
-	       && addr >= cpu->cores[i].l1_map->l1_data_b_cache
-	       && addr < cpu->cores[i].l1_map->l1_data_b_cache_end)
+      else if (!c->l1_data_b_cache_enabled &&
+	       IN_MAP (addr, c->l1_map->l1_data_b_cache))
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map->l1_data_b_cache_end)
-	    req_size = cpu->cores[i].l1_map->l1_data_b_cache_end - addr;
+	  if (addr + req_size > c->l1_map->l1_data_b_cache_end)
+	    req_size = c->l1_map->l1_data_b_cache_end - addr;
 
-	  if (i == core)
-	    ret = memory_read (core, (uint32_t) addr, buf, req_size);
-	  else
-	    ret = sram_read (core, (uint32_t) addr, buf, req_size, 1);
+	  ret = core_memory_read (core, addr, buf, req_size, i == core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_scratch
-	       && addr < cpu->cores[i].l1_map->l1_scratch_end
-	       && i == core)
+      else if (i == core && IN_MAP (addr, c->l1_map->l1_scratch))
 	{
-	  if (addr + req_size > cpu->cores[i].l1_map->l1_scratch_end)
-	    req_size = cpu->cores[i].l1_map->l1_scratch_end - addr;
-	  ret = memory_read (core, (uint32_t) addr, buf, req_size);
+	  if (addr + req_size > c->l1_map->l1_scratch_end)
+	    req_size = c->l1_map->l1_scratch_end - addr;
+
+	  ret = memory_read (core, addr, buf, req_size);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1
-	       && addr < cpu->cores[i].l1_map->l1_end)
+      else if (IN_MAP (addr, c->l1_map->l1))
 	{
 	  ret = bfin_read_inv_mem (core, addr, buf, &req_size);
 	  goto done;
@@ -5354,11 +5346,9 @@ bfin_read_mem (uint64_t addr,
   else
     core = avail_core;
 
-  if ((addr >= cpu->mem_map.sysmmr
-       && addr < cpu->mem_map.coremmr
+  if ((IN_RANGE (addr, cpu->mem_map.sysmmr, cpu->mem_map.coremmr)
        && addr + req_size > cpu->mem_map.coremmr)
-      || (addr >= cpu->mem_map.coremmr
-	  && addr + req_size < addr))
+      || (addr >= cpu->mem_map.coremmr && addr + req_size < addr))
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] bad MMR addr or size [0x%08llX] size %d",
@@ -5385,7 +5375,7 @@ bfin_read_mem (uint64_t addr,
 	}
 
 
-      value = mmr_read (core, (uint32_t) addr, req_size);
+      value = mmr_read (core, addr, req_size);
       *buf++ = value & 0xff;
       *buf++ = (value >> 8) & 0xff;
       if (req_size == 4)
@@ -5397,37 +5387,33 @@ bfin_read_mem (uint64_t addr,
       goto done;
     }
 
-  if (addr >= cpu->mem_map.sdram
-      && addr < cpu->mem_map.sdram_end)
+  if (IN_MAP (addr, cpu->mem_map.sdram))
     {
       if (addr + req_size > cpu->mem_map.sdram_end)
 	req_size = cpu->mem_map.sdram_end - addr;
 
-      ret = memory_read (core, (uint32_t) addr, buf, req_size);
+      ret = memory_read (core, addr, buf, req_size);
     }
-  else if (addr >= cpu->mem_map.async_mem
-	   && addr < cpu->mem_map.async_mem_end)
+  else if (IN_MAP (addr, cpu->mem_map.async_mem))
     {
       if (addr + req_size > cpu->mem_map.async_mem_end)
 	req_size = cpu->mem_map.async_mem_end - addr;
 
-      ret = memory_read (core, (uint32_t) addr, buf, req_size);
+      ret = memory_read (core, addr, buf, req_size);
     }
   /* TODO  Allow access to devices mapped to async mem.  */
-  else if (addr >= cpu->mem_map.boot_rom
-	   && addr < cpu->mem_map.boot_rom_end)
+  else if (IN_MAP (addr, cpu->mem_map.boot_rom))
     {
       if (addr + req_size > cpu->mem_map.boot_rom_end)
 	req_size = cpu->mem_map.boot_rom_end - addr;
-      ret = memory_read (core, (uint32_t) addr, buf, req_size);
+      ret = memory_read (core, addr, buf, req_size);
     }
-  else if (addr >= cpu->mem_map.l2_sram
-	   && addr < cpu->mem_map.l2_sram_end)
+  else if (IN_MAP (addr, cpu->mem_map.l2_sram))
     {
       if (addr + req_size > cpu->mem_map.l2_sram_end)
 	req_size = cpu->mem_map.l2_sram_end - addr;
 
-      ret = memory_read (core, (uint32_t) addr, buf, req_size);
+      ret = memory_read (core, addr, buf, req_size);
     }
   else
     {
@@ -5452,6 +5438,7 @@ done:
 static int
 bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 {
+  bfin_core *c;
   int i, ret;
   int avail_core, core;
   uint32_t value;
@@ -5488,11 +5475,9 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
   if (cpu->cores[avail_core].is_locked
       || cpu->cores[avail_core].is_corefault)
-    for (i = 0; i < cpu->core_num; i++)
+    for_each_core (i, c)
       {
-	if (!cpu->cores[i].is_locked
-	    && !cpu->cores[i].is_corefault
-	    && !cpu->cores[i].is_running)
+	if (!c->is_locked && !c->is_corefault && !c->is_running)
 	  {
 	    avail_core = i;
 	    break;
@@ -5509,41 +5494,36 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
   emupc_reset ();
 
-  if (addr < cpu->mem_map.l1 || addr >= cpu->mem_map.l1_end)
+  if (!IN_MAP (addr, cpu->mem_map.l1))
     goto skip_l1;
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
       /* Use the core for its L1 memory if possible.  */
-      if (!cpu->cores[i].is_locked
-	  && !cpu->cores[i].is_corefault
-	  && !cpu->cores[i].is_running)
+      if (!c->is_locked && !c->is_corefault && !c->is_running)
 	core = i;
       else
 	core = avail_core;
 
-      if (addr >= cpu->cores[i].l1_map->l1
-	  && addr < cpu->cores[i].l1_map->l1_end)
+      if (IN_MAP (addr, c->l1_map->l1))
 	core_cache_status_get (i);
       else
 	continue;
 
-      if (addr >= cpu->cores[i].l1_map->l1_code
-	  && addr < cpu->cores[i].l1_map->l1_code_end
-	  && ((!cpu->cores[i].l1_code_cache_enabled
-	       && (cpu->cores[i].l1_map->l1_code_end
-		   == cpu->cores[i].l1_map->l1_code_cache)
-	       && (end = cpu->cores[i].l1_map->l1_code_cache_end))
-	      || (end = cpu->cores[i].l1_map->l1_code_end))
+      if (IN_MAP (addr, c->l1_map->l1_code) &&
+	  ((!c->l1_code_cache_enabled &&
+	    (c->l1_map->l1_code_end == c->l1_map->l1_code_cache)
+	    && (end = c->l1_map->l1_code_cache_end))
+	   || (end = c->l1_map->l1_code_end))
 	  && addr + write_size <= end)
 	{
-	  ret = sram_write (core, (uint32_t) addr, buf, write_size, i != core);
+	  ret = sram_write (core, addr, buf, write_size, i != core);
 
 	  if (i == core)
 	    icache_flush (i, addr, write_size);
 
-	  if (addr == cpu->cores[i].l1_map->l1_code
-	      && bfin_unlock_on_load && cpu->cores[i].is_locked)
+	  if (addr == c->l1_map->l1_code
+	      && bfin_unlock_on_load && c->is_locked)
 	    {
 	      uint16_t sica_syscr;
 
@@ -5554,18 +5534,18 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	      sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
 	      mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
 	      core_check_emuready (i);
-	      cpu->cores[i].is_locked = 0;
+	      c->is_locked = 0;
 	      core_wpu_init (i);
 	      if (bfin_enable_dcache)
 		{
 		  core_dcache_enable (i, bfin_enable_dcache);
-		  cpu->cores[i].l1_data_a_cache_enabled = 1;
-		  cpu->cores[i].l1_data_b_cache_enabled = 1;
+		  c->l1_data_a_cache_enabled = 1;
+		  c->l1_data_b_cache_enabled = 1;
 		}
 	      if (bfin_enable_icache)
 		{
 		  core_icache_enable (i);
-		  cpu->cores[i].l1_code_cache_enabled = 1;
+		  c->l1_code_cache_enabled = 1;
 		}
 
 	      bfin_log (RP_VAL_LOGLEVEL_INFO,
@@ -5574,76 +5554,54 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
 	  goto done;
 	}
-      else if (!cpu->cores[i].l1_code_cache_enabled
-	       && addr >= cpu->cores[i].l1_map->l1_code_cache
-	       && addr < cpu->cores[i].l1_map->l1_code_cache_end
-	       && addr + write_size <= cpu->cores[i].l1_map->l1_code_cache_end)
+      else if (!c->l1_code_cache_enabled &&
+	       IN_MAP (addr, c->l1_map->l1_code_cache) &&
+	       addr + write_size <= c->l1_map->l1_code_cache_end)
 	{
-	  ret = sram_write (core, (uint32_t) addr, buf, write_size, i != core);
+	  ret = sram_write (core, addr, buf, write_size, i != core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_data_a
-	       && addr < cpu->cores[i].l1_map->l1_data_a_end
-	       && ((!cpu->cores[i].l1_data_a_cache_enabled
-		    && (cpu->cores[i].l1_map->l1_data_a_end
-			== cpu->cores[i].l1_map->l1_data_a_cache)
-		    && (end = cpu->cores[i].l1_map->l1_data_a_cache_end))
-		   || (end = cpu->cores[i].l1_map->l1_data_a_end))
+      else if (IN_MAP (addr, c->l1_map->l1_data_a) &&
+	       ((!c->l1_data_a_cache_enabled &&
+		 (c->l1_map->l1_data_a_end == c->l1_map->l1_data_a_cache)
+		 && (end = c->l1_map->l1_data_a_cache_end))
+		|| (end = c->l1_map->l1_data_a_end))
 	       && addr + write_size <= end)
 	{
-	  if (i == core)
-	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
-	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
+	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
-      else if (!cpu->cores[i].l1_data_a_cache_enabled
-	       && addr >= cpu->cores[i].l1_map->l1_data_a_cache
-	       && addr < cpu->cores[i].l1_map->l1_data_a_cache_end
-	       && addr + write_size <= cpu->cores[i].l1_map->l1_data_a_cache_end)
+      else if (!c->l1_data_a_cache_enabled &&
+	       IN_MAP (addr, c->l1_map->l1_data_a_cache) &&
+	       addr + write_size <= c->l1_map->l1_data_a_cache_end)
 	{
-	  if (i == core)
-	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
-	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
+	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_data_b
-	       && addr < cpu->cores[i].l1_map->l1_data_b_end
-	       && ((!cpu->cores[i].l1_data_b_cache_enabled
-		    && (cpu->cores[i].l1_map->l1_data_b_end
-			== cpu->cores[i].l1_map->l1_data_b_cache)
-		    && (end = cpu->cores[i].l1_map->l1_data_b_cache_end))
-		   || (end = cpu->cores[i].l1_map->l1_data_b_end))
+      else if (IN_MAP (addr, c->l1_map->l1_data_b) &&
+	       ((!c->l1_data_b_cache_enabled &&
+		 (c->l1_map->l1_data_b_end == c->l1_map->l1_data_b_cache)
+		 && (end = c->l1_map->l1_data_b_cache_end))
+		|| (end = c->l1_map->l1_data_b_end))
 	       && addr + write_size <= end)
 	{
-	  if (i == core)
-	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
-	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
+	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
-      else if (!cpu->cores[i].l1_data_b_cache_enabled
-	       && addr >= cpu->cores[i].l1_map->l1_data_b_cache
-	       && addr < cpu->cores[i].l1_map->l1_data_b_cache_end
-	       && addr + write_size <= cpu->cores[i].l1_map->l1_data_b_cache_end)
+      else if (!c->l1_data_b_cache_enabled &&
+	       IN_MAP (addr, c->l1_map->l1_data_b_cache) &&
+	       addr + write_size <= c->l1_map->l1_data_b_cache_end)
 	{
-	  if (i == core)
-	    ret = memory_write (core, (uint32_t) addr, buf, write_size);
-	  else
-	    ret = sram_write (core, (uint32_t) addr, buf, write_size, 1);
+	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1_scratch
-	       && addr < cpu->cores[i].l1_map->l1_scratch_end
-	       && i == core
-	       && addr + write_size <= cpu->cores[i].l1_map->l1_scratch_end)
+      else if (i == core && IN_MAP (addr, c->l1_map->l1_scratch) &&
+	       addr + write_size <= c->l1_map->l1_scratch_end)
 	{
-	  ret = memory_write (core, (uint32_t) addr, buf, write_size);
+	  ret = memory_write (core, addr, buf, write_size);
 	  goto done;
 	}
-      else if (addr >= cpu->cores[i].l1_map->l1
-	       && addr < cpu->cores[i].l1_map->l1_end)
+      else if (IN_MAP (addr, c->l1_map->l1))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] cannot write reserved L1 [0x%08llX] size %d",
@@ -5661,11 +5619,9 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
   else
     core = avail_core;
 
-  if ((addr >= cpu->mem_map.sysmmr
-       && addr < cpu->mem_map.coremmr
-       && addr + write_size > cpu->mem_map.coremmr)
-      || (addr >= cpu->mem_map.coremmr
-	  && addr + write_size < addr))
+  if ((IN_RANGE (addr, cpu->mem_map.sysmmr, cpu->mem_map.coremmr) &&
+       addr + write_size > cpu->mem_map.coremmr)
+      || (addr >= cpu->mem_map.coremmr && addr + write_size < addr))
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
 		"%s: [%d] bad MMR addr or size [0x%08llX] size %d",
@@ -5698,27 +5654,22 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  value |= (*buf++) << 16;
 	  value |= (*buf++) << 24;
 	}
-      mmr_write (core, (uint32_t) addr, value, write_size);
+      mmr_write (core, addr, value, write_size);
       ret = 0;
       goto done;
     }
 
-  if ((addr >= cpu->mem_map.sdram
-       && addr < cpu->mem_map.sdram_end
-       && addr + write_size <= cpu->mem_map.sdram_end)
-      || (addr >= cpu->mem_map.async_mem
-	  && addr < cpu->mem_map.async_mem_end
-	  && addr + write_size <= cpu->mem_map.async_mem_end)
-      || (addr >= cpu->mem_map.l2_sram
-	  && addr < cpu->mem_map.l2_sram_end
-	  && addr + write_size <= cpu->mem_map.l2_sram_end))
+  if ((IN_MAP (addr, cpu->mem_map.sdram) &&
+       addr + write_size <= cpu->mem_map.sdram_end)
+      || (IN_MAP (addr, cpu->mem_map.async_mem) &&
+	  addr + write_size <= cpu->mem_map.async_mem_end)
+      || (IN_MAP (addr, cpu->mem_map.l2_sram) &&
+	  addr + write_size <= cpu->mem_map.l2_sram_end))
     {
-      ret = memory_write (core, (uint32_t) addr, buf, write_size);
+      ret = memory_write (core, addr, buf, write_size);
 
-      for (i = 0; i < cpu->core_num; i++)
-	if (!cpu->cores[i].is_locked
-	    && !cpu->cores[i].is_corefault
-	    && !cpu->cores[i].is_running)
+      for_each_core (i, c)
+	if (!c->is_locked && !c->is_corefault && !c->is_running)
 	  icache_flush (i, addr, write_size);
 
     }
@@ -5749,6 +5700,7 @@ done:
 static int
 bfin_resume_from_current (int step, int sig)
 {
+  bfin_core *c;
   int i, ret;
   uint8_t buf[2];
   int size;
@@ -5761,77 +5713,77 @@ bfin_resume_from_current (int step, int sig)
 
   emupc_reset ();
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      if (cpu->cores[i].is_locked)
+      if (c->is_locked)
 	continue;
 
-      if (cpu->cores[i].leave_stopped)
+      if (c->leave_stopped)
 	continue;
 
-      if (cpu->cores[i].is_running)
+      if (c->is_running)
 	continue;
 
-      if (cpu->cores[i].status_pending_p
-	  && cpu->cores[i].pending_is_breakpoint)
+      if (c->status_pending_p
+	  && c->pending_is_breakpoint)
 	{
-	  ret = bfin_read_mem (cpu->cores[i].pending_stop_pc, buf, 2, &size);
+	  ret = bfin_read_mem (c->pending_stop_pc, buf, 2, &size);
 	  assert (ret == RP_VAL_TARGETRET_OK && size == 2);
 
 	  if (buf[0] != bfin_breakpoint_16[0]
 	      || buf[1] != bfin_breakpoint_16[1])
 	    {
 	      /* The breakpoint is gone. Consume the pending status.  */
-	      cpu->cores[i].pending_is_breakpoint = 0;
-	      cpu->cores[i].status_pending_p = 0;
+	      c->pending_is_breakpoint = 0;
+	      c->status_pending_p = 0;
 	    }
 	}
-      if (cpu->cores[i].status_pending_p)
+      if (c->status_pending_p)
 	return RP_VAL_TARGETRET_OK;
     }
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      if (cpu->cores[i].is_locked)
+      if (c->is_locked)
 	continue;
 
-      if (cpu->cores[i].leave_stopped)
+      if (c->leave_stopped)
 	continue;
 
-      if (cpu->cores[i].is_running)
+      if (c->is_running)
 	continue;
 
       if (i == cpu->continue_core)
 	{
-	  if (step && !cpu->cores[i].is_stepping)
+	  if (step && !c->is_stepping)
 	    {
 	      core_dbgctl_bit_set_esstep (i, UPDATE);
-	      cpu->cores[i].is_stepping = 1;
+	      c->is_stepping = 1;
 	    }
-	  else if (!step && cpu->cores[i].is_stepping)
+	  else if (!step && c->is_stepping)
 	    {
 	      core_dbgctl_bit_clear_esstep (i, UPDATE);
-	      cpu->cores[i].is_stepping = 0;
+	      c->is_stepping = 0;
 	    }
 
-	  cpu->cores[i].is_running = 1;
-	  cpu->cores[i].is_interrupted = 0;
-	  cpu->cores[i].dmem_control_valid_p = 0;
-	  cpu->cores[i].imem_control_valid_p = 0;
+	  c->is_running = 1;
+	  c->is_interrupted = 0;
+	  c->dmem_control_valid_p = 0;
+	  c->imem_control_valid_p = 0;
 	  core_emulation_return (i);
 	}
-      else if (!cpu->cores[i].leave_stopped)
+      else if (!c->leave_stopped)
 	{
-	  if (cpu->cores[i].is_stepping)
+	  if (c->is_stepping)
 	    {
 	      core_dbgctl_bit_clear_esstep (i, UPDATE);
-	      cpu->cores[i].is_stepping = 0;
+	      c->is_stepping = 0;
 	    }
 
-	  cpu->cores[i].is_running = 1;
-	  cpu->cores[i].is_interrupted = 0;
-	  cpu->cores[i].dmem_control_valid_p = 0;
-	  cpu->cores[i].imem_control_valid_p = 0;
+	  c->is_running = 1;
+	  c->is_interrupted = 0;
+	  c->dmem_control_valid_p = 0;
+	  c->imem_control_valid_p = 0;
 	  core_emulation_return (i);
 	}
     }
@@ -5884,6 +5836,7 @@ bfin_wait_partial (int first,
   char *cp;
   int sig;
   uint32_t pc, fp;
+  bfin_core *c;
   int i, j;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -5903,22 +5856,22 @@ bfin_wait_partial (int first,
 
   /* If we have any interesting pending event,
      report it instead of resume.  */
-  for (i = 0; i < cpu->core_num; i++)
-    if (!cpu->cores[i].is_locked
-	&& !cpu->cores[i].leave_stopped && cpu->cores[i].status_pending_p)
+  for_each_core (i, c)
+    if (!c->is_locked
+	&& !c->leave_stopped && c->status_pending_p)
       {
-	sprintf (status_string, "T%02d", cpu->cores[i].pending_signal);
+	sprintf (status_string, "T%02d", c->pending_signal);
 	cp = &status_string[3];
-	if (cpu->cores[i].is_corefault)
+	if (c->is_corefault)
 	  {
-	    pc = cpu->cores[i].pending_stop_pc;
+	    pc = c->pending_stop_pc;
 	    cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
 	  }
 	else
 	  {
-	    if (cpu->cores[i].wpstat & 0xc0)
+	    if (c->wpstat & 0xc0)
 	      core_single_step (i);
-	    if (cpu->cores[i].wpstat & 0xff)
+	    if (c->wpstat & 0xff)
 	      core_wpstat_clear (i);
 	    pc = core_register_get (i, REG_RETE);
 	    fp = core_register_get (i, REG_FP);
@@ -5928,7 +5881,7 @@ bfin_wait_partial (int first,
 	if (cpu->core_num > 1)
 	  sprintf (cp, "thread:%x;", THREAD_ID (i));
 
-	cpu->cores[i].status_pending_p = 0;
+	c->status_pending_p = 0;
 
 	cpu->general_core = i;
 	cpu->continue_core = i;
@@ -5950,13 +5903,13 @@ bfin_wait_partial (int first,
 
   *more = TRUE;
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      if (cpu->cores[i].leave_stopped)
+      if (c->leave_stopped)
 	continue;
 
       if (core_dbgstat_is_emuready (i)
-	  && cpu->cores[i].is_locked)
+	  && c->is_locked)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] core unlocking...", bfin_target.name, cpu->first_core + i);
@@ -5966,41 +5919,41 @@ bfin_wait_partial (int first,
 	  core_wpu_init (i);
 
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-	    if (cpu->cores[i].hwbps[j] != -1)
-	      wpu_set_wpia (i, j, cpu->cores[i].hwbps[j], 1);
+	    if (c->hwbps[j] != -1)
+	      wpu_set_wpia (i, j, c->hwbps[j], 1);
 
 	  if ((bfin_force_range_wp
-	       || cpu->cores[i].hwwps[0].len > 4)
-	      && cpu->cores[i].hwwps[j].mode != WPDA_DISABLE)
+	       || c->hwwps[0].len > 4)
+	      && c->hwwps[j].mode != WPDA_DISABLE)
 	    wpu_set_wpda (i,
 			  0,
-			  cpu->cores[i].hwwps[0].addr,
-			  cpu->cores[i].hwwps[0].len,
-			  1, cpu->cores[i].hwwps[0].mode);
+			  c->hwwps[0].addr,
+			  c->hwwps[0].len,
+			  1, c->hwwps[0].mode);
 	  else
 	    for (j = 0; j < RP_BFIN_MAX_HWWATCHPOINTS; j++)
-	      if (cpu->cores[i].hwwps[j].mode != WPDA_DISABLE)
+	      if (c->hwwps[j].mode != WPDA_DISABLE)
 		wpu_set_wpda (i,
 			      j,
-			      cpu->cores[i].hwwps[j].addr,
-			      cpu->cores[i].hwwps[j].len,
-			      0, cpu->cores[i].hwwps[j].mode);
+			      c->hwwps[j].addr,
+			      c->hwwps[j].len,
+			      0, c->hwwps[j].mode);
 
 	  if (bfin_enable_dcache)
 	    {
 	      core_dcache_enable (i, bfin_enable_dcache);
-	      cpu->cores[i].l1_code_cache_enabled = 1;
+	      c->l1_code_cache_enabled = 1;
 	    }
 	  if (bfin_enable_icache)
 	    {
 	      core_icache_enable (i);
-	      cpu->cores[i].l1_data_a_cache_enabled = 1;
-	      cpu->cores[i].l1_data_b_cache_enabled = 1;
+	      c->l1_data_a_cache_enabled = 1;
+	      c->l1_data_b_cache_enabled = 1;
 	    }
 
 	  core_emulation_return (i);
-	  cpu->cores[i].is_locked = 0;
-	  cpu->cores[i].is_running = 1;
+	  c->is_locked = 0;
+	  c->is_running = 1;
 
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] done", bfin_target.name, cpu->first_core + i);
@@ -6030,8 +5983,8 @@ bfin_wait_partial (int first,
   else
     {
       emulation_trigger ();
-      for (i = 0; i < cpu->core_num; i++)
-	cpu->cores[i].is_running = 0;
+      for_each_core (i, c)
+	c->is_running = 0;
     }
 
   /* All cores are stopped. Check their status.  */
@@ -6040,14 +5993,14 @@ bfin_wait_partial (int first,
   emupc_reset ();
   dbgstat_get ();
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
       urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
-      if (cpu->cores[i].leave_stopped)
+      if (c->leave_stopped)
 	continue;
 
-      if (cpu->cores[i].is_locked)
+      if (c->is_locked)
 	continue;
 
       cause = core_dbgstat_emucause (i);
@@ -6059,11 +6012,11 @@ bfin_wait_partial (int first,
 		    bfin_target.name, cpu->first_core + i, BFIN_PART_EMUPC_ORIG (part));
 
 	  sig = RP_SIGNAL_TRAP;
-	  cpu->cores[i].is_corefault = 1;
-	  cpu->cores[i].status_pending_p = 1;
-	  cpu->cores[i].pending_is_breakpoint = 0;
-	  cpu->cores[i].pending_signal = sig;
-	  cpu->cores[i].pending_stop_pc = BFIN_PART_EMUPC_ORIG (part);
+	  c->is_corefault = 1;
+	  c->status_pending_p = 1;
+	  c->pending_is_breakpoint = 0;
+	  c->pending_signal = sig;
+	  c->pending_stop_pc = BFIN_PART_EMUPC_ORIG (part);
 	}
       else if (core_dbgstat_is_emuready (i))
 	{
@@ -6072,7 +6025,7 @@ bfin_wait_partial (int first,
 
 	  core_wpstat_get (i);
 
-	  if (cpu->cores[i].wpstat & 0xff)
+	  if (c->wpstat & 0xff)
 	    {
 	      sig = RP_SIGNAL_TRAP;
 	      cause = EMUCAUSE_WATCHPOINT;
@@ -6095,7 +6048,7 @@ bfin_wait_partial (int first,
 		/* If it isn't interrupted, it was stopped by
 		   emulation_trigger () because there is some
 		   other core stopped. Don't report it.  */
-		if (cpu->cores[i].is_interrupted)
+		if (c->is_interrupted)
 		  sig = RP_SIGNAL_INTERRUPT;
 		else
 		  sig = RP_SIGNAL_ABORTED;
@@ -6111,20 +6064,20 @@ bfin_wait_partial (int first,
 
 	  bfin_log_emucause (i, cause, pc, fp);
 
-	  if (cause != EMUCAUSE_EMUIN || cpu->cores[i].is_interrupted)
+	  if (cause != EMUCAUSE_EMUIN || c->is_interrupted)
 	    {
-	      cpu->cores[i].status_pending_p = 1;
+	      c->status_pending_p = 1;
 
 	      /* We only have to distinguish the breakpoint added by GDB.
 	         GDB only use software breakpoint for its own purpose.  */
 
 	      if (cause == EMUCAUSE_EMUEXCPT)
-		cpu->cores[i].pending_is_breakpoint = 1;
+		c->pending_is_breakpoint = 1;
 	      else
-		cpu->cores[i].pending_is_breakpoint = 0;
+		c->pending_is_breakpoint = 0;
 
-	      cpu->cores[i].pending_signal = sig;
-	      cpu->cores[i].pending_stop_pc = pc;
+	      c->pending_signal = sig;
+	      c->pending_stop_pc = pc;
 	    }
 	}
       else
@@ -6136,51 +6089,50 @@ bfin_wait_partial (int first,
 	}
     }
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     {
-      if (cpu->cores[i].leave_stopped)
+      if (c->leave_stopped)
 	continue;
 
-      if (cpu->cores[i].status_pending_p)
+      if (!c->status_pending_p)
+	continue;
+
+      sprintf (status_string, "T%02d", c->pending_signal);
+      cp = &status_string[3];
+      if (c->is_corefault)
 	{
-	  sprintf (status_string, "T%02d", cpu->cores[i].pending_signal);
-	  cp = &status_string[3];
-	  if (cpu->cores[i].is_corefault)
-	    {
-	      pc = cpu->cores[i].pending_stop_pc;
-	      cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
-	    }
-	  else
-	    {
-	      if (cpu->cores[i].wpstat & 0xff)
-		{
-		  if (cpu->cores[i].wpstat & 0xc0)
-		    core_single_step (i);
-		  core_wpstat_clear (i);
-		}
-	      pc = core_register_get (i, REG_RETE);
-	      fp = core_register_get (i, REG_FP);
-
-	      cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
-	      cp = bfin_out_treg_value (cp, BFIN_FP_REGNUM, fp);
-	    }
-	  if (cpu->core_num > 1)
-	    sprintf (cp, "thread:%x;", THREAD_ID (i));
-
-	  cpu->cores[i].status_pending_p = 0;
-
-	  cpu->general_core = i;
-	  cpu->continue_core = i;
-
-	  /* Consume all interrupts.  */
-	  for (i = 0; i < cpu->core_num; i++)
-	    if (cpu->cores[i].status_pending_p
-		&& cpu->cores[i].is_interrupted
-		&& cpu->cores[i].pending_signal == RP_SIGNAL_INTERRUPT)
-	      cpu->cores[i].status_pending_p = 0;
-
-	  break;
+	  pc = c->pending_stop_pc;
+	  cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
 	}
+      else
+	{
+	  if (c->wpstat & 0xff)
+	    {
+	      if (c->wpstat & 0xc0)
+		core_single_step (i);
+	      core_wpstat_clear (i);
+	    }
+	  pc = core_register_get (i, REG_RETE);
+	  fp = core_register_get (i, REG_FP);
+
+	  cp = bfin_out_treg_value (cp, BFIN_PC_REGNUM, pc);
+	  cp = bfin_out_treg_value (cp, BFIN_FP_REGNUM, fp);
+	}
+      if (cpu->core_num > 1)
+	sprintf (cp, "thread:%x;", THREAD_ID (i));
+
+      c->status_pending_p = 0;
+
+      cpu->general_core = i;
+      cpu->continue_core = i;
+
+      /* Consume all interrupts.  */
+      for_each_core (i, c)
+	if (c->status_pending_p && c->is_interrupted &&
+	    c->pending_signal == RP_SIGNAL_INTERRUPT)
+	  c->status_pending_p = 0;
+
+      break;
     }
 
   return RP_VAL_TARGETRET_OK;
@@ -6331,15 +6283,14 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
 static int
 bfin_packetsize_query (char *out_buf, int out_buf_size)
 {
+  bfin_core *c;
   int i;
   int size;
 
   size = RP_PARAM_INOUTBUF_SIZE - 1;
-  for (i = 0; i < cpu->core_num; i++)
-    if (size > cpu->cores[i].l1_map->l1_data_a_end
-	- cpu->cores[i].l1_map->l1_data_a)
-      size = cpu->cores[i].l1_map->l1_data_a_end
-	- cpu->cores[i].l1_map->l1_data_a;
+  for_each_core (i, c)
+    if (size > MAP_LEN (c->l1_map->l1_data_a))
+      size = MAP_LEN (c->l1_map->l1_data_a);
 
   /* 0x4000 is the largest packet size GDB would like.  */
   if (size > 0x4000)
@@ -6357,6 +6308,7 @@ bfin_packetsize_query (char *out_buf, int out_buf_size)
 static int
 bfin_add_break (int type, uint64_t addr, int len)
 {
+  bfin_core *c;
   int mode;
   int i, j;
 
@@ -6382,17 +6334,16 @@ bfin_add_break (int type, uint64_t addr, int len)
 	return RP_VAL_TARGETRET_ERR;
 
     case 1:
-      if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
+      if (IN_MAP (addr, cpu->mem_map.l1))
 	{
-	  for (i = 0; i < cpu->core_num; i++)
-	    if (addr >= cpu->cores[i].l1_map->l1
-		&& addr < cpu->cores[i].l1_map->l1_end)
+	  for_each_core (i, c)
+	    if (IN_MAP (addr, c->l1_map->l1))
 	      {
 		for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-		  if (cpu->cores[i].hwbps[j] == -1)
+		  if (c->hwbps[j] == -1)
 		    {
-		      cpu->cores[i].hwbps[j] = addr;
-		      if (!cpu->cores[i].is_locked)
+		      c->hwbps[j] = addr;
+		      if (!c->is_locked)
 			wpu_set_wpia (i, j, addr, 1);
 		      return RP_VAL_TARGETRET_OK;
 		    }
@@ -6409,10 +6360,10 @@ bfin_add_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->core_num; i++)
+      for_each_core (i, c)
 	{
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-	    if (cpu->cores[i].hwbps[j] == -1)
+	    if (c->hwbps[j] == -1)
 	      break;
 
 	  if (j == RP_BFIN_MAX_HWBREAKPOINTS)
@@ -6427,12 +6378,12 @@ bfin_add_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->core_num; i++)
+      for_each_core (i, c)
 	for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-	  if (cpu->cores[i].hwbps[j] == -1)
+	  if (c->hwbps[j] == -1)
 	    {
-	      cpu->cores[i].hwbps[j] = addr;
-	      if (!cpu->cores[i].is_locked)
+	      c->hwbps[j] = addr;
+	      if (!c->is_locked)
 		wpu_set_wpia (i, j, addr, 1);
 	      break;
 	    }
@@ -6455,36 +6406,35 @@ bfin_add_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_NOSUPP;
     }
 
-  if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
+  if (IN_MAP (addr, cpu->mem_map.l1))
     {
-      for (i = 0; i < cpu->core_num; i++)
-	if (addr >= cpu->cores[i].l1_map->l1
-	    && addr < cpu->cores[i].l1_map->l1_end)
+      for_each_core (i, c)
+	if (IN_MAP (addr, c->l1_map->l1))
 	  {
 	    if (!bfin_force_range_wp
 		&& len <= 4
-		&& (cpu->cores[i].hwwps[0].addr == -1
-		    || cpu->cores[i].hwwps[1].addr == -1))
+		&& (c->hwwps[0].addr == -1
+		    || c->hwwps[1].addr == -1))
 	      {
-		j = cpu->cores[i].hwwps[0].addr == -1 ? 0 : 1;
-		cpu->cores[i].hwwps[j].addr = addr;
-		cpu->cores[i].hwwps[j].len = len;
-		cpu->cores[i].hwwps[j].mode = mode;
-		if (!cpu->cores[i].is_locked)
+		j = c->hwwps[0].addr == -1 ? 0 : 1;
+		c->hwwps[j].addr = addr;
+		c->hwwps[j].len = len;
+		c->hwwps[j].mode = mode;
+		if (!c->is_locked)
 		  wpu_set_wpda (i, j, addr, len, 0, mode);
 		return RP_VAL_TARGETRET_OK;
 	      }
 	    else if ((bfin_force_range_wp || len > 4)
-		     && cpu->cores[i].hwwps[0].addr == -1
-		     && cpu->cores[i].hwwps[1].addr == -1)
+		     && c->hwwps[0].addr == -1
+		     && c->hwwps[1].addr == -1)
 	      {
-		cpu->cores[i].hwwps[0].addr = addr;
-		cpu->cores[i].hwwps[0].len = len;
-		cpu->cores[i].hwwps[0].mode = mode;
-		cpu->cores[i].hwwps[1].addr = addr;
-		cpu->cores[i].hwwps[1].len = len;
-		cpu->cores[i].hwwps[1].mode = mode;
-		if (!cpu->cores[i].is_locked)
+		c->hwwps[0].addr = addr;
+		c->hwwps[0].len = len;
+		c->hwwps[0].mode = mode;
+		c->hwwps[1].addr = addr;
+		c->hwwps[1].len = len;
+		c->hwwps[1].mode = mode;
+		if (!c->is_locked)
 		  wpu_set_wpda (i, 0, addr, len, 1, mode);
 		return RP_VAL_TARGETRET_OK;
 	      }
@@ -6501,15 +6451,15 @@ bfin_add_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     if (!bfin_force_range_wp
 	&& len <= 4
-	&& cpu->cores[i].hwwps[0].addr != -1
-	&& cpu->cores[i].hwwps[1].addr != -1)
+	&& c->hwwps[0].addr != -1
+	&& c->hwwps[1].addr != -1)
       break;
     else if ((bfin_force_range_wp || len > 4)
-	     && (cpu->cores[i].hwwps[0].addr != -1
-		 || cpu->cores[i].hwwps[1].addr != -1))
+	     && (c->hwwps[0].addr != -1
+		 || c->hwwps[1].addr != -1))
       break;
 
   if (i < cpu->core_num)
@@ -6520,26 +6470,26 @@ bfin_add_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     if (!bfin_force_range_wp && len <= 4)
       {
-	j = cpu->cores[i].hwwps[0].addr == -1 ? 0 : 1;
+	j = c->hwwps[0].addr == -1 ? 0 : 1;
 
-	cpu->cores[i].hwwps[j].addr = addr;
-	cpu->cores[i].hwwps[j].len = len;
-	cpu->cores[i].hwwps[j].mode = mode;
-	if (!cpu->cores[i].is_locked)
+	c->hwwps[j].addr = addr;
+	c->hwwps[j].len = len;
+	c->hwwps[j].mode = mode;
+	if (!c->is_locked)
 	  wpu_set_wpda (i, j, addr, len, 0, mode);
       }
     else
       {
-	cpu->cores[i].hwwps[0].addr = addr;
-	cpu->cores[i].hwwps[0].len = len;
-	cpu->cores[i].hwwps[0].mode = mode;
-	cpu->cores[i].hwwps[1].addr = addr;
-	cpu->cores[i].hwwps[1].len = len;
-	cpu->cores[i].hwwps[1].mode = mode;
-	if (!cpu->cores[i].is_locked)
+	c->hwwps[0].addr = addr;
+	c->hwwps[0].len = len;
+	c->hwwps[0].mode = mode;
+	c->hwwps[1].addr = addr;
+	c->hwwps[1].len = len;
+	c->hwwps[1].mode = mode;
+	if (!c->is_locked)
 	  wpu_set_wpda (i, 0, addr, len, 1, mode);
       }
   return RP_VAL_TARGETRET_OK;
@@ -6550,6 +6500,7 @@ static int
 bfin_remove_break (int type, uint64_t addr, int len)
 {
   int mode;
+  bfin_core *c;
   int i, j;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -6571,17 +6522,16 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	}
 
     case 1:
-      if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
+      if (IN_MAP (addr, cpu->mem_map.l1))
 	{
-	  for (i = 0; i < cpu->core_num; i++)
-	    if (addr >= cpu->cores[i].l1_map->l1
-		&& addr < cpu->cores[i].l1_map->l1_end)
+	  for_each_core (i, c)
+	    if (IN_MAP (addr, c->l1_map->l1))
 	      {
 		for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-		  if (cpu->cores[i].hwbps[j] == addr)
+		  if (c->hwbps[j] == addr)
 		    {
-		      cpu->cores[i].hwbps[j] = -1;
-		      if (!cpu->cores[i].is_locked)
+		      c->hwbps[j] = -1;
+		      if (!c->is_locked)
 			wpu_set_wpia (i, j, addr, 0);
 		      return RP_VAL_TARGETRET_OK;
 		    }
@@ -6598,10 +6548,10 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->core_num; i++)
+      for_each_core (i, c)
 	{
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-	    if (cpu->cores[i].hwbps[j] == addr)
+	    if (c->hwbps[j] == addr)
 	      break;
 
 	  if (j == RP_BFIN_MAX_HWBREAKPOINTS)
@@ -6616,12 +6566,12 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for (i = 0; i < cpu->core_num; i++)
+      for_each_core (i, c)
 	for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
-	  if (cpu->cores[i].hwbps[j] == addr)
+	  if (c->hwbps[j] == addr)
 	    {
-	      cpu->cores[i].hwbps[j] = -1;
-	      if (!cpu->cores[i].is_locked)
+	      c->hwbps[j] = -1;
+	      if (!c->is_locked)
 		wpu_set_wpia (i, j, addr, 0);
 	      break;
 	    }
@@ -6644,44 +6594,43 @@ bfin_remove_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_NOSUPP;
     }
 
-  if (addr >= cpu->mem_map.l1 && addr < cpu->mem_map.l1_end)
+  if (IN_MAP (addr, cpu->mem_map.l1))
     {
-      for (i = 0; i < cpu->core_num; i++)
-	if (addr >= cpu->cores[i].l1_map->l1
-	    && addr < cpu->cores[i].l1_map->l1_end)
+      for_each_core (i, c)
+	if (IN_MAP (addr, c->l1_map->l1))
 	  {
 	    if (!bfin_force_range_wp
 		&& len <= 4
-		&& ((cpu->cores[i].hwwps[0].addr == addr
-		     && cpu->cores[i].hwwps[0].len == len
-		     && cpu->cores[i].hwwps[0].mode == mode)
-		    || (cpu->cores[i].hwwps[1].addr == addr
-			&& cpu->cores[i].hwwps[1].len == len
-			&& cpu->cores[i].hwwps[1].mode == mode)))
+		&& ((c->hwwps[0].addr == addr
+		     && c->hwwps[0].len == len
+		     && c->hwwps[0].mode == mode)
+		    || (c->hwwps[1].addr == addr
+			&& c->hwwps[1].len == len
+			&& c->hwwps[1].mode == mode)))
 	      {
-		j = cpu->cores[i].hwwps[0].addr == addr ? 0 : 1;
-		cpu->cores[i].hwwps[j].addr = -1;
-		cpu->cores[i].hwwps[j].len = 0;
-		cpu->cores[i].hwwps[j].mode = WPDA_DISABLE;
-		if (!cpu->cores[i].is_locked)
+		j = c->hwwps[0].addr == addr ? 0 : 1;
+		c->hwwps[j].addr = -1;
+		c->hwwps[j].len = 0;
+		c->hwwps[j].mode = WPDA_DISABLE;
+		if (!c->is_locked)
 		  wpu_set_wpda (i, j, addr, len, 0, WPDA_DISABLE);
 		return RP_VAL_TARGETRET_OK;
 	      }
 	    else if ((bfin_force_range_wp || len > 4)
-		     && cpu->cores[i].hwwps[0].addr == addr
-		     && cpu->cores[i].hwwps[0].len == len
-		     && cpu->cores[i].hwwps[0].mode == mode
-		     && cpu->cores[i].hwwps[1].addr == addr
-		     && cpu->cores[i].hwwps[1].len == len
-		     && cpu->cores[i].hwwps[1].mode == mode)
+		     && c->hwwps[0].addr == addr
+		     && c->hwwps[0].len == len
+		     && c->hwwps[0].mode == mode
+		     && c->hwwps[1].addr == addr
+		     && c->hwwps[1].len == len
+		     && c->hwwps[1].mode == mode)
 	      {
-		cpu->cores[i].hwwps[0].addr = -1;
-		cpu->cores[i].hwwps[0].len = 0;
-		cpu->cores[i].hwwps[0].mode = WPDA_DISABLE;
-		cpu->cores[i].hwwps[1].addr = -1;
-		cpu->cores[i].hwwps[1].len = 0;
-		cpu->cores[i].hwwps[1].mode = WPDA_DISABLE;
-		if (!cpu->cores[i].is_locked)
+		c->hwwps[0].addr = -1;
+		c->hwwps[0].len = 0;
+		c->hwwps[0].mode = WPDA_DISABLE;
+		c->hwwps[1].addr = -1;
+		c->hwwps[1].len = 0;
+		c->hwwps[1].mode = WPDA_DISABLE;
+		if (!c->is_locked)
 		  wpu_set_wpda (i, 0, addr, len, 1, WPDA_DISABLE);
 		return RP_VAL_TARGETRET_OK;
 	      }
@@ -6698,23 +6647,23 @@ bfin_remove_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     if (!bfin_force_range_wp
 	&& len <= 4
-	&& (cpu->cores[i].hwwps[0].addr != addr
-	    || cpu->cores[i].hwwps[0].len != len
-	    || cpu->cores[i].hwwps[0].mode != mode)
-	&& (cpu->cores[i].hwwps[1].addr != addr
-	    || cpu->cores[i].hwwps[1].len != len
-	    || cpu->cores[i].hwwps[1].mode != mode))
+	&& (c->hwwps[0].addr != addr
+	    || c->hwwps[0].len != len
+	    || c->hwwps[0].mode != mode)
+	&& (c->hwwps[1].addr != addr
+	    || c->hwwps[1].len != len
+	    || c->hwwps[1].mode != mode))
       break;
     else if ((bfin_force_range_wp || len > 4)
-	     && (cpu->cores[i].hwwps[0].addr != addr
-		 || cpu->cores[i].hwwps[0].len != len
-		 || cpu->cores[i].hwwps[0].mode != mode
-		 || cpu->cores[i].hwwps[1].addr != addr
-		 || cpu->cores[i].hwwps[1].len != len
-		 || cpu->cores[i].hwwps[1].mode != mode))
+	     && (c->hwwps[0].addr != addr
+		 || c->hwwps[0].len != len
+		 || c->hwwps[0].mode != mode
+		 || c->hwwps[1].addr != addr
+		 || c->hwwps[1].len != len
+		 || c->hwwps[1].mode != mode))
       break;
 
   if (i < cpu->core_num)
@@ -6725,27 +6674,27 @@ bfin_remove_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for (i = 0; i < cpu->core_num; i++)
+  for_each_core (i, c)
     if (!bfin_force_range_wp && len <= 4)
       {
-	j = (cpu->cores[i].hwwps[0].addr == addr
-	     && cpu->cores[i].hwwps[0].len == len
-	     && cpu->cores[i].hwwps[0].mode == mode) ? 0 : 1;
-	cpu->cores[i].hwwps[j].addr = -1;
-	cpu->cores[i].hwwps[j].len = 0;
-	cpu->cores[i].hwwps[j].mode = WPDA_DISABLE;
-	if (!cpu->cores[i].is_locked)
+	j = (c->hwwps[0].addr == addr
+	     && c->hwwps[0].len == len
+	     && c->hwwps[0].mode == mode) ? 0 : 1;
+	c->hwwps[j].addr = -1;
+	c->hwwps[j].len = 0;
+	c->hwwps[j].mode = WPDA_DISABLE;
+	if (!c->is_locked)
 	  wpu_set_wpda (i, j, addr, len, 0, WPDA_DISABLE);
       }
     else
       {
-	cpu->cores[i].hwwps[0].addr = -1;
-	cpu->cores[i].hwwps[0].len = 0;
-	cpu->cores[i].hwwps[0].mode = WPDA_DISABLE;
-	cpu->cores[i].hwwps[1].addr = -1;
-	cpu->cores[i].hwwps[1].len = 0;
-	cpu->cores[i].hwwps[1].mode = WPDA_DISABLE;
-	if (!cpu->cores[i].is_locked)
+	c->hwwps[0].addr = -1;
+	c->hwwps[0].len = 0;
+	c->hwwps[0].mode = WPDA_DISABLE;
+	c->hwwps[1].addr = -1;
+	c->hwwps[1].len = 0;
+	c->hwwps[1].mode = WPDA_DISABLE;
+	if (!c->is_locked)
 	  wpu_set_wpda (i, 0, addr, len, 1, WPDA_DISABLE);
       }
   return RP_VAL_TARGETRET_OK;
