@@ -5554,10 +5554,17 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
 	  goto done;
 	}
-      else if (!c->l1_code_cache_enabled &&
-	       IN_MAP (addr, c->l1_map->l1_code_cache) &&
+      else if (IN_MAP (addr, c->l1_map->l1_code_cache) &&
 	       addr + write_size <= c->l1_map->l1_code_cache_end)
 	{
+	  if (c->l1_code_cache_enabled)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: [%d] cannot write L1 icache when enabled [0x%08llX] size %d",
+			bfin_target.name, cpu->first_core + i, addr, write_size);
+	      return RP_VAL_TARGETRET_ERR;
+	    }
+
 	  ret = sram_write (core, addr, buf, write_size, i != core);
 	  goto done;
 	}
@@ -5571,10 +5578,17 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
-      else if (!c->l1_data_a_cache_enabled &&
-	       IN_MAP (addr, c->l1_map->l1_data_a_cache) &&
+      else if (IN_MAP (addr, c->l1_map->l1_data_a_cache) &&
 	       addr + write_size <= c->l1_map->l1_data_a_cache_end)
 	{
+	  if (c->l1_data_a_cache_enabled)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: [%d] cannot write L1 dcache when enabled [0x%08llX] size %d",
+			bfin_target.name, cpu->first_core + i, addr, write_size);
+	      return RP_VAL_TARGETRET_ERR;
+	    }
+
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
@@ -5588,10 +5602,17 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
-      else if (!c->l1_data_b_cache_enabled &&
-	       IN_MAP (addr, c->l1_map->l1_data_b_cache) &&
+      else if (IN_MAP (addr, c->l1_map->l1_data_b_cache) &&
 	       addr + write_size <= c->l1_map->l1_data_b_cache_end)
 	{
+	  if (c->l1_data_b_cache_enabled)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: [%d] cannot write L1 dcache when enabled [0x%08llX] size %d",
+			bfin_target.name, cpu->first_core + i, addr, write_size);
+	      return RP_VAL_TARGETRET_ERR;
+	    }
+
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
 	  goto done;
 	}
