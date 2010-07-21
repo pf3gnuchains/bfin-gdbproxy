@@ -7,6 +7,10 @@ AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
 AM_INIT_AUTOMAKE
+dnl silent rules requires automake-1.11+
+m4_ifdef([AM_SILENT_RULES],
+	[AM_SILENT_RULES([yes])],
+	[AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
 
 AM_CONFIG_HEADER(config.h)
 
@@ -92,8 +96,9 @@ jtag_builddir=$with_jtag_builddir
 PKG_CONFIG="${PKG_CONFIG:-pkg-config} --static"
 PKG_CHECK_MODULES(URJTAG, urjtag, [:], [
 	AC_MSG_RESULT([using urjtag from $jtag_srcdir and $jtag_builddir])
+	PKG_CHECK_MODULES(URJTAG, $with_jtag_builddir/src/urjtag.pc)
 	URJTAG_CFLAGS="-I$with_jtag_srcdir/include"
-	URJTAG_LIBS="$with_jtag_builddir/src/.libs/liburjtag.a"
+	URJTAG_LIBS="-L$with_jtag_builddir/src/.libs $URJTAG_LIBS"
 ])
 AC_SUBST(URJTAG_CFLAGS)
 AC_SUBST(URJTAG_LIBS)
@@ -102,4 +107,3 @@ AC_SUBST(URJTAG_LIBS)
 AC_CONFIG_FILES(Makefile gnulib/lib/Makefile)
 
 AC_OUTPUT
-
