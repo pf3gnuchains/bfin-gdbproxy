@@ -3634,14 +3634,15 @@ static void jc_emudat_show (urj_tap_register_t *r, const char *id)
 /* If EMUDAT_OUT is valid (the Blackfin sending data to us), read it from JTAG
  * chain and store it in the net circular buffer
  */
-static void jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
+static int jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
 {
   static uint32_t in_len;
   const char *fmt;
   uint64_t value;
+  int ret = 0;
 
   if (!rof->data[32])
-    return;
+    return ret;
 
   /* First we scan in the length of the data, then we read the data */
   value = emudat_value (rof);
@@ -3658,6 +3659,7 @@ static void jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
       circ_puts(&jc_jtag_buf, data, this_in);
       in_len -= this_in;
       fmt = "<D";
+      ret = 1;
     }
   else
     {
@@ -3667,17 +3669,20 @@ static void jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
 
   jc_emudat_show (rof, fmt);
   rif->data[32] = 0;
+
+  return ret;
 }
 
 /* Scan EMUDAT and see if there is any data from the Blackfin proc, or if
  * there is room for us to send data from the network.
  */
-static void jc_process (int core)
+static int jc_process (int core)
 {
   static uint32_t out_len;
   urj_part_t *part;
   urj_tap_register_t *rof, *rif;
   uint64_t value;
+  int ret;
 
   core_scan_select (core, EMUDAT_SCAN);
 
@@ -3690,7 +3695,7 @@ static void jc_process (int core)
 
   jc_emudat_show (rif, "I-");
   jc_emudat_show (rof, "O-");
-  jc_maybe_queue (rif, rof);
+  ret = jc_maybe_queue (rif, rof);
 
   /* EMUDAT_IN: data for Blackfin */
   if (!circ_empty(&jc_net_buf) && !rof->data[33])
@@ -3731,27 +3736,29 @@ static void jc_process (int core)
       urj_tap_chain_shift_data_registers (cpu->chain, 1);
       jc_emudat_show (rif, "I-");
       jc_emudat_show (rof, "O-");
-      jc_maybe_queue (rif, rof);
+      ret += jc_maybe_queue (rif, rof);
       rif->data[33] = 0;
     }
+
+  return ret;
 }
 
 /* Check the network and jtag for pending data */
-static void jc_loop (void)
+static int jc_loop (void)
 {
   static int jc_sock = -1;
   char buf[CIRC_SIZE];
   ssize_t io_ret;
 
   if (jc_listen_sock == -1)
-    return;
+    return -1;
 
   /* We only handle one connection at a time */
   if (jc_sock == -1)
     {
       jc_sock = sock_accept (jc_listen_sock);
       if (jc_sock == -1)
-	return;
+	return -1;
       bfin_log (RP_VAL_LOGLEVEL_NOTICE, "%s: jc: connected", bfin_target.name);
       set_fd_nonblock (jc_sock);
     }
@@ -3788,7 +3795,7 @@ static void jc_loop (void)
     }
 
   /* See if there is anything in the jtag scan chain */
-  jc_process (0);
+  return jc_process (0);
 }
 
 /* Set up the port for jtag communication */
@@ -3805,6 +3812,8 @@ static void jc_init (void)
 
   bfin_log (RP_VAL_LOGLEVEL_NOTICE, "%s: jc: waiting on TCP port %u",
 	    bfin_target.name, jc_port);
+  bfin_log (RP_VAL_LOGLEVEL_NOTICE, "%s: jc:  (you must connect GDB before using jtag console)",
+	    bfin_target.name);
 }
 
 
@@ -5873,7 +5882,9 @@ bfin_wait_partial (int first,
   *implemented = TRUE;
 
   /* Check for pending jtag communications */
-  jc_loop ();
+  for (i = 0; i < 100; ++i)
+    if (jc_loop () <= 0 || 1)
+      break;
 
   /* If we have any interesting pending event,
      report it instead of resume.  */
