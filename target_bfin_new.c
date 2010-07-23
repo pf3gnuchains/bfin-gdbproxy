@@ -3684,9 +3684,9 @@ static int jc_process (int core)
   uint64_t value;
   int ret;
 
-  core_scan_select (core, EMUDAT_SCAN);
+  core_scan_select (cpu->core_a, EMUDAT_SCAN);
 
-  part = cpu->chain->parts->parts[cpu->first_core + core];
+  part = cpu->chain->parts->parts[cpu->first_core + cpu->core_a];
   rof = part->active_instruction->data_register->out;
   rif = part->active_instruction->data_register->in;
 
