@@ -440,12 +440,14 @@ static int bfin_packetsize_query (char *out_buf, int out_buf_size);
 static int bfin_add_break (int type, uint64_t addr, int len);
 static int bfin_remove_break (int type, uint64_t addr, int len);
 
+static const RCMD_TABLE bfin_remote_commands[];
+
 /* Global target descriptor */
 rp_target bfin_target = {
   NULL,
   "bfin",
   "Blackfin JTAG target",
-  NULL,
+  bfin_remote_commands,
   bfin_help,
   bfin_open,
   bfin_close,
@@ -3604,6 +3606,7 @@ bfin_out_treg (char *in, unsigned int reg_no)
 
 
 static struct circ_buf jc_net_buf, jc_jtag_buf;
+static uint32_t jc_net_len, jc_jtag_len;
 static unsigned int jc_port = 2001;
 static int jc_listen_sock = -1;
 
@@ -3631,12 +3634,18 @@ static void jc_emudat_show (urj_tap_register_t *r, const char *id)
 	    r->data[32] ? " emudof" : "", r->data[33] ? " emudif" : "");
 }
 
+static void jc_state_reset (void)
+{
+  jc_net_len = jc_jtag_len = 0;
+  circ_clear (&jc_net_buf);
+  circ_clear (&jc_jtag_buf);
+}
+
 /* If EMUDAT_OUT is valid (the Blackfin sending data to us), read it from JTAG
  * chain and store it in the net circular buffer
  */
 static int jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
 {
-  static uint32_t in_len;
   const char *fmt;
   uint64_t value;
   int ret = 0;
@@ -3646,7 +3655,7 @@ static int jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
 
   /* First we scan in the length of the data, then we read the data */
   value = emudat_value (rof);
-  if (in_len)
+  if (jc_jtag_len)
     {
       uint32_t this_in;
       char data[4] = { /* shift manually to avoid endian issues */
@@ -3655,15 +3664,15 @@ static int jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
 	(value >> 16) & 0xff,
 	(value >> 24) & 0xff,
       };
-      this_in = MIN(in_len, 4);
+      this_in = MIN(jc_jtag_len, 4);
       circ_puts(&jc_jtag_buf, data, this_in);
-      in_len -= this_in;
+      jc_jtag_len -= this_in;
       fmt = "<D";
       ret = 1;
     }
   else
     {
-      in_len = value;
+      jc_jtag_len = value;
       fmt = "<L";
     }
 
@@ -3678,7 +3687,6 @@ static int jc_maybe_queue (urj_tap_register_t *rif, urj_tap_register_t *rof)
  */
 static int jc_process (int core)
 {
-  static uint32_t out_len;
   urj_part_t *part;
   urj_tap_register_t *rof, *rif;
   uint64_t value;
@@ -3705,22 +3713,22 @@ static int jc_process (int core)
       const char *fmt;
 
       reg_size = sizeof (emudat);
-      if (out_len)
+      if (jc_net_len)
 	{
 	  /* First we write the # of bytes we are going to send */
 	  char data[4];
-	  this_out = MIN(reg_size, out_len);
+	  this_out = MIN(reg_size, jc_net_len);
 	  circ_gets(&jc_net_buf, data, this_out);
 	  /* shift manually to avoid endian issues */
 	  emudat = data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
-	  out_len -= this_out;
+	  jc_net_len -= this_out;
 	  fmt = "D>";
 	}
       else
 	{
 	  /* Then we send the actual data */
-	  out_len = MIN(reg_size, circ_cnt(&jc_net_buf));
-	  emudat = out_len;
+	  jc_net_len = MIN(reg_size, circ_cnt(&jc_net_buf));
+	  emudat = jc_net_len;
 	  fmt = "L>";
 	}
 
@@ -6002,6 +6010,7 @@ bfin_wait_partial (int first,
 	}
       else if (core_dbgstat_is_in_reset (i) && !core_sticky_in_reset (i))
 	{
+	  jc_state_reset ();
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] core is currently being reset",
 		    bfin_target.name, cpu->first_core + i);
@@ -6731,3 +6740,24 @@ bfin_remove_break (int type, uint64_t addr, int len)
       }
   return RP_VAL_TARGETRET_OK;
 }
+
+/* command: reset proc */
+static int bfin_rcmd_reset(int argc, char *argv[], out_func of, data_func df)
+{
+  software_reset (cpu->chain);
+  return RP_VAL_TARGETRET_OK;
+}
+
+static int bfin_rcmd_jc_reset(int argc, char *argv[], out_func of, data_func df)
+{
+  jc_state_reset ();
+  return RP_VAL_TARGETRET_OK;
+}
+
+#define RCMD(name, hlp) {#name, bfin_rcmd_##name, hlp}
+static const RCMD_TABLE bfin_remote_commands[] =
+{
+  RCMD(reset, "Reset processor"),
+  RCMD(jc_reset, "Reset JTAG console counters"),
+  {0,0,0},
+};

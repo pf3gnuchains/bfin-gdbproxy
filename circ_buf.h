@@ -24,6 +24,7 @@ struct circ_buf {
 	char _buf[CIRC_SIZE];
 	int head, tail;
 };
+#define circ_clear(c) (c)->head = (c)->tail
 #define circ_empty(c) ((c)->head == (c)->tail)
 #define circ_full(c)  (circ_cnt(c) == CIRC_MASK)
 #define circ_cnt(c)   (((c)->head - (c)->tail) & (CIRC_MASK))
