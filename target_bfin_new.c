@@ -5883,7 +5883,7 @@ bfin_wait_partial (int first,
 
   /* Check for pending jtag communications */
   for (i = 0; i < 100; ++i)
-    if (jc_loop () <= 0 || 1)
+    if (jc_loop () <= 0)
       break;
 
   /* If we have any interesting pending event,
