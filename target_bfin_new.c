@@ -3825,6 +3825,23 @@ static void jc_init (void)
 }
 
 
+/* Urjtag logging hooks */
+static out_func urjtag_of;
+static int
+bfin_urjtag_vprintf(const char *fmt, va_list ap)
+{
+  char raw[4096], cook[4096];
+
+  vsnprintf (raw, sizeof (raw) - 1, fmt, ap);
+  raw[sizeof (raw) - 1] = '\0';
+
+  rp_encode_string (raw, cook, sizeof (cook));
+  urjtag_of (cook);
+
+  return 0;
+}
+
+
 /* Target method */
 static void
 bfin_help (const char *prog_name)
@@ -6754,10 +6771,25 @@ static int bfin_rcmd_jc_reset(int argc, char *argv[], out_func of, data_func df)
   return RP_VAL_TARGETRET_OK;
 }
 
+static int bfin_rcmd_urjtag(int argc, char *argv[], out_func of, data_func df)
+{
+  /* skip argv[0] which is "urjtag" */
+  ++argv;
+
+  /* abusing these hooks like this seems kind of hacky */
+  urjtag_of = of;
+  urj_log_state.out_vprintf = urj_log_state.err_vprintf = bfin_urjtag_vprintf;
+  urj_cmd_run (cpu->chain, argv);
+  urj_log_state.out_vprintf = urj_log_state.err_vprintf = vprintf;
+
+  return RP_VAL_TARGETRET_OK;
+}
+
 #define RCMD(name, hlp) {#name, bfin_rcmd_##name, hlp}
 static const RCMD_TABLE bfin_remote_commands[] =
 {
   RCMD(reset, "Reset processor"),
   RCMD(jc_reset, "Reset JTAG console counters"),
+  RCMD(urjtag, "Run urjtag commands"),
   {0,0,0},
 };

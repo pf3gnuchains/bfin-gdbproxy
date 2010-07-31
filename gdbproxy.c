@@ -2652,7 +2652,7 @@ static void DEBUG_OUT(const char *string,...)
 #endif
 
 /* Target method */
-#define MAXARGS 4
+#define MAXARGS 10
 static int handle_rcmd_command(char *in_buf, out_func of, data_func df, rp_target *t)
 {
     int count = 0;
@@ -2699,12 +2699,13 @@ static int handle_rcmd_command(char *in_buf, out_func of, data_func df, rp_targe
             {
                 /* Space is the delimiter */
                 *ptr = 0;
-                if (count >= MAXARGS)
+                if (count >= MAXARGS - 1)
                     return RP_VAL_TARGETRET_ERR;
                 args[count++] = ptr + 1;
             }
             ptr++;
         }
+        args[count] = NULL;
         /* Search the command table, and execute the function if found */
         DEBUG_OUT("executing target dependant command '%s'", args[0]);
 
