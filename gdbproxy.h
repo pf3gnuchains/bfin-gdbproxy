@@ -352,8 +352,8 @@ struct rp_target_s
     /* Query thread extra info */
     int (*threadextrainfo_query)(rp_thread_ref *thread, char *out_buf, int out_buf_size);
 
-    /* Query packet size */
-    int (*packetsize_query)(char *out_buf, int out_buf_size);
+    /* Query supported target features */
+    int (*supported_query)(char *out_buf, int out_buf_size);
 };
 
 

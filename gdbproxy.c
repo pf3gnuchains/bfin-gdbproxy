@@ -1080,13 +1080,13 @@ static void handle_query_command(char * const in_buf,
 	&& (in_buf[10] == ':' || in_buf[10] == '\0'))
     {
       /* Features supported */
-      if (t->packetsize_query == NULL)
+      if (t->supported_query == NULL)
 	{
 	  rp_write_retval(RP_VAL_TARGETRET_NOSUPP, out_buf);
 	  return;
 	}
 
-      ret = t->packetsize_query(out_buf, out_buf_len);
+      ret = t->supported_query(out_buf, out_buf_len);
       switch (ret)
 	{
 	case RP_VAL_TARGETRET_OK:

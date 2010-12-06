@@ -436,7 +436,7 @@ static int bfin_threadinfo_query (int first,
 				  char *out_buf, int out_buf_size);
 static int bfin_threadextrainfo_query (rp_thread_ref *thread,
 				       char *out_buf, int out_buf_size);
-static int bfin_packetsize_query (char *out_buf, int out_buf_size);
+static int bfin_supported_query (char *out_buf, int out_buf_size);
 static int bfin_add_break (int type, uint64_t addr, int len);
 static int bfin_remove_break (int type, uint64_t addr, int len);
 
@@ -480,7 +480,7 @@ rp_target bfin_target = {
   bfin_remove_break,
   bfin_threadinfo_query,
   bfin_threadextrainfo_query,
-  bfin_packetsize_query,
+  bfin_supported_query,
 };
 static char default_jtag_connect[] = "cable probe";
 static uint32_t bfin_frequency = 0;
@@ -6272,9 +6272,87 @@ bfin_crc_query (uint64_t addr, int len, uint32_t *val)
 
 /* Target method */
 static int
+_bfin_raw_query_append (char **out_buf, int *out_buf_size, const char *fmt, ...)
+{
+  int ret;
+  va_list args;
+
+  va_start (args, fmt);
+  ret = vsnprintf (*out_buf, *out_buf_size, fmt, args);
+  va_end (args);
+
+  if (ret < 0)
+    return RP_VAL_TARGETRET_ERR;
+
+  *out_buf += ret;
+  *out_buf_size -= ret;
+  return RP_VAL_TARGETRET_OK;
+}
+static int
+__bfin_raw_query_append_mem (char **out_buf, int *out_buf_size, const char *type,
+			     uint32_t start, uint32_t len)
+{
+  if (start == 0)
+    return RP_VAL_TARGETRET_OK;
+  return _bfin_raw_query_append (out_buf, out_buf_size,
+	"<memory type=\"%s\" start=\"%#x\" length=\"%#x\"/>",
+	type, start, len);
+}
+#define __bfin_raw_query_append_mem(b, s, t, m, l) \
+  do { \
+    int __ret = __bfin_raw_query_append_mem(b, s, t, m, l); \
+    if (__ret != RP_VAL_TARGETRET_OK) \
+      return __ret; \
+  } while (0)
+#define _bfin_raw_query_append_mem(b, s, t, m) \
+  __bfin_raw_query_append_mem(b, s, t, m, MAP_LEN (m))
+
+static int
 bfin_raw_query (char *in_buf, char *out_buf, int out_buf_size)
 {
+  bfin_core *c;
+  int i, ret;
+  const char q_memory_map[] = "qXfer:memory-map:read::";
+
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_raw_query ()", bfin_target.name);
+
+  /* http://sourceware.org/gdb/current/onlinedocs/gdb/Memory-Map-Format.html#Memory-Map-Format */
+  if (!strncmp (in_buf, q_memory_map, sizeof (q_memory_map) - 1))
+    {
+      const bfin_mem_map *mem = &cpu->mem_map;
+      char **b = &out_buf;
+      int *s = &out_buf_size;
+
+      ret = _bfin_raw_query_append (b, s,
+		"l<memory-map>");
+      if (ret < 0)
+	return RP_VAL_TARGETRET_ERR;
+
+      for_each_core (i, c)
+	{
+	  const bfin_l1_map *l1 = c->l1_map;
+	  /* XXX: Maybe label the caches as ROM ?  */
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_data_a);
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_data_a_cache);
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_data_b);
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_data_b_cache);
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_code);
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_code_cache);
+	  _bfin_raw_query_append_mem (b, s, "rom", l1->l1_code_rom);
+	  _bfin_raw_query_append_mem (b, s, "ram", l1->l1_scratch);
+	}
+
+      _bfin_raw_query_append_mem (b, s, "ram", mem->sdram);
+      _bfin_raw_query_append_mem (b, s, "ram", mem->async_mem);
+      _bfin_raw_query_append_mem (b, s, "rom", mem->boot_rom);
+      _bfin_raw_query_append_mem (b, s, "ram", mem->l2_sram);
+      __bfin_raw_query_append_mem (b, s, "ram", mem->sysmmr, 0x200000);
+      __bfin_raw_query_append_mem (b, s, "ram", mem->coremmr, 0x200000);
+
+      /* _bfin_raw_query_append_mem (b, s, "flash", mem->flash); */
+
+      return _bfin_raw_query_append (b, s, "</memory-map>");
+    }
 
   return RP_VAL_TARGETRET_NOSUPP;
 }
@@ -6339,24 +6417,23 @@ bfin_threadextrainfo_query (rp_thread_ref *thread, char *out_buf,
 
 /* Target method */
 static int
-bfin_packetsize_query (char *out_buf, int out_buf_size)
+bfin_supported_query (char *out_buf, int out_buf_size)
 {
   bfin_core *c;
   int i;
   int size;
 
-  size = RP_PARAM_INOUTBUF_SIZE - 1;
-  for_each_core (i, c)
-    if (size > MAP_LEN (c->l1_map->l1_data_a))
-      size = MAP_LEN (c->l1_map->l1_data_a);
-
   /* 0x4000 is the largest packet size GDB would like.  */
-  if (size > 0x4000)
-    size = 0x4000;
+  size = MIN (0x4000, RP_PARAM_INOUTBUF_SIZE - 1);
+  for_each_core (i, c)
+    size = MIN (size, MAP_LEN (c->l1_map->l1_data_a));
 
-  sprintf (out_buf, "PacketSize=%x", size);
+  i = snprintf (out_buf, out_buf_size,
+		"PacketSize=%x"
+		";qXfer:memory-map:read+",
+		size);
 
-  if (strlen (out_buf) >= out_buf_size)
+  if (i < 0)
     return RP_VAL_TARGETRET_ERR;
   else
     return RP_VAL_TARGETRET_OK;
