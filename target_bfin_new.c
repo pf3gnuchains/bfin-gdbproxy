@@ -6317,14 +6317,16 @@ bfin_raw_query (char *in_buf, char *out_buf, int out_buf_size)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_raw_query ()", bfin_target.name);
 
   /* http://sourceware.org/gdb/current/onlinedocs/gdb/Memory-Map-Format.html#Memory-Map-Format */
+  /* XXX: this doesn't handle the offset/len part of the packet, but
+          gdb will usually (always?) use offset of 0 with a len of 4k,
+          and that's plenty for our map below ...  */
   if (!strncmp (in_buf, q_memory_map, sizeof (q_memory_map) - 1))
     {
       const bfin_mem_map *mem = &cpu->mem_map;
       char **b = &out_buf;
       int *s = &out_buf_size;
 
-      ret = _bfin_raw_query_append (b, s,
-		"l<memory-map>");
+      ret = _bfin_raw_query_append (b, s, "l<memory-map>");
       if (ret < 0)
 	return RP_VAL_TARGETRET_ERR;
 
