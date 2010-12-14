@@ -4955,7 +4955,6 @@ bfin_read_registers (uint8_t *data_buf,
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_read_registers ()", bfin_target.name);
-  return RP_VAL_TARGETRET_NOSUPP;
 
   *read_size = 0;
   for (reg_no = 0; reg_no < BFIN_NUM_REGS; ++reg_no)
