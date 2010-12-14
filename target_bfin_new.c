@@ -4951,10 +4951,28 @@ static int
 bfin_read_registers (uint8_t *data_buf,
 		     uint8_t *avail_buf, int buf_size, int *read_size)
 {
+  int ret, reg_no;
+
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_read_registers ()", bfin_target.name);
-
   return RP_VAL_TARGETRET_NOSUPP;
+
+  *read_size = 0;
+  for (reg_no = 0; reg_no < BFIN_NUM_REGS; ++reg_no)
+    {
+      int s_read_size;
+
+      ret = bfin_read_single_register (reg_no, data_buf, avail_buf, buf_size, &s_read_size);
+      if (ret != RP_VAL_TARGETRET_OK)
+	break;
+
+      data_buf += s_read_size;
+      avail_buf += s_read_size;
+      buf_size -= s_read_size;
+      *read_size += s_read_size;
+    }
+
+  return ret;
 }
 
 /* Target method */
