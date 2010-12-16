@@ -2679,12 +2679,16 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
   s0_irq_status = mdma_s0_save.irq_status;
   d0_irq_status = mdma_d0_save.irq_status;
 
-  while ((s0_irq_status & DMA_IRQ_STATUS_DMA_RUN)
-	 || (mdma_d0_save.irq_status & DMA_IRQ_STATUS_DMA_RUN))
+  while ((s0_irq_status & DMA_IRQ_STATUS_DMA_RUN) ||
+	 (d0_irq_status & DMA_IRQ_STATUS_DMA_RUN))
     {
+      if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR) ||
+	  (d0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
+	break;
+
       bfin_log (RP_VAL_LOGLEVEL_NOTICE,
-		"%s: wait DMA done: S0 [0x%04X] D0 [0x%04X]",
-		bfin_target.name, s0_irq_status, d0_irq_status);
+		"%s: wait DMA done: S0:0x%08X [0x%04X] D0:0x%08X [0x%04X]",
+		bfin_target.name, src, s0_irq_status, dest, d0_irq_status);
 
       nanosleep (&dma_wait, NULL);
 
@@ -2694,25 +2698,24 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
       d0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
     }
 
-  if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
+  if (s0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
     bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 	      "%s: clear MDMA0_S0 DMA ERR: IRQ_STATUS [0x%04X]",
 	      bfin_target.name, s0_irq_status);
-  if ((s0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
+  if (s0_irq_status & DMA_IRQ_STATUS_DMA_DONE)
     bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 	      "%s: clear MDMA_S0 DMA DONE: IRQ_STATUS [0x%04X]",
 	      bfin_target.name, s0_irq_status);
-  if ((d0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
+  if (d0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
     bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 	      "%s: clear MDMA0_D0 DMA ERR: IRQ_STATUS [0x%04X]",
 	      bfin_target.name, d0_irq_status);
-  if ((d0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
+  if (d0_irq_status & DMA_IRQ_STATUS_DMA_DONE)
     bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 	      "%s: clear MDMA_D0 DMA DONE: IRQ_STATUS [0x%04X]",
 	      bfin_target.name, d0_irq_status);
 
-  if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
-      || (s0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
+  if (s0_irq_status & (DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE))
     {
       core_register_set (core, REG_P0, cpu->mdma_s0);
       mmr_write_clobber_r0 (core,
@@ -2721,8 +2724,7 @@ dma_copy (int core, uint32_t dest, uint32_t src, int size)
 			    2);
     }
 
-  if ((d0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
-      || (d0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
+  if (d0_irq_status & (DMA_IRQ_STATUS_DMA_ERR | DMA_IRQ_STATUS_DMA_DONE))
     {
       core_register_set (core, REG_P0, cpu->mdma_d0);
       mmr_write_clobber_r0 (core,
@@ -2767,19 +2769,19 @@ wait_dma:
   core_register_set (core, REG_P0, cpu->mdma_d0);
   d0_irq_status = mmr_read_clobber_r0 (core, 0x28, 2);
 
-  if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
+  if (s0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
-		"%s: MDMA0_S0 DMA error: IRQ_STATUS [0x%04X]",
-		bfin_target.name, s0_irq_status);
+		"%s: MDMA0_S0 DMA error: 0x%08X: IRQ_STATUS [0x%04X]",
+		bfin_target.name, src, s0_irq_status);
       ret = -1;
       goto finish_dma_copy;
     }
-  if ((d0_irq_status & DMA_IRQ_STATUS_DMA_ERR))
+  if (d0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
     {
       bfin_log (RP_VAL_LOGLEVEL_ERR,
-		"%s: MDMA0_D0 DMA error: IRQ_STATUS [0x%04X]",
-		bfin_target.name, d0_irq_status);
+		"%s: MDMA0_D0 DMA error: 0x%08X: IRQ_STATUS [0x%04X]",
+		bfin_target.name, dest, d0_irq_status);
       ret = -1;
       goto finish_dma_copy;
     }
@@ -2803,12 +2805,12 @@ wait_dma:
     ret = 0;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: done dma copy MDMA_S0 IRQ_STATUS [0x%04X]",
-	    bfin_target.name, s0_irq_status);
+	    "%s: done dma copy MDMA_S0: 0x%08X: IRQ_STATUS [0x%04X]",
+	    bfin_target.name, src, s0_irq_status);
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: done dma copy MDMA_D0 IRQ_STATUS [0x%04X]",
-	    bfin_target.name, d0_irq_status);
+	    "%s: done dma copy MDMA_D0: 0x%08X: IRQ_STATUS [0x%04X]",
+	    bfin_target.name, dest, d0_irq_status);
 
   if ((s0_irq_status & DMA_IRQ_STATUS_DMA_ERR)
       || (s0_irq_status & DMA_IRQ_STATUS_DMA_DONE))
