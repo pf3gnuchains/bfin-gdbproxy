@@ -679,6 +679,18 @@ static const bfin_l1_map bf561_b_l1_map = {
   .l1_scratch_end	= 0xff701000,
   .l1_end		= 0xff800000,
 };
+static const bfin_l1_map bf59x_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff808000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa08000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb01000,
+  .l1_code_rom		= 0xffa10000,
+  .l1_code_rom_end	= 0xffa20000,
+  .l1_end		= 0xffc00000,
+};
 
 typedef struct _bfin_mem_map
 {
@@ -796,6 +808,15 @@ static const bfin_mem_map bf561_mem_map = {
   .l2_sram		= 0xfeb00000,
   .l2_sram_end		= 0xfeb20000,
   .l1			= 0xff400000,
+  .l1_end		= 0xffc00000,
+  .sysmmr		= 0xffc00000,
+  .coremmr		= 0xffe00000,
+};
+static const bfin_mem_map bf59x_mem_map = {
+  /* No SDRAM or async */
+  .boot_rom		= 0xef000000,
+  .boot_rom_end		= 0xef001000,
+  .l1			= 0xff800000,
   .l1_end		= 0xffc00000,
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
@@ -4266,8 +4287,7 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
-  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF506") ||
-      !strcmp (chain->parts->parts[cpu->first_core]->part, "BF592"))
+  if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF506"))
     {
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
@@ -4326,6 +4346,13 @@ bfin_open (int argc,
       cpu->mem_map = bf561_mem_map;
       cpu->cores[1].l1_map = &bf561_a_l1_map;
       cpu->cores[0].l1_map = &bf561_b_l1_map;
+    }
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF592"))
+    {
+      cpu->mdma_d0 = 0xffc00f00;
+      cpu->mdma_s0 = 0xffc00f40;
+      cpu->mem_map = bf59x_mem_map;
+      cpu->cores[0].l1_map = &bf59x_l1_map;
     }
   else
     {
