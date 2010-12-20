@@ -847,6 +847,8 @@ typedef struct _bfin_dma
 
 typedef struct _bfin_test_data
 {
+  uint32_t command_addr, data0_addr, data1_addr;
+  uint32_t data0_off, data1_off;
   uint32_t data0;
   uint32_t data1;
 } bfin_test_data;
@@ -3039,28 +3041,22 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 /* Do one ITEST read.  ADDR should be aligned to 8 bytes. BUF should
    be enough large to hold 64 bits.  */
 static void
-itest_read_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
+itest_read_clobber_r0 (int core, bfin_test_data *test_data,
+                       uint32_t addr, uint8_t *buf)
 {
   urj_part_t *part;
-  uint32_t test_command;
-  uint32_t test_command_addr;
-  uint32_t data1, data0;
-  uint32_t test_data1_addr, test_data0_addr;
+  uint32_t command, data1, data0;
 
   assert ((addr & 0x7) == 0);
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
 
-  test_command = EMU_OAB (part)->test_command (addr, 0);
+  EMU_OAB (part)->test_command (part, addr, 0, test_data->command_addr, &command);
 
-  test_command_addr = EMU_OAB (part)->test_command_addr;
-  test_data1_addr = EMU_OAB (part)->test_data1_addr;
-  test_data0_addr = EMU_OAB (part)->test_data0_addr;
-
-  mmr_write_clobber_r0 (core, 0, test_command, 4);
+  mmr_write_clobber_r0 (core, 0, command, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
-  data1 = mmr_read_clobber_r0 (core, test_data1_addr - test_command_addr, 4);
-  data0 = mmr_read_clobber_r0 (core, test_data0_addr - test_command_addr, 4);
+  data1 = mmr_read_clobber_r0 (core, test_data->data1_off, 4);
+  data0 = mmr_read_clobber_r0 (core, test_data->data0_off, 4);
 
   *buf++ = data0 & 0xff;
   *buf++ = (data0 >> 8) & 0xff;
@@ -3075,23 +3071,17 @@ itest_read_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
 /* Do one ITEST write.  ADDR should be aligned to 8 bytes. BUF should
    be enough large to hold 64 bits.  */
 static void
-itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
+itest_write_clobber_r0 (int core, bfin_test_data *test_data,
+                        uint32_t addr, uint8_t *buf)
 {
   urj_part_t *part;
-  uint32_t test_command;
-  uint32_t test_command_addr;
-  uint32_t data1, data0;
-  uint32_t test_data1_addr, test_data0_addr;
+  uint32_t command, data1, data0;
 
   assert ((addr & 0x7) == 0);
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
 
-  test_command = EMU_OAB (part)->test_command (addr, 1);
-
-  test_command_addr = EMU_OAB (part)->test_command_addr;
-  test_data1_addr = EMU_OAB (part)->test_data1_addr;
-  test_data0_addr = EMU_OAB (part)->test_data0_addr;
+  EMU_OAB (part)->test_command (part, addr, 1, test_data->command_addr, &command);
 
   data0 = *buf++;
   data0 |= (*buf++) << 8;
@@ -3102,9 +3092,9 @@ itest_write_clobber_r0 (int core, uint32_t addr, uint8_t *buf)
   data1 |= (*buf++) << 16;
   data1 |= (*buf++) << 24;
 
-  mmr_write_clobber_r0 (core, test_data1_addr - test_command_addr, data1, 4);
-  mmr_write_clobber_r0 (core, test_data0_addr - test_command_addr, data0, 4);
-  mmr_write_clobber_r0 (core, 0, test_command, 4);
+  mmr_write_clobber_r0 (core, test_data->data1_off, data1, 4);
+  mmr_write_clobber_r0 (core, test_data->data0_off, data0, 4);
+  mmr_write_clobber_r0 (core, 0, command, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
 }
 
@@ -3112,38 +3102,22 @@ static void
 test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 {
   urj_part_t *part;
-  uint32_t test_command_addr;
-  uint32_t test_data1_addr, test_data0_addr;
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
 
-  test_command_addr = EMU_OAB (part)->test_command_addr;
-  test_data1_addr = EMU_OAB (part)->test_data1_addr;
-  test_data0_addr = EMU_OAB (part)->test_data0_addr;
-
-  test_data->data1
-    = mmr_read_clobber_r0 (core, test_data1_addr - test_command_addr, 4);
-  test_data->data0
-    = mmr_read_clobber_r0 (core, test_data0_addr - test_command_addr, 4);
+  test_data->data1 = mmr_read_clobber_r0 (core, test_data->data1_off, 4);
+  test_data->data0 = mmr_read_clobber_r0 (core, test_data->data0_off, 4);
 }
 
 static void
 test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
 {
   urj_part_t *part;
-  uint32_t test_command_addr;
-  uint32_t test_data1_addr, test_data0_addr;
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
 
-  test_command_addr = EMU_OAB (part)->test_command_addr;
-  test_data1_addr = EMU_OAB (part)->test_data1_addr;
-  test_data0_addr = EMU_OAB (part)->test_data0_addr;
-
-  mmr_write_clobber_r0 (core, test_data1_addr - test_command_addr,
-			test_data->data1, 4);
-  mmr_write_clobber_r0 (core, test_data0_addr - test_command_addr,
-			test_data->data0, 4);
+  mmr_write_clobber_r0 (core, test_data->data1_off, test_data->data1, 4);
+  mmr_write_clobber_r0 (core, test_data->data0_off, test_data->data0, 4);
   /* Yeah, TEST_COMMAND is reset to 0, i.e. clobbered!  But it should
      not do any harm to any reasonable user programs.  Codes trying to
      peek TEST_COMMAND might be affected.  But why do such codes
@@ -3153,145 +3127,84 @@ test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
 }
 
 static int
-itest_sram_read_1 (int core, uint32_t addr, uint8_t *buf, int size)
+itest_sram_1 (int core, uint32_t addr, uint8_t *buf, int size, int w)
 {
-  bfin_test_data test_data_save;
+  bfin_test_data test_data;
   uint32_t p0, r0;
   uint8_t data[8];
-  uint8_t *ptr;
-  uint32_t test_command_addr;
+  bfin_core *c;
   urj_part_t *part;
 
   p0 = core_register_get (core, REG_P0);
   r0 = core_register_get (core, REG_R0);
 
+  c = &cpu->cores[core];
   part = cpu->chain->parts->parts[cpu->first_core + core];
-  test_command_addr = EMU_OAB (part)->test_command_addr;
-  core_register_set (core, REG_P0, test_command_addr);
+  EMU_OAB (part)->test_command_mmrs (part, addr,
+                                     IN_MAP (addr, c->l1_map->l1_code_cache),
+                                     &test_data.command_addr,
+                                     &test_data.data0_addr,
+                                     &test_data.data1_addr);
+  test_data.data0_off = test_data.data0_addr - test_data.command_addr;
+  test_data.data1_off = test_data.data1_addr - test_data.command_addr;
+  core_register_set (core, REG_P0, test_data.command_addr);
 
-  test_context_save_clobber_r0 (core, &test_data_save);
-
-  if ((addr & 0x7) != 0)
-    {
-      itest_read_clobber_r0 (core, addr & 0xfffffff8, data);
-
-      while ((addr & 0x7) != 0 && size != 0)
-	{
-	  *buf++ = data[addr & 0x7];
-	  addr++;
-	  size--;
-	}
-    }
-
-  for (; size >= 8; size -= 8)
-    {
-      itest_read_clobber_r0 (core, addr, buf);
-      addr += 8;
-      buf += 8;
-    }
-
-  if (size != 0)
-    {
-      itest_read_clobber_r0 (core, addr, data);
-
-      ptr = data;
-      for (; size > 0; size--)
-	*buf++ = *ptr++;
-    }
-
-  test_context_restore_clobber_r0 (core, &test_data_save);
-
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
-
-  return 0;
-}
-
-static int
-itest_sram_read (int core, uint32_t addr, uint8_t *buf, int size)
-{
-  int s;
-
-  if ((addr & 0x7) != 0)
-    {
-      s = 8 - (addr & 0x7);
-      s = size < s ? size : s;
-      itest_sram_read_1 (core, addr, buf, s);
-      size -= s;
-      addr += s;
-      buf += s;
-    }
-
-  while (size > 0)
-    {
-      emupc_reset ();
-
-      /* The overhead should be no larger than 0x20.  */
-      s = (rti_limit - 0x20) / 25 * 32;
-      s = size < s ? size : s;
-      itest_sram_read_1 (core, addr, buf, s);
-      size -= s;
-      addr += s;
-      buf += s;
-    }
-
-  return 0;
-}
-
-static int
-itest_sram_write_1 (int core, uint32_t addr, uint8_t *buf, int size)
-{
-  bfin_test_data test_data_save;
-  uint32_t p0, r0;
-  uint8_t data[8];
-  uint8_t *ptr;
-  uint32_t test_command_addr;
-  urj_part_t *part;
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
-
-  part = cpu->chain->parts->parts[cpu->first_core+ core];
-  test_command_addr = EMU_OAB (part)->test_command_addr;
-  core_register_set (core, REG_P0, test_command_addr);
-
-  test_context_save_clobber_r0 (core, &test_data_save);
+  test_context_save_clobber_r0 (core, &test_data);
 
   if ((addr & 0x7) != 0)
     {
       uint32_t aligned_addr = addr & 0xfffffff8;
 
-      itest_read_clobber_r0 (core, aligned_addr, data);
+      itest_read_clobber_r0 (core, &test_data, aligned_addr, data);
 
-      while ((addr & 0x7) != 0 && size != 0)
+      if (w)
 	{
-	  data[addr & 0x7] = *buf++;
-	  addr++;
-	  size--;
-	}
+	  while ((addr & 0x7) != 0 && size != 0)
+	    {
+	      data[addr & 0x7] = *buf++;
+	      addr++;
+	      size--;
+	    }
 
-      itest_write_clobber_r0 (core, aligned_addr, data);
+	  itest_write_clobber_r0 (core, &test_data, aligned_addr, data);
+	}
+      else
+	{
+	  while ((addr & 0x7) != 0 && size != 0)
+	    {
+	      *buf++ = data[addr & 0x7];
+	      addr++;
+	      size--;
+	    }
+	}
     }
 
   for (; size >= 8; size -= 8)
     {
-      itest_write_clobber_r0 (core, addr, buf);
+      if (w)
+	itest_write_clobber_r0 (core, &test_data, addr, buf);
+      else
+	itest_read_clobber_r0 (core, &test_data, addr, buf);
       addr += 8;
       buf += 8;
     }
 
   if (size != 0)
     {
-      itest_read_clobber_r0 (core, addr, data);
+      itest_read_clobber_r0 (core, &test_data, addr, data);
 
-      ptr = data;
-      for (; size > 0; size--)
-	*ptr++ = *buf++;
-
-      itest_write_clobber_r0 (core, addr, data);
+      if (w)
+	{
+	  memcpy (data, buf, size);
+	  itest_write_clobber_r0 (core, &test_data, addr, data);
+	}
+      else
+	{
+	  memcpy (buf, data, size);
+	}
     }
 
-  test_context_restore_clobber_r0 (core, &test_data_save);
+  test_context_restore_clobber_r0 (core, &test_data);
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
@@ -3300,7 +3213,7 @@ itest_sram_write_1 (int core, uint32_t addr, uint8_t *buf, int size)
 }
 
 static int
-itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
+itest_sram (int core, uint32_t addr, uint8_t *buf, int size, int w)
 {
   int s;
 
@@ -3308,7 +3221,7 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
     {
       s = 8 - (addr & 0x7);
       s = size < s ? size : s;
-      itest_sram_write_1 (core, addr, buf, s);
+      itest_sram_1 (core, addr, buf, s, w);
       size -= s;
       addr += s;
       buf += s;
@@ -3321,7 +3234,13 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
       /* The overhead should be no larger than 0x20.  */
       s = (rti_limit - 0x20) / 25 * 32;
       s = size < s ? size : s;
-      itest_sram_write_1 (core, addr, buf, s);
+      /* We also need to keep transfers from spanning SRAM banks.
+	 The core itest logic looks up appropriate MMRs once per
+	 call, and different SRAM banks might require a different
+	 set of MMRs.  */
+      if ((addr / 0x4000) != ((addr + s) / 0x4000))
+	s -= ((addr + s) % 0x4000);
+      itest_sram_1 (core, addr, buf, s, w);
       size -= s;
       addr += s;
       buf += s;
@@ -3334,56 +3253,53 @@ itest_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
    should be used.  Otherwise, ITEST may be used.  */
 
 static int
-sram_read (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
+sram_read_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p,
+		 int w)
 {
+  bfin_core *c;
   urj_part_t *part;
-  uint32_t test_command;
+  int use_test_mmrs;
 
   assert (!dma_p || cpu->mdma_d0 != 0);
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
-  test_command = EMU_OAB (part)->test_command (addr, 0);
+  c = &cpu->cores[core];
 
-  if (dma_p || use_dma || test_command == 0)
-    return dma_sram_read (core, addr, buf, size);
+  use_test_mmrs = IN_MAP (addr, c->l1_map->l1_code_cache) ||
+		  IN_MAP (addr, c->l1_map->l1_code);
+  /* The BF592 has MMR access to its L1 ROM, but not DMA.  */
+  if (!use_test_mmrs && !strcmp (part->part, "BF592"))
+    use_test_mmrs = IN_MAP (addr, c->l1_map->l1_code_rom);
+
+  if (dma_p || use_dma || !use_test_mmrs)
+    {
+      if (w)
+	return dma_sram_write (core, addr, buf, size);
+      else
+	return dma_sram_read (core, addr, buf, size);
+    }
   else
-    return itest_sram_read (core, addr, buf, size);
+    return itest_sram (core, addr, buf, size, w);
 }
+#define sram_read(c, a, b, s, d) sram_read_write(c, a, b, s, d, 0)
+#define sram_write(c, a, b, s, d) sram_read_write(c, a, b, s, d, 1)
 
 static int
-core_memory_read (int core, uint32_t addr, uint8_t *buf, int size, int local)
+core_memory_read_write (int core, uint32_t addr, uint8_t *buf, int size,
+			int local, int w)
 {
   if (local)
-    return memory_read (core, addr, buf, size);
+    {
+      if (w)
+	return memory_write (core, addr, buf, size);
+      else
+	return memory_read (core, addr, buf, size);
+    }
   else
-    return sram_read (core, addr, buf, size, 1);
+    return sram_read_write (core, addr, buf, size, 1, w);
 }
-
-static int
-sram_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p)
-{
-  urj_part_t *part;
-  uint32_t test_command;
-
-  assert (!dma_p || cpu->mdma_d0 != 0);
-
-  part = cpu->chain->parts->parts[cpu->first_core + core];
-  test_command = EMU_OAB (part)->test_command (addr, 0);
-
-  if (dma_p || use_dma || test_command == 0)
-    return dma_sram_write (core, addr, buf, size);
-  else
-    return itest_sram_write (core, addr, buf, size);
-}
-
-static int
-core_memory_write (int core, uint32_t addr, uint8_t *buf, int size, int local)
-{
-  if (local)
-    return memory_write (core, addr, buf, size);
-  else
-    return sram_write (core, addr, buf, size, 1);
-}
+#define core_memory_read(c, a, b, s, l) core_memory_read_write(c, a, b, s, l, 0)
+#define core_memory_write(c, a, b, s, l) core_memory_read_write(c, a, b, s, l, 1)
 
 static uint8_t bfin_breakpoint_16[] = { 0x25, 0x0 };
 static uint8_t bfin_breakpoint_32[] = { 0x25, 0x0, 0x0, 0x0 };
