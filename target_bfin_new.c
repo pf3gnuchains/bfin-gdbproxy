@@ -3101,8 +3101,6 @@ itest_write_clobber_r0 (int core, bfin_test_data *test_data,
 static void
 test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 {
-  cpu->chain->parts->parts[cpu->first_core + core];
-
   test_data->data1 = mmr_read_clobber_r0 (core, test_data->data1_off, 4);
   test_data->data0 = mmr_read_clobber_r0 (core, test_data->data0_off, 4);
 }
@@ -3110,8 +3108,6 @@ test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 static void
 test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
 {
-  cpu->chain->parts->parts[cpu->first_core + core];
-
   mmr_write_clobber_r0 (core, test_data->data1_off, test_data->data1, 4);
   mmr_write_clobber_r0 (core, test_data->data0_off, test_data->data0, 4);
   /* Yeah, TEST_COMMAND is reset to 0, i.e. clobbered!  But it should
