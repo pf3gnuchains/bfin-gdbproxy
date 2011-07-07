@@ -5935,7 +5935,7 @@ bfin_wait_partial (int first,
 
 	  if ((bfin_force_range_wp
 	       || c->hwwps[0].len > 4)
-	      && c->hwwps[j].mode != WPDA_DISABLE)
+	      && c->hwwps[0].mode != WPDA_DISABLE)
 	    wpu_set_wpda (i,
 			  0,
 			  c->hwwps[0].addr,

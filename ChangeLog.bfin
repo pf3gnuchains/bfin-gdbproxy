@@ -1,5 +1,9 @@
 2011-07-07  Jie Zhang  <jie.zhang@analog.com>
 
+	* target_bfin_new.c (bfin_wait_partial): Fix a typo.
+
+2011-07-07  Jie Zhang  <jie.zhang@analog.com>
+
 	* target_bfin_new.c (test_context_save_clobber_r0): Fix set
 	but not used warning.
 	(test_context_save_clobber_r0): Likewise.
