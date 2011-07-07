@@ -1,3 +1,12 @@
+2011-07-07  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (test_context_save_clobber_r0): Fix set
+	but not used warning.
+	(test_context_save_clobber_r0): Likewise.
+	(jc_process): Likewise.
+	* gdbproxy.c (handle_detach_command): Likewise.
+	* remote.c (remote_read_single_register): Likewise.
+
 2010-02-08  Jie Zhang  <jie.zhang@analog.com>
 
 	* Makefile.in: Regenerate.

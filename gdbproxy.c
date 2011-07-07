@@ -858,9 +858,7 @@ static void handle_detach_command(char * const in_buf,
                                   int out_buf_len,
                                   rp_target *t)
 {
-    int  ret;
-
-    ret = t->disconnect();
+    t->disconnect();
 
     /* Note: The current GDB does not expect a reply */
     rp_putpkt(out_buf);

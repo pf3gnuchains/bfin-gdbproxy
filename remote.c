@@ -833,14 +833,13 @@ static int remote_read_single_register(unsigned int reg_no,
     int count;
     char  *in;
     unsigned int val;
-    int len;
 
     assert(data_buf != NULL);
     assert(avail_buf != NULL);
     assert(buf_size > 0);
     assert(read_size != NULL);
 
-    len = sprintf(remote_out_buf, "p%x", reg_no);
+    sprintf(remote_out_buf, "p%x", reg_no);
     if (!(ret = remote_putpkt(remote_out_buf)))
         return RP_VAL_TARGETRET_ERR;
 

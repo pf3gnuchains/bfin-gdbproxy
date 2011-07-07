@@ -3101,9 +3101,7 @@ itest_write_clobber_r0 (int core, bfin_test_data *test_data,
 static void
 test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 {
-  urj_part_t *part;
-
-  part = cpu->chain->parts->parts[cpu->first_core + core];
+  cpu->chain->parts->parts[cpu->first_core + core];
 
   test_data->data1 = mmr_read_clobber_r0 (core, test_data->data1_off, 4);
   test_data->data0 = mmr_read_clobber_r0 (core, test_data->data0_off, 4);
@@ -3112,9 +3110,7 @@ test_context_save_clobber_r0 (int core, bfin_test_data *test_data)
 static void
 test_context_restore_clobber_r0 (int core, bfin_test_data *test_data)
 {
-  urj_part_t *part;
-
-  part = cpu->chain->parts->parts[cpu->first_core + core];
+  cpu->chain->parts->parts[cpu->first_core + core];
 
   mmr_write_clobber_r0 (core, test_data->data1_off, test_data->data1, 4);
   mmr_write_clobber_r0 (core, test_data->data0_off, test_data->data0, 4);
@@ -3630,7 +3626,6 @@ static int jc_process (int core)
 {
   urj_part_t *part;
   urj_tap_register_t *rof, *rif;
-  uint64_t value;
   int ret;
 
   core_scan_select (cpu->core_a, EMUDAT_SCAN);
@@ -3678,7 +3673,6 @@ static int jc_process (int core)
       for (i = 0; i < reg_size; ++i)
 	rif->data[i] = (emudat >> (reg_size - 1 - i)) & 0x1;
       rif->data[33] = 1;
-      value = emudat_value (rif);
       jc_emudat_show (rif, fmt);
 
       /* Shift out the datum */
