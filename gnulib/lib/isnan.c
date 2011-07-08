@@ -1,5 +1,5 @@
 /* Test for NaN that does not need libm.
-   Copyright (C) 2007-2008 Free Software Foundation, Inc.
+   Copyright (C) 2007-2011 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,18 @@
 /* Written by Bruno Haible <bruno@clisp.org>, 2007.  */
 
 #include <config.h>
+
+/* Specification.  */
+#ifdef USE_LONG_DOUBLE
+/* Specification found in math.h or isnanl-nolibm.h.  */
+extern int rpl_isnanl (long double x);
+#elif ! defined USE_FLOAT
+/* Specification found in math.h or isnand-nolibm.h.  */
+extern int rpl_isnand (double x);
+#else /* defined USE_FLOAT */
+/* Specification found in math.h or isnanf-nolibm.h.  */
+extern int rpl_isnanf (float x);
+#endif
 
 #include <float.h>
 #include <string.h>
@@ -105,8 +117,9 @@ FUNC (DOUBLE x)
 # else
   /* Be careful to not do any floating-point operation on x, such as x == x,
      because x may be a signaling NaN.  */
-#  if defined __SUNPRO_C || defined __DECC || (defined __sgi && !defined __GNUC__)
-  /* The Sun C 5.0 compilers and the Compaq (ex-DEC) 6.4 compilers don't
+#  if defined __TINYC__ || defined __SUNPRO_C || defined __DECC \
+      || (defined __sgi && !defined __GNUC__) || defined __ICC
+  /* The Sun C 5.0, Intel ICC 10.0, and Compaq (ex-DEC) 6.4 compilers don't
      recognize the initializers as constant expressions.  The latter compiler
      also fails when constant-folding 0.0 / 0.0 even when constant-folding is
      not required.  The SGI MIPSpro C compiler complains about "floating-point
@@ -128,10 +141,10 @@ FUNC (DOUBLE x)
        -Infinity, which have the same exponent.  */
     m.value = x;
     if (((m.word[EXPBIT0_WORD] ^ nan.word[EXPBIT0_WORD])
-	 & (EXP_MASK << EXPBIT0_BIT))
-	== 0)
+         & (EXP_MASK << EXPBIT0_BIT))
+        == 0)
       return (memcmp (&m.value, &plus_inf, SIZE) != 0
-	      && memcmp (&m.value, &minus_inf, SIZE) != 0);
+              && memcmp (&m.value, &minus_inf, SIZE) != 0);
     else
       return 0;
   }
