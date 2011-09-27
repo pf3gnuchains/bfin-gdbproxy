@@ -4931,12 +4931,13 @@ bfin_read_single_register (unsigned int reg_no,
   int reg_size;
   int core;
 
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: bfin_read_single_register (%d)", bfin_target.name, reg_no);
-
   assert (cpu);
 
   core = cpu->general_core;
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: [%d] bfin_read_single_register (%d)",
+	    bfin_target.name, core, reg_no);
 
   /* This is not the right way to get the size of register.  We should
      create a REGISTER type which has a SIZE field indicating the size
@@ -5028,8 +5029,8 @@ bfin_write_single_register (unsigned int reg_no,
   value = buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24);
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: bfin_write_single_register (%d, 0x%X)",
-	    bfin_target.name, reg_no, value);
+	    "%s: [%d] bfin_write_single_register (%d, 0x%X)",
+	    bfin_target.name, core, reg_no, value);
 
   assert (write_size == reg_size);
 

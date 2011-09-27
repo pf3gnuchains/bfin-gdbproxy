@@ -1,3 +1,9 @@
+2011-09-27  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (bfin_read_single_register): Print core
+	in debug log message.
+	(bfin_write_single_register): Likewise.
+
 2011-07-07  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_wait_partial): Fix a typo.
