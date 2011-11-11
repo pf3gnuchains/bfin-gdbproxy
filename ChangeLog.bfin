@@ -1,3 +1,14 @@
+2011-11-11  Jie Zhang  <jie.zhang@analog.com>
+
+	* target_bfin_new.c (core_sticky_in_reset): Remove.
+	(bfin_test_command_mmrs): Moved from UrJTAG.
+	(bfin_test_command): Moved from UrJTAG.
+	(itest_read_clobber_r0): Call to bfin_test_command.
+	(itest_write_clobber_r0): Likewise.
+	(itest_sram_1): Call bfin_test_command_mmrs.
+	(bfin_connect): Don't call core_sticky_in_reset.
+	(bfin_wait_partial): Likewise.
+
 2011-09-27  Jie Zhang  <jie.zhang@analog.com>
 
 	* target_bfin_new.c (bfin_read_single_register): Print core

@@ -1318,12 +1318,6 @@ core_check_emuready (int core)
   part_check_emuready (cpu->chain, cpu->first_core + core);
 }
 
-static int
-core_sticky_in_reset (int core)
-{
-  return part_sticky_in_reset (cpu->chain, cpu->first_core + core);
-}
-
 static void
 wait_in_reset (void)
 {
@@ -3038,6 +3032,115 @@ dma_sram_write (int core, uint32_t addr, uint8_t *buf, int size)
 
 /* Read Instruction SRAM using Instruction Test Registers.  */
 
+static void
+bfin_test_command_mmrs (urj_part_t *part, uint32_t addr, int icache,
+                        uint32_t *command_addr,
+                        uint32_t *data0_addr, uint32_t *data1_addr)
+{
+  if (icache)
+    {
+      *command_addr = ITEST_COMMAND;
+      *data0_addr = ITEST_DATA0;
+      *data1_addr = ITEST_DATA1;
+    }
+  else
+    {
+      *command_addr = DTEST_COMMAND;
+      *data0_addr = DTEST_DATA0;
+      *data1_addr = DTEST_DATA1;
+    }
+}
+
+static void
+bfin_test_command (urj_part_t *part, uint32_t addr, int w,
+                   uint32_t command_addr, uint32_t *command_value)
+{
+  /* The shifting here is a bit funky, but should be straight forward and
+     easier to maintain than hand coded masks.  So, start with the break
+     down of the [DI]TEST_COMMAND MMR in the HRM and follow along:
+
+     We need to put bit 11 of the address into bit 26 of the MMR.  So first
+     we mask off ADDR[11] with:
+     (addr & (1 << 11))
+
+     Then we shift it from its current position (11) to its new one (26):
+     ((...) << (26 - 11))
+  */
+
+  /* Start with the bits ITEST/DTEST share.  */
+  *command_value =
+    ((addr & (0x03 << 12)) << (16 - 12)) | /* ADDR[13:12] -> MMR[17:16] */
+    ((addr & (0x01 << 14)) << (14 - 14)) | /* ADDR[14]    -> MMR[14]    */
+    ((addr & (0xff <<  3)) << ( 3 -  3)) | /* ADDR[10:3]  -> MMR[10:3]  */
+    (1 << 2)                             | /* 1 (data)    -> MMR[2]     */
+    (w << 1);                              /* read/write  -> MMR[1]     */
+
+  /* Now for the bits that aren't the same.  */
+  if (command_addr == ITEST_COMMAND)
+    *command_value |=
+      ((addr & (0x03 << 10)) << (26 - 10));  /* ADDR[11:10] -> MMR[27:26] */
+  else
+    *command_value |=
+      ((addr & (0x01 << 11)) << (26 - 11)) | /* ADDR[11] -> MMR[26] */
+      ((addr & (0x01 << 21)) << (24 - 21));  /* ADDR[21] -> MMR[24] */
+
+  /* Now, just for fun, some parts are slightly different.  */
+  if (command_addr == DTEST_COMMAND)
+    {
+      /* BF50x has no additional needs.  */
+      if (!strcmp (part->part, "BF518"))
+        {
+	  /* MMR[23]:
+	     0 - Data Bank A (0xff800000) / Inst Bank A (0xffa00000)
+	     1 - Data Bank B (0xff900000) / Inst Bank B (0xffa04000)
+	  */
+	  if ((addr & 0xfff04000) == 0xffa04000 ||
+	      (addr & 0xfff00000) == 0xff900000)
+	    *command_value |= (1 << 23);
+        }
+      else if (!strcmp (part->part, "BF526") ||
+	       !strcmp (part->part, "BF527") ||
+	       !strcmp (part->part, "BF533") ||
+	       !strcmp (part->part, "BF534") ||
+	       !strcmp (part->part, "BF537") ||
+	       !strcmp (part->part, "BF538") ||
+	       !strcmp (part->part, "BF548") ||
+	       !strcmp (part->part, "BF548M"))
+        {
+	  /* MMR[23]:
+	     0 - Data Bank A (0xff800000) / Inst Bank A (0xffa00000)
+	     1 - Data Bank B (0xff900000) / Inst Bank B (0xffa08000)
+	  */
+	  if ((addr & 0xfff08000) == 0xffa08000 ||
+	      (addr & 0xfff00000) == 0xff900000)
+	    *command_value |= (1 << 23);
+        }
+      else if (!strcmp (part->part, "BF561"))
+        {
+	  /* MMR[23]:
+	     0 - Data Bank A (Core A: 0xff800000 Core B: 0xff400000)
+	     Inst Bank A (Core A: 0xffa00000 Core B: 0xff600000)
+	     1 - Data Bank B (Core A: 0xff900000 Core B: 0xff500000)
+	     N/A for Inst (no Bank B)
+	  */
+	  uint32_t hi = (addr >> 20);
+	  if (hi == 0xff9 || hi == 0xff5)
+	    *command_value |= (1 << 23);
+        }
+      else if (!strcmp (part->part, "BF592"))
+        {
+	  /* ADDR[15] -> MMR[15]
+	     MMR[22]:
+	     0 - L1 Inst (0xffa00000)
+	     1 - L1 ROM  (0xffa10000)
+	  */
+	  *command_value |= (addr & (1 << 15));
+	  if ((addr >> 16) == 0xffa1)
+	    *command_value |= (1 << 22);
+        }
+    }
+}
+
 /* Do one ITEST read.  ADDR should be aligned to 8 bytes. BUF should
    be enough large to hold 64 bits.  */
 static void
@@ -3051,7 +3154,7 @@ itest_read_clobber_r0 (int core, bfin_test_data *test_data,
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
 
-  EMU_OAB (part)->test_command (part, addr, 0, test_data->command_addr, &command);
+  bfin_test_command (part, addr, 0, test_data->command_addr, &command);
 
   mmr_write_clobber_r0 (core, 0, command, 4);
   core_emuir_set (core, INSN_CSYNC, RUNTEST);
@@ -3081,7 +3184,7 @@ itest_write_clobber_r0 (int core, bfin_test_data *test_data,
 
   part = cpu->chain->parts->parts[cpu->first_core + core];
 
-  EMU_OAB (part)->test_command (part, addr, 1, test_data->command_addr, &command);
+  bfin_test_command (part, addr, 1, test_data->command_addr, &command);
 
   data0 = *buf++;
   data0 |= (*buf++) << 8;
@@ -3132,11 +3235,11 @@ itest_sram_1 (int core, uint32_t addr, uint8_t *buf, int size, int w)
 
   c = &cpu->cores[core];
   part = cpu->chain->parts->parts[cpu->first_core + core];
-  EMU_OAB (part)->test_command_mmrs (part, addr,
-                                     IN_MAP (addr, c->l1_map->l1_code_cache),
-                                     &test_data.command_addr,
-                                     &test_data.data0_addr,
-                                     &test_data.data1_addr);
+  bfin_test_command_mmrs (part, addr,
+			  IN_MAP (addr, c->l1_map->l1_code_cache),
+			  &test_data.command_addr,
+			  &test_data.data0_addr,
+			  &test_data.data1_addr);
   test_data.data0_off = test_data.data0_addr - test_data.command_addr;
   test_data.data1_off = test_data.data1_addr - test_data.command_addr;
   core_register_set (core, REG_P0, test_data.command_addr);
@@ -4600,8 +4703,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	 we have to give it a reset, too.  */
       else if (!core_dbgstat_is_emuready (i)
 	       && (!core_dbgstat_is_emuack (i)
-		   || (core_dbgstat_is_in_reset (i)
-		       && !core_sticky_in_reset (i))))
+		   || core_dbgstat_is_in_reset (i)))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "[%d] emulator not ready: DBGSTAT [0x%04X]",
@@ -4625,8 +4727,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   for_each_core (i, c)
     if (core_dbgstat_is_emuack (i)
-	&& (!core_dbgstat_is_in_reset (i)
-	    || core_sticky_in_reset (i)))
+	&& !core_dbgstat_is_in_reset (i))
       {
 	urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
@@ -5980,7 +6081,7 @@ bfin_wait_partial (int first,
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "%s: [%d] core is in idle mode", bfin_target.name, cpu->first_core + i);
 	}
-      else if (core_dbgstat_is_in_reset (i) && !core_sticky_in_reset (i))
+      else if (core_dbgstat_is_in_reset (i))
 	{
 	  jc_state_reset ();
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
