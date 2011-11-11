@@ -1011,12 +1011,6 @@ static int invalid_mem_access = INVALID_MEM_ACCESS_IGNORE;
 
 
 static void
-scan_select (int scan)
-{
-  chain_scan_select (cpu->chain, scan);
-}
-
-static void
 core_scan_select (int core, int scan)
 {
   part_scan_select (cpu->chain, cpu->first_core + core, scan);
@@ -1084,9 +1078,6 @@ core_scan_select (int core, int scan)
   }
 
 #define DBGCTL_BIT_OP(name)						\
-  DBGCTL_CLEAR_OR_SET_BIT(name)						\
-  DBGCTL_SET_BIT(name)							\
-  DBGCTL_CLEAR_BIT(name)						\
   CORE_DBGCTL_CLEAR_OR_SET_BIT(name)					\
   CORE_DBGCTL_SET_BIT(name)						\
   CORE_DBGCTL_CLEAR_BIT(name)						\
@@ -1140,21 +1131,17 @@ core_dbgstat_emucause (int core)
 }
 
 static void
-dbgstat_get (void)
-{
-  chain_dbgstat_get (cpu->chain);
-}
-
-static void
 core_dbgstat_get (int core)
 {
   part_dbgstat_get (cpu->chain, cpu->first_core + core);
 }
 
 static void
-emupc_get (int save)
+dbgstat_get (void)
 {
-  chain_emupc_get (cpu->chain, save);
+  int i;
+  for (i = 0; i < cpu->core_num; i++)
+    core_dbgstat_get (i);
 }
 
 static uint32_t
@@ -1164,18 +1151,11 @@ core_emupc_get (int core, int save)
 }
 
 static void
-emupc_show (const char *id)
+emupc_get (int save)
 {
-  urj_part_t *part;
   int i;
-
-  chain_emupc_get (cpu->chain, 0);
   for (i = 0; i < cpu->core_num; i++)
-    {
-      part = cpu->chain->parts->parts[cpu->first_core + i];
-      bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] EMUPC [0x%08x] <%s>",
-		cpu->first_core + i, BFIN_PART_EMUPC (part), id);
-    }
+    core_emupc_get (i, save);
 }
 
 static void
@@ -1189,26 +1169,26 @@ core_emupc_show (int core, const char *id)
 }
 
 static void
-emupc_reset (void)
+core_emupc_reset (int core)
 {
-  uint32_t new_pc[cpu->chain->parts->len];
-  bfin_core *c;
-  int i;
+  bfin_core *c = &cpu->cores[core];
 
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset EMUPC");
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: [%d] reset EMUPC to [0x%08x]",
+	    bfin_target.name, cpu->first_core + core, c->l1_map->l1_code);
 
-  for_each_core (i, c)
-    new_pc[i + cpu->first_core] = c->l1_map->l1_code;
-
-  emupc_show ("before");
-  chain_emupc_reset (cpu->chain, new_pc);
-  emupc_show ("after");
+  core_emupc_show (core, "before");
+  part_emupc_reset (cpu->chain, cpu->first_core + core, c->l1_map->l1_code);
+  core_emupc_show (core, "after");
 }
 
 static void
-dbgstat_clear_ovfs (void)
+emupc_reset (void)
 {
-  chain_dbgstat_clear_ovfs (cpu->chain);
+  int i;
+
+  for (i = 0; i < cpu->core_num; i++)
+    core_emupc_reset (i);
 }
 
 static void
@@ -1226,8 +1206,8 @@ dbgstat_show (const char *id)
 
   assert (id != NULL);
 
-  chain_dbgstat_get (cpu->chain);
   for (i = 0; i < cpu->core_num; i++) {
+    core_dbgstat_get (i);
     part = cpu->chain->parts->parts[cpu->first_core + i];
     sprintf (buf, "[%d] DBGSTAT [0x%04X]:", cpu->first_core + i, BFIN_PART_DBGSTAT (part));
     if (core_dbgstat_is_lpdec1 (i))     strcat (buf, " lpdec1");
@@ -1237,6 +1217,9 @@ dbgstat_show (const char *id)
     if (core_dbgstat_is_lpdec0 (i))     strcat (buf, " lpdec0");
     if (core_dbgstat_is_bist_done (i))  strcat (buf, " bist_done");
     if (core_dbgstat_is_emuack (i))     strcat (buf, " emuack");
+    if (core_dbgstat_is_emuready (i))
+    {
+    strcat (buf, " emuready");
     switch (core_dbgstat_emucause (i)) {
       case 0x0: strcat (buf, " cause:emuexcpt");   break;
       case 0x1: strcat (buf, " cause:emuin");      break;
@@ -1246,7 +1229,8 @@ dbgstat_show (const char *id)
       case 0x8: strcat (buf, " cause:emu-sstep");  break;
       default:  strcat (buf, " cause:unknown");    break;
     }
-    if (core_dbgstat_is_emuready (i))   strcat (buf, " emuready");
+    }
+
     if (core_dbgstat_is_emudiovf (i))   strcat (buf, " emudiovf");
     if (core_dbgstat_is_emudoovf (i))   strcat (buf, " emudoovf");
     if (core_dbgstat_is_emudif (i))     strcat (buf, " emudif");
@@ -1272,44 +1256,35 @@ core_dbgstat_show (int core, const char *id)
 }
 
 static void
-dbgctl_show (const char *id)
+core_dbgctl_show (int core, const char *id)
 {
   urj_part_t *part;
   char buf[1024];
-  int i;
 
   assert (id != NULL);
 
-  for (i = 0; i < cpu->core_num; ++i) {
-    part = cpu->chain->parts->parts[cpu->first_core + i];
-    sprintf (buf, "[%i] DBGCTL [0x%04x]:", cpu->first_core + i,
-	     BFIN_PART_DBGCTL (part));
-    if (core_dbgctl_is_sram_init (i))   strcat (buf, " sram_init");
-    if (core_dbgctl_is_wakeup (i))      strcat (buf, " wakeup");
-    if (core_dbgctl_is_sysrst (i))      strcat (buf, " sysrst");
-    if (core_dbgctl_is_esstep (i))      strcat (buf, " esstep");
-    if (core_dbgctl_is_emudatsz_32 (i)) strcat (buf, " emudatsz_32");
-    if (core_dbgctl_is_emudatsz_40 (i)) strcat (buf, " emudatsz_40");
-    if (core_dbgctl_is_emudatsz_48 (i)) strcat (buf, " emudatsz_48");
-    if (core_dbgctl_is_emuirlpsz_2 (i)) strcat (buf, " emuirlpsz_2");
-    if (core_dbgctl_is_emuirsz_64 (i))  strcat (buf, " emuirsz_64");
-    if (core_dbgctl_is_emuirsz_48 (i))  strcat (buf, " emuirsz_48");
-    if (core_dbgctl_is_emuirsz_32 (i))  strcat (buf, " emuirsz_32");
-    if (core_dbgctl_is_empen (i))       strcat (buf, " empen");
-    if (core_dbgctl_is_emeen (i))       strcat (buf, " emeen");
-    if (core_dbgctl_is_emfen (i))       strcat (buf, " emfen");
-    if (core_dbgctl_is_empwr (i))       strcat (buf, " empwr");
-    strcat (buf, " <");
-    strcat (buf, id);
-    strcat (buf, ">");
-    bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
-  }
-}
-
-static void
-check_emuready (void)
-{
-  chain_check_emuready (cpu->chain);
+  part = cpu->chain->parts->parts[cpu->first_core + core];
+  sprintf (buf, "[%i] DBGCTL [0x%04x]:", cpu->first_core + core,
+	   BFIN_PART_DBGCTL (part));
+  if (core_dbgctl_is_sram_init (core))   strcat (buf, " sram_init");
+  if (core_dbgctl_is_wakeup (core))      strcat (buf, " wakeup");
+  if (core_dbgctl_is_sysrst (core))      strcat (buf, " sysrst");
+  if (core_dbgctl_is_esstep (core))      strcat (buf, " esstep");
+  if (core_dbgctl_is_emudatsz_32 (core)) strcat (buf, " emudatsz_32");
+  if (core_dbgctl_is_emudatsz_40 (core)) strcat (buf, " emudatsz_40");
+  if (core_dbgctl_is_emudatsz_48 (core)) strcat (buf, " emudatsz_48");
+  if (core_dbgctl_is_emuirlpsz_2 (core)) strcat (buf, " emuirlpsz_2");
+  if (core_dbgctl_is_emuirsz_64 (core))  strcat (buf, " emuirsz_64");
+  if (core_dbgctl_is_emuirsz_48 (core))  strcat (buf, " emuirsz_48");
+  if (core_dbgctl_is_emuirsz_32 (core))  strcat (buf, " emuirsz_32");
+  if (core_dbgctl_is_empen (core))       strcat (buf, " empen");
+  if (core_dbgctl_is_emeen (core))       strcat (buf, " emeen");
+  if (core_dbgctl_is_emfen (core))       strcat (buf, " emfen");
+  if (core_dbgctl_is_empwr (core))       strcat (buf, " empwr");
+  strcat (buf, " <");
+  strcat (buf, id);
+  strcat (buf, ">");
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
 }
 
 static void
@@ -1319,21 +1294,9 @@ core_check_emuready (int core)
 }
 
 static void
-wait_in_reset (void)
-{
-  chain_wait_in_reset (cpu->chain);
-}
-
-static void
 core_wait_in_reset (int core)
 {
   part_wait_in_reset (cpu->chain, cpu->first_core + core);
-}
-
-static void
-wait_reset (void)
-{
-  chain_wait_reset (cpu->chain);
 }
 
 static void
@@ -1343,24 +1306,10 @@ core_wait_reset (int core)
 }
 
 static void
-emuir_set_same (uint64_t insn, int runtest)
-{
-  chain_emuir_set_same (cpu->chain, insn,
-			runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
-}
-
-static void
 core_emuir_set (int core, uint64_t insn, int runtest)
 {
   part_emuir_set (cpu->chain, cpu->first_core + core, insn,
 		  runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
-}
-
-static void
-emuir_set_same_2 (uint64_t insn1, uint64_t insn2, int runtest)
-{
-  chain_emuir_set_same_2 (cpu->chain, insn1, insn2,
-			  runtest ? URJ_CHAIN_EXITMODE_IDLE : URJ_CHAIN_EXITMODE_UPDATE);
 }
 
 static void
@@ -1412,15 +1361,8 @@ core_emudat_set (int core, uint32_t value, int runtest)
 }
 
 /* Forward declarations */
-static void register_set (enum core_regnum reg, uint32_t *value);
 static void core_register_set (int core, enum core_regnum reg,
 			       uint32_t value);
-
-static void
-register_get (enum core_regnum reg, uint32_t *value)
-{
-  chain_register_get (cpu->chain, reg, value);
-}
 
 static uint32_t
 core_register_get (int core, enum core_regnum reg)
@@ -1429,74 +1371,11 @@ core_register_get (int core, enum core_regnum reg)
 }
 
 static void
-register_set (enum core_regnum reg, uint32_t *value)
-{
-  chain_register_set (cpu->chain, reg, value);
-}
-
-static void
-register_set_same (enum core_regnum reg, uint32_t value)
-{
-  chain_register_set_same (cpu->chain, reg, value);
-}
-
-static void
 core_register_set (int core, enum core_regnum reg, uint32_t value)
 {
   part_register_set (cpu->chain, cpu->first_core + core, reg, value);
 }
 
-static void
-wpu_init (void)
-{
-  uint32_t *p0, *r0;
-  uint32_t wpiactl, wpdactl;
-  bfin_core *c;
-  int i;
-
-  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-
-  if (!p0 || !r0)
-    abort ();
-
-  register_get (REG_P0, p0);
-  register_get (REG_R0, r0);
-
-  register_set_same (REG_P0, WPIACTL);
-
-  wpiactl = WPIACTL_WPPWR;
-
-  register_set_same (REG_R0, wpiactl);
-
-  emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
-
-  wpiactl |= WPIACTL_EMUSW5 | WPIACTL_EMUSW4 | WPIACTL_EMUSW3;
-  wpiactl |= WPIACTL_EMUSW2 | WPIACTL_EMUSW1 | WPIACTL_EMUSW0;
-
-  register_set_same (REG_R0, wpiactl);
-  emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
-
-  wpdactl = WPDACTL_WPDSRC1_A | WPDACTL_WPDSRC0_A;
-
-  register_set_same (REG_R0, wpdactl);
-  emuir_set_same (gen_store32_offset (REG_P0, WPDACTL - WPIACTL, REG_R0), RUNTEST);
-
-  register_set_same (REG_R0, 0);
-  emuir_set_same (gen_store32_offset (REG_P0, WPSTAT - WPIACTL, REG_R0), RUNTEST);
-
-  for_each_core (i, c)
-    {
-      c->wpiactl = wpiactl;
-      c->wpdactl = wpdactl;
-    }
-
-  register_set (REG_P0, p0);
-  register_set (REG_R0, r0);
-
-  free (p0);
-  free (r0);
-}
 
 static void
 core_wpu_init (int core)
@@ -1538,92 +1417,6 @@ core_wpu_init (int core)
   core_register_set (core, REG_R0, r0);
 }
 
-static void
-wpu_enable (void)
-{
-  uint32_t *p0, *r0, *r0new;
-  bfin_core *c;
-  int i;
-
-  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0new = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-
-  if (!p0 || !r0 || !r0new)
-    abort ();
-
-  register_get (REG_P0, p0);
-  register_get (REG_R0, r0);
-
-  register_set_same (REG_P0, WPIACTL);
-  for_each_core (i, c)
-    {
-      c->wpiactl |= WPIACTL_WPPWR;
-      r0new[i] = c->wpdactl;
-    }
-  register_set (REG_R0, r0new);
-  emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
-
-  register_set (REG_P0, p0);
-  register_set (REG_R0, r0);
-
-  free (p0);
-  free (r0);
-  free (r0new);
-}
-
-static void
-core_wpu_enable (int core)
-{
-  uint32_t p0, r0, r0new;
-
-  p0 = core_register_get (core, REG_P0);
-  r0 = core_register_get (core, REG_R0);
-
-  core_register_set (core, REG_P0, WPIACTL);
-  cpu->cores[core].wpiactl |= WPIACTL_WPPWR;
-  r0new = cpu->cores[core].wpdactl;
-  core_register_set (core, REG_R0, r0new);
-  core_emuir_set (core, gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
-
-  core_register_set (core, REG_P0, p0);
-  core_register_set (core, REG_R0, r0);
-}
-
-
-static void
-wpu_disable (void)
-{
-  uint32_t *p0, *r0, *r0new;
-  bfin_core *c;
-  int i;
-
-  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0new = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-
-  if (!p0 || !r0 || !r0new)
-    abort ();
-
-  register_get (REG_P0, p0);
-  register_get (REG_R0, r0);
-
-  register_set_same (REG_P0, WPIACTL);
-  for_each_core (i, c)
-    {
-      c->wpiactl &= ~WPIACTL_WPPWR;
-      r0new[i] = c->wpdactl;
-    }
-  register_set (REG_R0, r0new);
-  emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
-
-  register_set (REG_P0, p0);
-  register_set (REG_R0, r0);
-
-  free (p0);
-  free (r0);
-  free (r0new);
-}
 
 static void
 core_wpu_disable (int core)
@@ -1641,6 +1434,14 @@ core_wpu_disable (int core)
 
   core_register_set (core, REG_P0, p0);
   core_register_set (core, REG_R0, r0);
+}
+
+static void
+wpu_disable (void)
+{
+  int i;
+  for (i = 0; i < cpu->core_num; i++)
+    core_wpu_disable (i);
 }
 
 static uint32_t wpiaen[] = {
@@ -1784,73 +1585,6 @@ wpu_set_wpda (int core, int n, uint32_t addr, uint32_t len, int range,
   core_register_set (core, REG_R0, r0);
 }
 
-static void
-wpstat_get (void)
-{
-  uint32_t *p0, *r0, *wpstat;
-  bfin_core *c;
-  int i;
-
-  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  wpstat = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-
-  if (!p0 || !r0 || !wpstat)
-    abort ();
-
-  register_get (REG_P0, p0);
-  register_get (REG_R0, r0);
-
-  register_set_same (REG_P0, WPSTAT);
-  emuir_set_same (gen_load32_offset (REG_R0, REG_P0, 0), RUNTEST);
-  register_get (REG_R0, wpstat);
-  for_each_core (i, c)
-    c->wpstat = wpstat[i];
-
-  register_set (REG_P0, p0);
-  register_set (REG_R0, r0);
-
-  free (p0);
-  free (r0);
-  free (wpstat);
-}
-
-
-static void
-wpstat_clear (void)
-{
-  uint32_t *p0, *r0, *wpstat;
-  bfin_core *c;
-  int i;
-
-  p0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  r0 = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-  wpstat = (uint32_t *) malloc (cpu->core_num * sizeof (uint32_t));
-
-  if (!p0 || !r0 || !wpstat)
-    abort ();
-
-  register_get (REG_P0, p0);
-  register_get (REG_R0, r0);
-
-  register_set_same (REG_P0, WPSTAT);
-
-  for_each_core (i, c)
-    wpstat[i] = c->wpstat;
-  register_set (REG_R0, wpstat);
-
-  emuir_set_same (gen_store32_offset (REG_P0, 0, REG_R0), RUNTEST);
-
-  for_each_core (i, c)
-    c->wpstat = 0;
-
-  register_set (REG_P0, p0);
-  register_set (REG_R0, r0);
-
-  free (p0);
-  free (r0);
-  free (wpstat);
-}
 
 static uint32_t
 core_wpstat_get (int core)
@@ -1896,19 +1630,6 @@ core_wpstat_clear (int core)
 }
 
 static void
-emulation_enable (void)
-{
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: emulation_enable ()", bfin_target.name);
-
-  dbgstat_show ("before");
-  chain_emulation_enable (cpu->chain);
-  dbgstat_show ("after");
-
-  dbgctl_show ("emulation_enable");
-}
-
-static void
 core_emulation_enable (int core)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -1918,17 +1639,22 @@ core_emulation_enable (int core)
   core_dbgstat_show (core, "before");
   part_emulation_enable (cpu->chain, cpu->first_core + core);
   core_dbgstat_show (core, "after");
+
+  core_emupc_show (core, "");
+
+  core_dbgctl_show (core, "emulation_enable");
 }
 
 static void
-emulation_trigger (void)
+emulation_enable (void)
 {
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: emulation_trigger ()", bfin_target.name);
+  int i;
 
-  dbgstat_show ("before");
-  chain_emulation_trigger (cpu->chain);
-  dbgstat_show ("after");
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: emulation_enable ()", bfin_target.name);
+
+  for (i = 0; i < cpu->core_num; i++)
+    core_emulation_enable (i);
 }
 
 static void
@@ -1944,22 +1670,26 @@ core_emulation_trigger (int core)
 }
 
 static void
-emulation_return (void)
+emulation_trigger (void)
 {
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: emulation_return ()", bfin_target.name);
+  int i;
 
-  dbgstat_show ("before");
-  chain_emulation_return (cpu->chain);
-  dbgstat_show ("after");
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: emulation_trigger ()", bfin_target.name);
+
+  for (i = 0; i < cpu->core_num; i++)
+    core_emulation_trigger (i);
 }
 
 static void
 core_emulation_return (int core)
 {
+  uint32_t rete;
+
+  rete = core_register_get (core, REG_RETE);
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: [%d] core_emulation_return ()",
-	    bfin_target.name, cpu->first_core + core);
+	    "%s: [%d] core_emulation_return () to [0x%08x]",
+	    bfin_target.name, cpu->first_core + core, rete);
 
   core_dbgstat_show (core, "before");
   part_emulation_return (cpu->chain, cpu->first_core + core);
@@ -1967,12 +1697,15 @@ core_emulation_return (int core)
 }
 
 static void
-emulation_disable (void)
+emulation_return (void)
 {
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
-	    "%s: emulation_disable ()", bfin_target.name);
+  int i;
 
-  chain_emulation_disable (cpu->chain);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: emulation_return ()", bfin_target.name);
+
+  for (i = 0; i < cpu->core_num; i++)
+    core_emulation_return (i);
 }
 
 static void
@@ -1983,6 +1716,18 @@ core_emulation_disable (int core)
 	    bfin_target.name, cpu->first_core + core);
 
   part_emulation_disable (cpu->chain, cpu->first_core + core);
+}
+
+static void
+emulation_disable (void)
+{
+  int i;
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: emulation_disable ()", bfin_target.name);
+
+  for (i = 0; i < cpu->core_num; i++)
+    core_emulation_disable (i);
 }
 
 static void
@@ -1998,7 +1743,7 @@ core_reset (void)
 {
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "Reset core(s)");
 
-  bfin_core_reset (cpu->chain);
+  bfin_core_reset (cpu->chain, cpu->first_core + cpu->core_a);
 }
 
 static uint32_t
@@ -4235,12 +3980,8 @@ bfin_open (int argc,
 	}
       else
 	{
-	  part_bypass (chain, i);
 	  if (!strcmp (chain->parts->parts[i]->part, "BF561"))
-	    {
-	      i++;
-	      part_bypass (chain, i);
-	    }
+	    i++;
 	}
       cpu_num++;
     }
@@ -4612,11 +4353,14 @@ bfin_open (int argc,
 static void
 bfin_close (void)
 {
+  int i;
+  
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "%s: bfin_close()", bfin_target.name);
 
   assert (cpu);
 
-  emulation_disable ();
+  for (i = 0; i < cpu->core_num; i++)
+    core_emulation_disable (i);
 
   urj_tap_chain_free (cpu->chain);
   free (cpu);
@@ -6896,7 +6640,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 /* command: reset proc */
 static int bfin_rcmd_reset(int argc, char *argv[], out_func of, data_func df)
 {
-  software_reset (cpu->chain);
+  software_reset (cpu->chain, cpu->first_core + cpu->core_a);
   return RP_VAL_TARGETRET_OK;
 }
 

@@ -1,5 +1,49 @@
 2011-11-11  Jie Zhang  <jie.zhang@analog.com>
 
+	* target_bfin_new.c (scan_select): Remove.
+	(DBGCTL_CLEAR_OR_SET_BIT): Remove.
+	(DBGCTL_SET_BIT): Remove.
+	(DBGCTL_CLEAR_BIT): Remove.
+	(dbgstat_get): Use core_dbgstat_get instead of chain_dbgstat_get.
+	(emupc_get): Use core_emupc_get instead of chain_emupc_get.
+	(emupc_show): Remove.
+	(core_emupc_reset): New.
+	(emupc_reset): Use core_emupc_reset.
+	(dbgstat_clear_ovfs): Remove.
+	(dbgstat_show): Use core_dbgstat_get instead of chain_dbgstat_get
+	and only output emucause when emuready.
+	(dbgctl_show): Remove.
+	(core_dbgctl_show): New.
+	(check_emuready): Remove.
+	(wait_in_reset): Remove.
+	(wait_reset): Remove.
+	(emuir_set_same): Remove.
+	(emuir_set_same_2): Remove.
+	(register_get): Remove.
+	(register_set): Remove.
+	(register_set_same): Remove.
+	(wpu_init): Remove.
+	(wpu_enable): Remove.
+	(core_wpu_enable): Remove.
+	(wpu_disable): Use core_wpu_disable.
+	(wpstat_get): Remove.
+	(wpstat_clear): Remove.
+	(emulation_enable): Use core_emulation_enable instead of
+	chain_emulation_enable.
+	(emulation_trigger): Use core_emulation_trigger instead of
+	chain_emulation_trigger.
+	(emulation_return): Use core_emulation_return instead of
+	chain_emulation_return.
+	(emulation_disable): Use core_emulation_disable instead of
+	chain_emulation_disable.
+	(core_reset): Update call to bfin_core_reset.
+	(bfin_open): Don's use part_bypass.
+	(bfin_close): Use core_emulation_disable instead of
+	emulation_disable.
+	(bfin_rcmd_reset): Update call to bfin_core_reset.
+
+2011-11-11  Jie Zhang  <jie.zhang@analog.com>
+
 	* target_bfin_new.c (core_sticky_in_reset): Remove.
 	(bfin_test_command_mmrs): Moved from UrJTAG.
 	(bfin_test_command): Moved from UrJTAG.
