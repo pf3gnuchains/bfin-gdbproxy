@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2010 Analog Devices, Inc.
+/* Copyright (C) 2008-2011 Analog Devices, Inc.
 
    This file is subject to the terms and conditions of the GNU
    General Public License as published by the Free Software
@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
@@ -54,6 +55,7 @@
 #include <urjtag/jtag.h>
 #include <urjtag/parse.h>
 #include <urjtag/bfin.h>
+#include <urjtag/sdu.h>
 
 #ifndef MIN
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
@@ -61,6 +63,8 @@
 #ifndef MAX
 #define MAX(x,y) ((x) < (y) ? (y) : (x))
 #endif
+
+#define UNUSED __attribute__((unused))
 
 /* MMRs definitions */
 
@@ -228,6 +232,170 @@ const static char *emucause_infos[] = {
 
 #define BFIN_DCPLB_NUM			16
 #define BFIN_ICPLB_NUM			16
+
+/* BF60x CGU */
+#define CGU0_CTL			0xffca8000
+#define CGU0_STAT			0xffca8004
+#define CGU0_DIV			0xffca8008
+
+#define CGU0_CTL_DF_BITP		0
+#define CGU0_CTL_DF_BITM		0x1
+#define CGU0_CTL_MSEL_BITP		8
+#define CGU0_CTL_MSEL_BITM		0x7f
+
+#define CGU0_STAT_PLLEN			0
+#define CGU0_STAT_PLLBP			1
+#define CGU0_STAT_PLLLK			2
+#define CGU0_STAT_CLKSALGN		3
+#define CGU0_STAT_CCBF0EN		4
+#define CGU0_STAT_CCBF1EN		5
+#define CGU0_STAT_SCBF0EN		6
+#define CGU0_STAT_SCBF1EN		7
+#define CGU0_STAT_DCBFEN		8
+#define CGU0_STAT_OCBFEN		9
+#define CGU0_STAT_ADRERR		16
+#define CGU0_STAT_LWERR			17
+#define CGU0_STAT_DIVERR		18
+#define CGU0_STAT_WDFMSERR		19
+#define CGU0_STAT_WDIVERR		20
+#define CGU0_STAT_PLLLKERR		21
+
+#define CGU0_DIV_CSEL_BITP		0
+#define CGU0_DIV_CSEL_BITM		0x1f
+#define CGU0_DIV_S0SEL_BITP		5
+#define CGU0_DIV_S0SEL_BITM		0x7
+#define CGU0_DIV_SYSSEL_BITP		8
+#define CGU0_DIV_SYSSEL_BITM		0x1f
+#define CGU0_DIV_S1SEL_BITP		13
+#define CGU0_DIV_S1SEL_BITM		0x7
+#define CGU0_DIV_DSEL_BITP		16
+#define CGU0_DIV_DSEL_BITM		0x1f
+#define CGU0_DIV_OSEL_BITP		22
+#define CGU0_DIV_OSEL_BITM		0x7f
+#define CGU0_DIV_UPDT			30
+
+/* BF60x DDR2 */
+#define DDR0_ID				0xffc80000
+#define DDR0_CTL			0xffc80004
+#define DDR0_STAT			0xffc80008
+#define DDR0_CFG			0xffc80040
+#define DDR0_TR0			0xffc80044
+#define DDR0_TR1			0xffc80048
+#define DDR0_TR2			0xffc8004c
+#define DDR0_MRWMR			0xffc8005c
+#define DDR0_MR				0xffc80060
+#define DDR0_EMR1			0xffc80064
+#define DDR0_EMR2			0xffc80068
+#define DDR0_EMR3			0xffc8006c
+#define DDR0_DLLCTL			0xffc80080
+
+#define DDR0_CTL_INIT			2
+#define DDR0_CTL_RD_TO_WR_CYC_BITP	9
+#define DDR0_CTL_RD_TO_WR_CYC_BITM	0x7
+
+#define DDR0_STAT_DMC_IDLE		0
+#define DDR0_STAT_INIT_DONE		2
+#define DDR0_STAT_SRACK			3
+#define DDR0_STAT_PDACK			4
+#define DDR0_STAT_DPDACK		5
+#define DDR0_STAT_DLL_CAL_DONE		13
+#define DDR0_STAT_PEND_REF_BITP		16
+#define DDR0_STAT_PEND_REF_BITM		0xf
+#define DDR0_STAT_PHY_RD_PHASE_BITP	20
+#define DDR0_STAT_PHY_RD_PHASE_BITM	0xf
+
+#define DDR0_CFG_IF_WIDTH_BITP		0
+#define DDR0_CFG_IF_WIDTH_BITM		0xf
+#define DDR0_CFG_SDRAM_WIDTH_BITP	4
+#define DDR0_CFG_SDRAM_WIDTH_BITM	0xf
+#define DDR0_CFG_SDRAM_SIZE_BITP	8
+#define DDR0_CFG_SDRAM_SIZE_BITM	0xf
+
+#define DDR0_TR0_TRCD_BITP		0
+#define DDR0_TR0_TRCD_BITM		0xf
+#define DDR0_TR0_TWTR_BITP		4
+#define DDR0_TR0_TWTR_BITM		0xf
+#define DDR0_TR0_TRP_BITP		8
+#define DDR0_TR0_TRP_BITM		0xf
+#define DDR0_TR0_TRAS_BITP		12
+#define DDR0_TR0_TRAS_BITM		0x1f
+#define DDR0_TR0_TRC_BITP		20
+#define DDR0_TR0_TRC_BITM		0x3f
+#define DDR0_TR0_TMRD_BITP		28
+#define DDR0_TR0_TMRD_BITM		0xf
+
+#define DDR0_TR1_TREF_BITP		0
+#define DDR0_TR1_TREF_BITM		0x3fff
+#define DDR0_TR1_TRFC_BITP		16
+#define DDR0_TR1_TRFC_BITM		0xff
+#define DDR0_TR1_TRRD_BITP		28
+#define DDR0_TR1_TRRD_BITM		0x7
+
+#define DDR0_TR2_TFAW_BITP		0
+#define DDR0_TR2_TFAW_BITM		0x1f
+#define DDR0_TR2_TRTP_BITP		8
+#define DDR0_TR2_TRTP_BITM		0xf
+#define DDR0_TR2_TWR_BITP		12
+#define DDR0_TR2_TWR_BITM		0xf
+#define DDR0_TR2_TXP_BITP		16
+#define DDR0_TR2_TXP_BITM		0xf
+#define DDR0_TR2_TCKE_BITP		20
+#define DDR0_TR2_TCKE_BITM		0xf
+
+#define DDR0_MR_MASK			8
+#define DDR0_EMR1_MASK			9
+#define DDR0_EMR2_MASK			10
+#define DDR0_EMR3_MASK			11
+
+#define DDR0_MR_BL_BITP			0
+#define DDR0_MR_BL_BITM			0x7
+#define DDR0_MR_CL_BITP			4
+#define DDR0_MR_CL_BITM			0x7
+#define DDR0_MR_TWR_BITP		9
+#define DDR0_MR_TWR_BITM		0x7
+
+#define DDR0_DLLCTL_DATA_CYCLE_BITP	8
+#define DDR0_DLLCTL_DATA_CYCLE_BITM	0xf
+
+#define SDU0_MSG			0xffc1f080
+#define SDU0_MSG_SET			0xffc1f084
+#define SDU0_MSG_CLR			0xffc1f088
+
+#define MSG_CALLERROR			0x80000000
+#define MSG_CALLBACK			0x40000000
+#define MSG_CALLINIT			0x20000000
+#define MSG_CALLAPP			0x10000000
+#define MSG_HALTONERROR			0x08000000
+#define MSG_HALTONCALL			0x04000000
+#define MSG_HALTONINIT			0x02000000
+#define MSG_HALTONAPP			0x01000000
+#define MSG_L2_INIT			0x00400000
+#define MSG_C1L1_INIT			0x00020000
+#define MSG_C0L1_INIT			0x00010000
+
+/* BF60x RCU */
+#define RCU0_CTL			0xffca6000
+#define RCU0_STAT			0xffca6004
+#define RCU0_CN_RES			0xffca6008
+#define RCU0_CN_STAT			0xffca600c
+#define RCU0_FUNIT_DIS			0xffca6010
+#define RCU0_FUNIT_STAT			0xffca6014
+#define RCU0_CN_CTL_LOCK		0xffca6018
+#define RCU0_BCODE			0xffca601c
+#define RCU0_CN_CTL0			0xffca6020
+#define RCU0_CN_CTL1			0xffca6024
+#define RCU0_STAT_BMODE_BITP		8
+#define RCU0_STAT_BMODE_BITM		0xf
+
+
+#define BIT_FIELD_VALUE(VALUE, MMR, BIT_FIELD) \
+  (((VALUE) >> MMR##_##BIT_FIELD##_BITP) & MMR##_##BIT_FIELD##_BITM)
+
+#define DDR0_STAT_BIT_FIELD_VALUE(BIT_FIELD) \
+  BIT_FIELD_VALUE (ddr0_stat, DDR0_STAT, BIT_FIELD)
+
+#define RCU0_STAT_BIT_FIELD_VALUE(BIT_FIELD) \
+  BIT_FIELD_VALUE (rcu0_stat, RCU0_STAT, BIT_FIELD)
 
 
 /* Misc macros and definitions */
@@ -249,6 +417,7 @@ typedef enum _bfin_board
   BF538F_EZKIT,
   BF548_EZKIT,
   BF561_EZKIT,
+  BF609_EZKIT,
 } bfin_board;
 
 #define UPDATE				0
@@ -693,6 +862,42 @@ static const bfin_l1_map bf59x_l1_map = {
   .l1_code_rom_end	= 0xffa20000,
   .l1_end		= 0xffc00000,
 };
+static const bfin_l1_map bf609_0_l1_map = {
+  .l1			= 0xff800000,
+  .l1_data_a		= 0xff800000,
+  .l1_data_a_end	= 0xff804000,
+  .l1_data_a_cache	= 0xff804000,
+  .l1_data_a_cache_end	= 0xff808000,
+  .l1_data_b		= 0xff900000,
+  .l1_data_b_end	= 0xff904000,
+  .l1_data_b_cache	= 0xff904000,
+  .l1_data_b_cache_end	= 0xff908000,
+  .l1_code		= 0xffa00000,
+  .l1_code_end		= 0xffa10000,
+  .l1_code_cache	= 0xffa10000,
+  .l1_code_cache_end	= 0xffa14000,
+  .l1_scratch		= 0xffb00000,
+  .l1_scratch_end	= 0xffb01000,
+  .l1_end		= 0xffc00000,
+};
+static const bfin_l1_map bf609_1_l1_map = {
+  .l1			= 0xff400000,
+  .l1_data_a		= 0xff400000,
+  .l1_data_a_end	= 0xff404000,
+  .l1_data_a_cache	= 0xff404000,
+  .l1_data_a_cache_end	= 0xff408000,
+  .l1_data_b		= 0xff500000,
+  .l1_data_b_end	= 0xff504000,
+  .l1_data_b_cache	= 0xff504000,
+  .l1_data_b_cache_end	= 0xff508000,
+  .l1_code		= 0xff600000,
+  .l1_code_end		= 0xff610000,
+  .l1_code_cache	= 0xff610000,
+  .l1_code_cache_end	= 0xff614000,
+  .l1_scratch		= 0xff700000,
+  .l1_scratch_end	= 0xff701000,
+  .l1_end		= 0xff800000,
+};
 
 typedef struct _bfin_mem_map
 {
@@ -823,6 +1028,22 @@ static const bfin_mem_map bf59x_mem_map = {
   .sysmmr		= 0xffc00000,
   .coremmr		= 0xffe00000,
 };
+static const bfin_mem_map bf609_mem_map = {
+  .sdram		= 0,
+  .sdram_end		= 0x10000000,
+  .async_mem		= 0xb0000000,
+  .flash		= 0xb0000000,  /* ??? */
+  .flash_end		= 0xb4000000,  /* ??? */
+  .async_mem_end	= 0xc0000000,
+  .boot_rom		= 0xc8000000,
+  .boot_rom_end		= 0xc8008000,
+  .l2_sram		= 0xc8080000,
+  .l2_sram_end		= 0xc80c0000,
+  .l1			= 0xff400000,
+  .l1_end		= 0xffc00000,
+  .sysmmr		= 0xffc00000,
+  .coremmr		= 0xffe00000,
+};
 
 #define IN_RANGE(addr, lo, hi) ((addr) >= (lo) && (addr) < (hi))
 #define IN_MAP(addr, map) IN_RANGE (addr, map, map##_end)
@@ -872,6 +1093,10 @@ typedef struct _bfin_core
 
   char *name;
 
+  /* If a core is dead.  You cannot unlocked it or access it.
+     What you need to do is just set its scan to BYPASS.
+     You can set it to other scans, but they will not take effect.  */
+  unsigned int is_dead:1;
   unsigned int is_locked:1;
   unsigned int is_running:1;
   unsigned int is_interrupted:1;
@@ -968,6 +1193,7 @@ typedef struct _bfin_cpu
   bfin_mem_map mem_map;
   const bfin_sdram_config *sdram_config;
   const bfin_ddr_config *ddr_config;
+  int ddr2;
   uint32_t mdma_s0;
   uint32_t mdma_d0;
 
@@ -977,16 +1203,17 @@ typedef struct _bfin_cpu
   int core_num;
 
   /* The core will never be locked.  */
+  /* TODO We need change this for BF609.  */
   int core_a;
 
   int general_core;
   int continue_core;
 
+  /* The part number of SDU. -1 if not SDU.  */
+  int sdu;
+
   bfin_core cores[0];
 } bfin_cpu;
-
-#define for_each_core(i, c) \
-  for (c = &cpu->cores[i = 0]; i < (cpu)->core_num; c = &cpu->cores[++i])
 
 static log_func bfin_log;
 static bfin_cpu *cpu = NULL;
@@ -999,6 +1226,28 @@ static int bfin_reset = 0;
 static int bfin_enable_dcache = CACHE_DISABLED;
 static int bfin_enable_icache = 0;
 static int use_dma = 0;
+static int bfin_debug_boot_code = 0;
+static int bfin_bf609_bmode1_workaround = 0;
+static int bfin_bf609_sdu_mac_read = 0;
+static int bfin_bf609_sdu_mac_write = 0;
+static int bfin_bf609_check_macrdy = 0;
+/* CCLK for BF609, default 500MHz */
+static int bfin_bf609_cclk = 0;
+/* SCLK for BF609, default to be CCLK/2 */
+static int bfin_bf609_sclk = 0;
+/* DCLK for BF609, default to be same as SCLK */
+static int bfin_bf609_dclk = 0;
+/* CAS Latency for BF609 DDR2 configuration */
+static int bfin_bf609_ddrcl = 0;
+/* The CLKIN for BF609 is 25MHz */
+#define CLKIN 25
+static int msel;
+static int csel;
+static int syssel;
+static int s0sel;
+static int s1sel;
+static int dsel;
+static int osel;
 
 #define INVALID_MEM_ACCESS_IGNORE     0
 #define INVALID_MEM_ACCESS_REJECT     1
@@ -1009,6 +1258,35 @@ static int invalid_mem_access = INVALID_MEM_ACCESS_IGNORE;
 
 /* Local functions */
 
+static int
+bfin_iter_init_alive_core (void)
+{
+  int j;
+  for (j = 0; j < cpu->core_num; j++)
+    if (!cpu->cores[j].is_dead)
+      break;
+  return j;
+}
+
+static int
+bfin_iter_next_alive_core (int i)
+{
+  int j;
+  for (j = i + 1; j < cpu->core_num; j++)
+    if (!cpu->cores[j].is_dead)
+      break;
+  return j;
+}
+
+#define FOR_EACH_ALIVE_CORE(I, C)					\
+  for (I = bfin_iter_init_alive_core (),				\
+	 C = I == cpu->core_num ? NULL : &cpu->cores[I];		\
+       I < cpu->core_num;						\
+       I = bfin_iter_next_alive_core (I),				\
+	 C = I == cpu->core_num ? NULL : &cpu->cores[I])
+
+#define FOR_EACH_CORE(I, C) \
+  for (C = &cpu->cores[I = 0]; I < cpu->core_num; C = &cpu->cores[++I])
 
 static void
 core_scan_select (int core, int scan)
@@ -1141,7 +1419,8 @@ dbgstat_get (void)
 {
   int i;
   for (i = 0; i < cpu->core_num; i++)
-    core_dbgstat_get (i);
+    if (!cpu->cores[i].is_dead)
+      core_dbgstat_get (i);
 }
 
 static uint32_t
@@ -1188,7 +1467,8 @@ emupc_reset (void)
   int i;
 
   for (i = 0; i < cpu->core_num; i++)
-    core_emupc_reset (i);
+    if (!cpu->cores[i].is_dead)
+      core_emupc_reset (i);
 }
 
 static void
@@ -1253,6 +1533,63 @@ core_dbgstat_show (int core, const char *id)
   part = cpu->chain->parts->parts[cpu->first_core + core];
   bfin_log (RP_VAL_LOGLEVEL_DEBUG, "[%d] DBGSTAT [0x%04X] <%s>",
 	    cpu->first_core + core, BFIN_PART_DBGSTAT (part), id);
+}
+
+static void
+sdu_stat_show (urj_chain_t *chain, int n, const char *id)
+{
+  urj_part_t *part;
+  char buf[1024];
+
+  assert (id != NULL);
+
+  sdu_stat_get (chain, n);
+  part = chain->parts->parts[n];
+  sprintf (buf, "[%d] SDU_STAT [0x%08X]:", n, SDU_PART_STAT (part));
+  if (sdu_stat_is_sysrst (chain, n))        strcat (buf, " sysrst");
+  if (sdu_stat_is_err (chain, n))           strcat (buf, " err");
+  if (sdu_stat_is_deepsleep (chain, n))     strcat (buf, " deepsleep");
+  if (sdu_stat_is_secure (chain, n))        strcat (buf, " secure");
+  if (sdu_stat_is_err (chain, n))
+    switch (sdu_stat_errc (chain, n))
+      {
+	case 0x0: strcat (buf, " errc:[MAC Over/Underflow]"); break;
+	case 0x1: strcat (buf, " errc:[DMARD Underflow]");    break;
+	case 0x2: strcat (buf, " errc:[DMAWD Overflow]");     break;
+	case 0x3: strcat (buf, " errc:[DMA Error]");          break;
+	case 0x4: strcat (buf, " errc:[MAC AXI Error]");      break;
+	default:  strcat (buf, " errc:[unknown]");            break;
+      }
+  if (sdu_stat_is_macrdy (chain, n))        strcat (buf, " macrdy");
+  if (sdu_stat_is_dmardrdy (chain, n))      strcat (buf, " dmardrdy");
+  if (sdu_stat_is_dmawdrdy (chain, n))      strcat (buf, " dmawdrdy");
+  if (sdu_stat_is_addrerr (chain, n))       strcat (buf, " addrerr");
+  switch (sdu_stat_dmafifo (chain, n))
+    {
+    case 0x0: strcat (buf, " dmafifo:empty");             break;
+    case 0x1: strcat (buf, " dmafifo:(0,1/4]");           break;
+    case 0x2: strcat (buf, " dmafifo:(1/4,1/2]");         break;
+    case 0x3: strcat (buf, " dmafifo:(1/2,3/4]");         break;
+    case 0x4: strcat (buf, " dmafifo:(3/4,1)");           break;
+    case 0x7: strcat (buf, " dmafifo:full");              break;
+    default:  strcat (buf, " dmafifo:unknown");           break;
+    }
+  if (sdu_stat_is_ghlt (chain, n))          strcat (buf, " ghlt");
+  if (sdu_stat_is_ghlt (chain, n))
+    switch (sdu_stat_ghltc (chain, n))
+      {
+	case 0x0: strcat (buf, " ghltc:system");              break;
+	case 0x1: strcat (buf, " ghltc:core0");               break;
+	case 0x2: strcat (buf, " ghltc:core1");               break;
+	default:  strcat (buf, " ghltc:unknown");             break;
+      }
+  if (sdu_stat_is_eme (chain, n))           strcat (buf, " eme");
+  if (sdu_stat_is_chlt (chain, n))          strcat (buf, " chlt");
+  if (sdu_stat_is_crst (chain, n))          strcat (buf, " crst");
+  strcat (buf, " <");
+  strcat (buf, id);
+  strcat (buf, ">");
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
 }
 
 static void
@@ -1441,7 +1778,8 @@ wpu_disable (void)
 {
   int i;
   for (i = 0; i < cpu->core_num; i++)
-    core_wpu_disable (i);
+    if (!cpu->cores[i].is_dead)
+      core_wpu_disable (i);
 }
 
 static uint32_t wpiaen[] = {
@@ -1665,7 +2003,14 @@ core_emulation_trigger (int core)
 	    bfin_target.name, cpu->first_core + core);
 
   core_dbgstat_show (core, "before");
-  part_emulation_trigger (cpu->chain, cpu->first_core + core);
+  if (cpu->sdu == -1)
+    part_emulation_trigger (cpu->chain, cpu->first_core + core);
+  else
+    {
+      sdu_stat_show (cpu->chain, cpu->sdu, "before");
+      sdu_halt (cpu->chain, cpu->sdu, SDU_CTL_EHLT_CORE (core));
+      sdu_stat_show (cpu->chain, cpu->sdu, "after");
+    }    
   core_dbgstat_show (core, "after");
 }
 
@@ -1854,6 +2199,94 @@ mmr_write (int core, uint32_t addr, uint32_t data, int size)
 }
 
 static int
+rcu0_stat_bmode (uint32_t rcu0_stat)
+{
+  return RCU0_STAT_BIT_FIELD_VALUE (BMODE);
+}
+
+static int
+bfin_bootmode (int core)
+{
+  uint32_t rcu0_stat;
+  int bootmode;
+
+  /* Only BF609 is supported now.  */
+  if (cpu->sdu == -1)
+    return -1;
+
+  rcu0_stat = mmr_read (core, RCU0_STAT, 4);
+  bootmode = rcu0_stat_bmode (rcu0_stat);
+  return bootmode;
+}
+
+#define SDU_MSG_SET_HALTON_BIT(bitname, BITNAME)			\
+  static void								\
+  sdu_msg_set_halton##bitname (int core)				\
+  {									\
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG,					\
+	      "%s: [%d] set SDU_MSG bit MSG_HALTON" #BITNAME,		\
+	      bfin_target.name, cpu->first_core + core);		\
+    mmr_write (core, SDU0_MSG_SET, MSG_HALTON##BITNAME, 4);		\
+  }
+
+#define SDU_MSG_CLEAR_HALTON_BIT(bitname, BITNAME)			\
+  static void								\
+  sdu_msg_clear_halton##bitname (int core)				\
+  {									\
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG,					\
+	      "%s: [%d] set SDU_MSG bit MSG_HALTON" #BITNAME,		\
+	      bfin_target.name, cpu->first_core + core);		\
+    mmr_write (core, SDU0_MSG_CLR, MSG_HALTON##BITNAME, 4);		\
+  }
+
+#define SDU_MSG_IS_CALL_BIT(bitname, BITNAME)				\
+  static int								\
+  sdu_msg_is_call##bitname (int core)					\
+  {									\
+    uint32_t sdu_msg_set;						\
+									\
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG,					\
+	      "%s: [%d] test SDU_MSG bit MSG_CALL" #BITNAME,		\
+	      bfin_target.name, cpu->first_core + core);		\
+    									\
+    sdu_msg_set = mmr_read (core, SDU0_MSG, 4);				\
+    if (sdu_msg_set & MSG_CALL##BITNAME)				\
+      return 1;								\
+    else								\
+      return 0;								\
+  }
+
+#define SDU_MSG_CLEAR_CALL_BIT(bitname, BITNAME)			\
+  static void								\
+  sdu_msg_clear_call##bitname (int core)				\
+  {									\
+    bfin_log (RP_VAL_LOGLEVEL_DEBUG,					\
+	      "%s: [%d] clear SDU_MSG bit MSG_CALL" #BITNAME,		\
+	      bfin_target.name, cpu->first_core + core);		\
+    mmr_write (core, SDU0_MSG_CLR, MSG_CALL##BITNAME, 4);		\
+  }
+
+SDU_MSG_SET_HALTON_BIT (error, ERROR)
+SDU_MSG_SET_HALTON_BIT (call, CALL)
+SDU_MSG_SET_HALTON_BIT (init, INIT)
+SDU_MSG_SET_HALTON_BIT (app, APP)
+
+SDU_MSG_CLEAR_HALTON_BIT (error, ERROR)
+SDU_MSG_CLEAR_HALTON_BIT (call, CALL)
+SDU_MSG_CLEAR_HALTON_BIT (init, INIT)
+SDU_MSG_CLEAR_HALTON_BIT (app, APP)
+
+SDU_MSG_IS_CALL_BIT (error, ERROR)
+SDU_MSG_IS_CALL_BIT (back, BACK)
+SDU_MSG_IS_CALL_BIT (init, INIT)
+SDU_MSG_IS_CALL_BIT (app, APP)
+
+SDU_MSG_CLEAR_CALL_BIT (error, ERROR)
+SDU_MSG_CLEAR_CALL_BIT (back, BACK)
+SDU_MSG_CLEAR_CALL_BIT (init, INIT)
+SDU_MSG_CLEAR_CALL_BIT (app, APP)
+
+static int
 bfin_sdram_init (int core)
 {
   uint32_t p0, r0;
@@ -1892,12 +2325,15 @@ bfin_sdram_init (int core)
 static int
 sdram_init (void)
 {
-  bfin_core *c;
+  bfin_core *c UNUSED;
   int i;
 
-  for_each_core (i, c)
-    if (!c->is_locked && !c->is_corefault && !c->is_running)
-      break;
+  FOR_EACH_ALIVE_CORE (i, c)
+    {
+      core_dbgstat_get (i);
+      if (core_dbgstat_is_emuready (i))
+	break;
+    }
 
   if (i == cpu->core_num)
     {
@@ -1915,15 +2351,18 @@ ddr_init (void)
 {
   uint32_t p0, r0;
   uint32_t value;
-  bfin_core *c;
+  bfin_core *c UNUSED;
   int i;
 
-  bfin_log (RP_VAL_LOGLEVEL_DEBUG2,
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: ddr_init ()", bfin_target.name);
 
-  for_each_core (i, c)
-    if (!c->is_locked && !c->is_corefault && !c->is_running)
-      break;
+  FOR_EACH_ALIVE_CORE (i, c)
+    {
+      core_dbgstat_get (i);
+      if (core_dbgstat_is_emuready (i))
+	break;
+    }
 
   if (i == cpu->core_num)
     {
@@ -1952,6 +2391,547 @@ ddr_init (void)
   core_register_set (i, REG_P0, p0);
   core_register_set (i, REG_R0, r0);
   return 0;
+}
+
+#define PRINT_BIT(VALUE, MMR, BIT)				\
+  do								\
+    {								\
+      if (!(((VALUE) >> MMR##_##BIT) & 0x1))			\
+	strcat (buf, "-");					\
+      strcat (buf, #BIT " ");					\
+    }								\
+  while (0)
+
+#define DDR0_PRINT_BIT(BIT) PRINT_BIT(ddr0_stat, DDR0_STAT, BIT)
+
+static void
+ddr0_stat_show (uint32_t ddr0_stat, const char *id)
+{
+  char buf[1024];
+  char buf2[64];
+
+  sprintf (buf, "DDR0_STAT [0x%08X]: ", ddr0_stat);
+
+  sprintf (buf2, "PHY_RD_PHASE[%d] ", DDR0_STAT_BIT_FIELD_VALUE (PHY_RD_PHASE));
+  strcat (buf, buf2);
+  sprintf (buf2, "PEND_REF[%d] ", DDR0_STAT_BIT_FIELD_VALUE (PEND_REF));
+  strcat (buf, buf2);
+  DDR0_PRINT_BIT (DLL_CAL_DONE);
+  strcat (buf, "\n             ");
+  DDR0_PRINT_BIT (DPDACK);
+  DDR0_PRINT_BIT (PDACK);
+  DDR0_PRINT_BIT (SRACK);
+  DDR0_PRINT_BIT (INIT_DONE);
+  DDR0_PRINT_BIT (DMC_IDLE);
+
+  strcat (buf, "<");
+  strcat (buf, id);
+  strcat (buf, ">");
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
+}
+
+/* Timing parameters for MT47H64M16HR-3 */
+#define tRC		55	/* min ns */
+#define tRCD		15	/* min ns */
+#define tRAS		40	/* min ns */
+#define tRP		15	/* min ns */
+#define tRRD		10	/* min ns */
+#define tFAW		50	/* min ns */
+#define tRTP		7.5	/* min ns */
+#define tWR		15	/* min ns */
+#define tWTR		7.5	/* min ns */
+#define tMRD		2	/* min tCK */
+#define tRFC		127.5	/* min ns */
+#define tREFI		7812.5	/* max ns */
+#define tXARD		2	/* min tCK */
+#define tXP		2	/* min tCK */
+#define tCKE		3	/* min tCK */
+
+static int
+ddr2_init (void)
+{
+  uint32_t p0, r0;
+  float tck;
+  /* parameters in ddrtr0 */
+  uint32_t trcd, twtr, trp, tras, trc, tmrd;
+  /* parameters in ddrtr1 */
+  uint32_t tref, trfc, trrd;
+  /* parameters in ddrtr2 */
+  uint32_t tfaw, trtp, txp, tcke;
+  /* parameters in ddrmr */
+  uint32_t bl, cl, twr;
+  uint32_t ddrctl, ddrcfg, ddrtr0, ddrtr1, ddrtr2;
+  uint32_t ddrmr, ddremr1, ddremr2, ddremr3;
+  uint32_t ddr0_mrwmr;
+  uint32_t ddr0_stat, ddr0_dllctl, data_cycle;
+  bfin_core *c UNUSED;
+  int i, count;
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddr2_init ()", bfin_target.name);
+
+  FOR_EACH_ALIVE_CORE (i, c)
+    {
+      core_dbgstat_get (i);
+      if (core_dbgstat_is_emuready (i))
+	break;
+    }
+
+  if (i == cpu->core_num)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: no core available to init ddr2",
+		bfin_target.name);
+      return -1;
+    }
+
+  p0 = core_register_get (i, REG_P0);
+  r0 = core_register_get (i, REG_R0);
+
+  core_register_set (i, REG_P0, DDR0_ID);
+
+  ddr0_stat = mmr_read_clobber_r0 (i, DDR0_STAT - DDR0_ID, 4);
+  ddr0_stat_show (ddr0_stat, "before init");
+
+  ddrctl = (1 << DDR0_CTL_INIT
+	    | (2 & DDR0_CTL_RD_TO_WR_CYC_BITM) << DDR0_CTL_RD_TO_WR_CYC_BITP);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddrtcl 0x%08x", bfin_target.name, ddrctl);
+
+  /* Interface width 16, SDRAM width 16, SDRAM size 1Gb */
+  ddrcfg = ((2 & DDR0_CFG_IF_WIDTH_BITM) << DDR0_CFG_IF_WIDTH_BITP
+	    | (2 & DDR0_CFG_SDRAM_WIDTH_BITM) << DDR0_CFG_SDRAM_WIDTH_BITP
+	    | (4 & DDR0_CFG_SDRAM_SIZE_BITM) << DDR0_CFG_SDRAM_SIZE_BITP);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddrcfg 0x%08x", bfin_target.name, ddrcfg);
+
+  /* tCK in ns.  bfin_bf609_dclk in MHz.  */
+  tck = (float) 1000 / bfin_bf609_dclk;
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: tCK %0.1f", bfin_target.name, tck);
+
+  trcd = ceilf (tRCD / tck);
+  twtr = ceilf (tWTR / tck);
+  trp  = ceilf (tRP / tck);
+  tras = ceilf (tRAS / tck);
+  trc  = ceilf (tRC / tck);
+  tmrd = tMRD;
+
+  ddrtr0 = ((trcd & DDR0_TR0_TRCD_BITM) << DDR0_TR0_TRCD_BITP
+	    | (twtr & DDR0_TR0_TWTR_BITM) << DDR0_TR0_TWTR_BITP
+	    | (trp & DDR0_TR0_TRP_BITM) << DDR0_TR0_TRP_BITP
+	    | (tras & DDR0_TR0_TRAS_BITM) << DDR0_TR0_TRAS_BITP
+	    | (trc & DDR0_TR0_TRC_BITM) << DDR0_TR0_TRC_BITP
+	    | (tmrd & DDR0_TR0_TMRD_BITM) << DDR0_TR0_TMRD_BITP);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddrtr0 0x%08x", bfin_target.name, ddrtr0);
+
+  tref = floorf (tREFI / tck);
+  trfc = ceilf (tRFC / tck);
+  trrd = ceilf (tRRD / tck);
+
+  ddrtr1 = ((tref & DDR0_TR1_TREF_BITM) << DDR0_TR1_TREF_BITP
+	    | (trfc & DDR0_TR1_TRFC_BITM) << DDR0_TR1_TRFC_BITP
+	    | (trrd & DDR0_TR1_TRRD_BITM) << DDR0_TR1_TRRD_BITP);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddrtr1 0x%08x", bfin_target.name, ddrtr1);
+
+  tfaw = ceil (tFAW / tck);
+  trtp = ceil (tRTP / tck);
+  txp  = tXP > tXARD ? tXP : tXARD;
+  tcke = tCKE;
+
+  ddrtr2 = ((tfaw & DDR0_TR2_TFAW_BITM) << DDR0_TR2_TFAW_BITP
+	    | (trtp & DDR0_TR2_TRTP_BITM) << DDR0_TR2_TRTP_BITP
+	    | (txp & DDR0_TR2_TXP_BITM) << DDR0_TR2_TXP_BITP
+	    | (tcke & DDR0_TR2_TCKE_BITM) << DDR0_TR2_TCKE_BITP);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddrtr2 0x%08x", bfin_target.name, ddrtr2);
+
+  /* Burst lenth
+     "010" is a burst of 4, "011" is a burst of 8.  */
+  bl = 2;
+  /* CAS Latency
+     calculate_clocks should have checked DCLK such that tck is valid.  */
+  if (tck >= 5.0)
+    cl = 3;
+  else if (tck >= 3.75)
+    cl = 4;
+  else
+    cl = 5;
+  if (bfin_bf609_ddrcl != 0)
+    {
+      if (bfin_bf609_ddrcl < cl)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: DDR CL %d is too small, should be at least %d",
+		  bfin_target.name, bfin_bf609_ddrcl, cl);
+      cl = bfin_bf609_ddrcl;
+    }
+  bfin_log (RP_VAL_LOGLEVEL_INFO,
+	    "%s: DDR CL set to %d", bfin_target.name, cl);
+
+  /* Write Recovery */
+  twr = ceil (tWR / tck);
+
+  ddrmr = ((bl & DDR0_MR_BL_BITM) << DDR0_MR_BL_BITP
+	   | (cl & DDR0_MR_CL_BITM) << DDR0_MR_CL_BITP
+	   | (twr & DDR0_MR_TWR_BITM) << DDR0_MR_TWR_BITP);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddrmr 0x%08x", bfin_target.name, ddrmr);
+
+  ddremr1 = 0;
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddremr1 0x%08x", bfin_target.name, ddremr1);
+
+  ddremr2 = 0;
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddremr2 0x%08x", bfin_target.name, ddremr2);
+
+  ddremr3 = 0;
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddremr3 0x%08x", bfin_target.name, ddremr3);
+
+  mmr_write_clobber_r0 (i, DDR0_CFG - DDR0_ID, ddrcfg, 4);
+  mmr_write_clobber_r0 (i, DDR0_TR0 - DDR0_ID, ddrtr0, 4);
+  mmr_write_clobber_r0 (i, DDR0_TR1 - DDR0_ID, ddrtr1, 4);
+  mmr_write_clobber_r0 (i, DDR0_TR2 - DDR0_ID, ddrtr2, 4);
+
+  ddr0_mrwmr = mmr_read_clobber_r0 (i, DDR0_MRWMR - DDR0_ID, 4);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: DDR0 MR WMR 0x%08x", bfin_target.name, ddr0_mrwmr);
+
+  ddr0_mrwmr = DDR0_MR_MASK | DDR0_EMR1_MASK | DDR0_EMR2_MASK | DDR0_EMR3_MASK;
+  mmr_write_clobber_r0 (i, DDR0_MRWMR - DDR0_ID, ddr0_mrwmr, 4);
+
+  mmr_write_clobber_r0 (i, DDR0_MR - DDR0_ID, ddrmr, 4);
+  mmr_write_clobber_r0 (i, DDR0_EMR1 - DDR0_ID, ddremr1, 4);
+  mmr_write_clobber_r0 (i, DDR0_EMR2 - DDR0_ID, ddremr2, 4);
+  mmr_write_clobber_r0 (i, DDR0_EMR3 - DDR0_ID, ddremr3, 4);
+
+  mmr_write_clobber_r0 (i, DDR0_CTL - DDR0_ID, ddrctl, 4);
+
+  count = 0;
+  do
+    {
+      ddr0_stat = mmr_read_clobber_r0 (i, DDR0_STAT - DDR0_ID, 4);
+      ddr0_stat_show (ddr0_stat, "after init");
+      count++;
+      if (count == 10)
+	break;
+    }
+  while (((ddr0_stat >> DDR0_STAT_INIT_DONE) & 0x1) == 0);
+
+  if (count == 10)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: DDR2 initialization failed",
+		bfin_target.name);
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return -1;
+    }
+
+  ddr0_mrwmr = mmr_read_clobber_r0 (i, DDR0_MRWMR - DDR0_ID, 4);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: DDR0 MR WMR 0x%08x <after init>",
+	    bfin_target.name, ddr0_mrwmr);
+
+  /* Update DATA_CYCLE in DDR0_DLLCTL with PHY_RD_PHASE from DDR0_STAT */
+  data_cycle = DDR0_STAT_BIT_FIELD_VALUE (PHY_RD_PHASE);
+  ddr0_dllctl = mmr_read_clobber_r0 (i, DDR0_DLLCTL - DDR0_ID, 4);
+  ddr0_dllctl &= ~(DDR0_DLLCTL_DATA_CYCLE_BITM << DDR0_DLLCTL_DATA_CYCLE_BITP);
+  ddr0_dllctl |= data_cycle << DDR0_DLLCTL_DATA_CYCLE_BITP;
+  mmr_write_clobber_r0 (i, DDR0_DLLCTL - DDR0_ID, ddr0_dllctl, 4);
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: ddr2_init done", bfin_target.name);
+
+  core_register_set (i, REG_P0, p0);
+  core_register_set (i, REG_R0, r0);
+  return 0;
+}
+
+#define CGU0_PRINT_BIT(BIT) PRINT_BIT(cgu0_stat, CGU0_STAT, BIT)
+
+static void
+cgu0_stat_show (uint32_t cgu0_stat, const char *id)
+{
+  char buf[1024];
+
+  sprintf (buf, "CGU0_STAT [0x%08X]: ", cgu0_stat);
+  CGU0_PRINT_BIT (PLLLKERR);
+  CGU0_PRINT_BIT (WDIVERR);
+  CGU0_PRINT_BIT (WDFMSERR);
+  CGU0_PRINT_BIT (DIVERR);
+  CGU0_PRINT_BIT (LWERR);
+  strcat (buf, "\n             ");
+  CGU0_PRINT_BIT (ADRERR);
+  CGU0_PRINT_BIT (OCBFEN);
+  CGU0_PRINT_BIT (DCBFEN);
+  CGU0_PRINT_BIT (SCBF1EN);
+  CGU0_PRINT_BIT (SCBF0EN);
+  CGU0_PRINT_BIT (CCBF1EN);
+  CGU0_PRINT_BIT (CCBF0EN);
+  strcat (buf, "\n             ");
+  CGU0_PRINT_BIT (CLKSALGN);
+  CGU0_PRINT_BIT (PLLLK);
+  CGU0_PRINT_BIT (PLLBP);
+  CGU0_PRINT_BIT (PLLEN);
+
+  strcat (buf, "<");
+  strcat (buf, id);
+  strcat (buf, ">");
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG, buf);
+}
+
+/* CLKIN 25MHz */
+static int
+calculate_clocks (void)
+{
+  /* The default CCLK is 500 MHz.  */
+  if (bfin_bf609_cclk == 0)
+    bfin_bf609_cclk = 500;
+
+  /* The default SCLK is CCLK/2.  */
+  if (bfin_bf609_sclk == 0)
+    bfin_bf609_sclk = bfin_bf609_cclk / 2;
+
+  /* The default DCLK is same as SCLK.  */
+  if (bfin_bf609_dclk == 0)
+    bfin_bf609_dclk = bfin_bf609_sclk;
+
+  if (bfin_init_sdram && cpu->ddr2)
+    {
+      if (bfin_bf609_dclk < 125)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: DCLK %d is less than 125MHz",
+		    bfin_target.name, bfin_bf609_cclk);
+	  return -1;
+	}
+
+      if (bfin_bf609_dclk > 333)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: DCLK %d is larger than 333MHz",
+		    bfin_target.name, bfin_bf609_cclk);
+	  return -1;
+	}
+    }
+
+  for (msel = 1; msel <= 128; msel++)
+    {
+      for (csel = 1; csel <= 32; csel++)
+	if (CLKIN * msel == bfin_bf609_cclk * csel)
+	  break;
+
+      if (csel == 33)
+	continue;
+
+      for (syssel = 1; syssel <= 32; syssel++)
+	if (CLKIN * msel == bfin_bf609_sclk * syssel)
+	  break;
+
+      if (syssel != 33)
+	break;;
+    }
+
+  if (msel > 40)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: bad CCLK %d or SCLK %d, can't be generated",
+		bfin_target.name, bfin_bf609_cclk, bfin_bf609_sclk);
+      return -1;
+    }
+
+  for (s0sel = 2; s0sel <= 4; s0sel++)
+    if (bfin_bf609_sclk / s0sel * s0sel == bfin_bf609_sclk)
+      break;
+
+  if (s0sel == 5)
+    s0sel = 1;
+
+  s1sel = s0sel;
+
+  for (dsel = 1; dsel <= 32; dsel++)
+    if (CLKIN * msel == bfin_bf609_dclk * dsel)
+      break;
+
+  if (dsel == 33)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: bad DCLK %d, can't be generated",
+		bfin_target.name, bfin_bf609_dclk);
+      return -1;
+    }
+
+  osel = msel;
+
+  bfin_log (RP_VAL_LOGLEVEL_INFO,
+	    "%s: CCLK %dMHz SCLK %dMHz S0CLK %dMHz S1CLK %dMHz DCLK %dMHz",
+	    bfin_target.name,
+	    bfin_bf609_cclk, bfin_bf609_sclk,
+	    bfin_bf609_sclk / s0sel, bfin_bf609_sclk/ s1sel, bfin_bf609_dclk);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: MSEL %d CSEL %d SYSSEL %d S0SEL %d S1SEL %d DSEL %d OSEL %d",
+	    bfin_target.name, msel, csel, syssel, s0sel, s1sel, dsel, osel);
+
+  return 0;
+
+}
+
+static int
+pll_init (void)
+{
+  uint32_t p0, r0;
+  bfin_core *c UNUSED;
+  int i, count;
+  uint32_t cgu_stat;
+  uint32_t cgu_ctl, cgu_ctl_new;
+  uint32_t cgu_div, cgu_div_new;
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: pll_init ()", bfin_target.name);
+
+  FOR_EACH_ALIVE_CORE (i, c)
+    {
+      core_dbgstat_get (i);
+      if (core_dbgstat_is_emuready (i))
+	break;
+    }
+
+  if (i == cpu->core_num)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: no core available to init PLL",
+		bfin_target.name);
+      return -1;
+    }
+
+  cgu_ctl_new = (msel & CGU0_CTL_MSEL_BITM) << CGU0_CTL_MSEL_BITP;
+  cgu_div_new = ((osel & CGU0_DIV_OSEL_BITM) << CGU0_DIV_OSEL_BITP
+		 | (dsel & CGU0_DIV_DSEL_BITM) << CGU0_DIV_DSEL_BITP
+		 | (s1sel & CGU0_DIV_S1SEL_BITM) << CGU0_DIV_S1SEL_BITP
+		 | (syssel & CGU0_DIV_SYSSEL_BITM) << CGU0_DIV_SYSSEL_BITP
+		 | (s0sel & CGU0_DIV_S0SEL_BITM) << CGU0_DIV_S0SEL_BITP
+		 | (csel & CGU0_DIV_CSEL_BITM) << CGU0_DIV_CSEL_BITP);
+
+  p0 = core_register_get (i, REG_P0);
+  r0 = core_register_get (i, REG_R0);
+
+  core_register_set (i, REG_P0, CGU0_CTL);
+
+  cgu_stat = mmr_read_clobber_r0 (i, CGU0_STAT - CGU0_CTL, 4);
+  cgu0_stat_show(cgu_stat, "before init");
+
+  if (!(cgu_stat & (1 << CGU0_STAT_PLLEN)))
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: PLL is disabled",
+		bfin_target.name);
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return -1;
+    }
+
+  if (!(cgu_stat & (1 << CGU0_STAT_PLLLK))
+      && !(cgu_stat & (1 << CGU0_STAT_PLLLKERR)))
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: PLL is locking",
+		bfin_target.name);
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return -1;
+    }
+
+  if (cgu_stat & (1 << CGU0_STAT_CLKSALGN))
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: clocks is aligning",
+		bfin_target.name);
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return -1;
+    }
+
+  cgu_ctl = mmr_read_clobber_r0 (i, 0, 4);
+  cgu_div = mmr_read_clobber_r0 (i, CGU0_DIV - CGU0_CTL, 4);
+
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: current CGU_CTL 0x%08x CGU_DIV 0x%08x",
+	    bfin_target.name, cgu_ctl, cgu_div);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: new CGU_CTL 0x%08x CGU_DIV 0x%08x",
+	    bfin_target.name, cgu_ctl_new, cgu_div_new);
+
+  if (cgu_ctl == cgu_ctl_new && cgu_div == cgu_div_new)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: no need to set them",
+		bfin_target.name);
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return 0;
+    }
+
+  if (cgu_ctl == cgu_ctl_new && cgu_div != cgu_div_new)
+    cgu_div_new |= (1 << CGU0_DIV_UPDT);
+
+  if (cgu_div != cgu_div_new)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: changing CGU0_DIV to %08x",
+		bfin_target.name, cgu_div_new);
+
+      mmr_write_clobber_r0 (i, CGU0_DIV - CGU0_CTL, cgu_div_new, 4);
+    }
+
+  /* TODO WIDLE bit */
+  if (cgu_ctl != cgu_ctl_new)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: changing CGU0_CTL to %08x",
+		bfin_target.name, cgu_ctl_new);
+
+      mmr_write_clobber_r0 (i, 0, cgu_ctl_new, 4);
+    }
+
+  count = 0;
+  do
+    {
+      cgu_stat = mmr_read_clobber_r0 (i, CGU0_STAT - CGU0_CTL, 4);
+      cgu0_stat_show(cgu_stat, "after init");
+      count++;
+      if (count == 10)
+	break;
+    }
+  while (((cgu_stat >> CGU0_STAT_PLLLK) & 0x1) == 0
+	 || ((cgu_stat >> CGU0_STAT_PLLBP) & 0x1) != 0
+	 || ((cgu_stat >> CGU0_STAT_CLKSALGN) & 0x1) != 0);
+
+  if (count == 10)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: PLL initialization failed",
+		bfin_target.name);
+
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return -1;
+    }
+  else
+    {
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: PLL initialization is done",
+		bfin_target.name);
+
+      core_register_set (i, REG_P0, p0);
+      core_register_set (i, REG_R0, r0);
+      return 0;
+    }
 }
 
 static void
@@ -2129,18 +3109,21 @@ dcache_enable (int method)
   bfin_core *c;
   int i;
 
-  for_each_core (i, c)
-    if (c->is_locked || c->is_corefault || c->is_running)
-      {
-	c->l1_data_a_cache_enabled = 0;
-	c->l1_data_b_cache_enabled = 0;
-      }
-    else
-      {
-	core_dcache_enable (i, method);
-	c->l1_data_a_cache_enabled = 1;
-	c->l1_data_b_cache_enabled = 1;
-      }
+  FOR_EACH_ALIVE_CORE (i, c)
+    {
+      core_dbgstat_get (i);
+      if (!core_dbgstat_is_emuready (i))
+	{
+	  c->l1_data_a_cache_enabled = 0;
+	  c->l1_data_b_cache_enabled = 0;
+	}
+      else
+	{
+	  core_dcache_enable (i, method);
+	  c->l1_data_a_cache_enabled = 1;
+	  c->l1_data_b_cache_enabled = 1;
+	}
+    }
 }
 
 static void
@@ -2211,16 +3194,19 @@ icache_enable (void)
   bfin_core *c;
   int i;
 
-  for_each_core (i, c)
-    if (c->is_locked || c->is_corefault || c->is_running)
-      {
-	c->l1_code_cache_enabled = 0;
-      }
-    else
-      {
-	core_icache_enable (i);
-	c->l1_code_cache_enabled = 1;
-      }
+  FOR_EACH_ALIVE_CORE (i, c)
+    {
+      core_dbgstat_get (i);
+      if (!core_dbgstat_is_emuready (i))
+	{
+	  c->l1_code_cache_enabled = 0;
+	}
+      else
+	{
+	  core_icache_enable (i);
+	  c->l1_code_cache_enabled = 1;
+	}
+    }
 }
 
 static void
@@ -2352,6 +3338,10 @@ static int
 memory_read (int core, uint32_t addr, uint8_t *buf, int size)
 {
   int s;
+
+  if (cpu->sdu != -1 && bfin_bf609_sdu_mac_read)
+    return sdu_mac_memory_read (cpu->chain, cpu->sdu, addr, buf, size,
+				bfin_bf609_check_macrdy);
 
   if ((addr & 0x3) != 0)
     {
@@ -2684,6 +3674,10 @@ memory_write (int core, uint32_t addr, uint8_t *buf, int size)
 {
   int s;
 
+  if (cpu->sdu != -1 && bfin_bf609_sdu_mac_write)
+    return sdu_mac_memory_write (cpu->chain, cpu->sdu, addr, buf, size,
+				 bfin_bf609_check_macrdy);
+
   if ((addr & 0x3) != 0)
     {
       s = 4 - (addr & 0x3);
@@ -2850,7 +3844,8 @@ bfin_test_command (urj_part_t *part, uint32_t addr, int w,
 	       !strcmp (part->part, "BF537") ||
 	       !strcmp (part->part, "BF538") ||
 	       !strcmp (part->part, "BF548") ||
-	       !strcmp (part->part, "BF548M"))
+	       !strcmp (part->part, "BF548M") ||
+	       !strcmp (part->part, "BF609"))
         {
 	  /* MMR[23]:
 	     0 - Data Bank A (0xff800000) / Inst Bank A (0xffa00000)
@@ -3093,17 +4088,22 @@ itest_sram (int core, uint32_t addr, uint8_t *buf, int size, int w)
    should be used.  Otherwise, ITEST may be used.  */
 
 static int
-sram_read_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p,
+sram_read_write (int core, uint32_t addr, uint8_t *buf, int size, int local,
 		 int w)
 {
-  bfin_core *c;
-  urj_part_t *part;
+  bfin_core *c = &cpu->cores[core];
+  urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + core];
   int use_test_mmrs;
 
-  assert (!dma_p || cpu->mdma_d0 != 0);
+  if (w && cpu->sdu != -1 && (!local || bfin_bf609_sdu_mac_write))
+    return sdu_mac_memory_write (cpu->chain, cpu->sdu, addr, buf, size,
+				 bfin_bf609_check_macrdy);
 
-  part = cpu->chain->parts->parts[cpu->first_core + core];
-  c = &cpu->cores[core];
+  if (!w && cpu->sdu != -1 && (!local || bfin_bf609_sdu_mac_read))
+    return sdu_mac_memory_read (cpu->chain, cpu->sdu, addr, buf, size,
+				bfin_bf609_check_macrdy);
+
+  assert (local || cpu->mdma_d0 != 0);
 
   use_test_mmrs = IN_MAP (addr, c->l1_map->l1_code_cache) ||
 		  IN_MAP (addr, c->l1_map->l1_code);
@@ -3111,7 +4111,7 @@ sram_read_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p,
   if (!use_test_mmrs && !strcmp (part->part, "BF592"))
     use_test_mmrs = IN_MAP (addr, c->l1_map->l1_code_rom);
 
-  if (dma_p || use_dma || !use_test_mmrs)
+  if (!local || use_dma || !use_test_mmrs)
     {
       if (w)
 	return dma_sram_write (core, addr, buf, size);
@@ -3121,8 +4121,8 @@ sram_read_write (int core, uint32_t addr, uint8_t *buf, int size, int dma_p,
   else
     return itest_sram (core, addr, buf, size, w);
 }
-#define sram_read(c, a, b, s, d) sram_read_write(c, a, b, s, d, 0)
-#define sram_write(c, a, b, s, d) sram_read_write(c, a, b, s, d, 1)
+#define sram_read(c, a, b, s, l) sram_read_write(c, a, b, s, l, 0)
+#define sram_write(c, a, b, s, l) sram_read_write(c, a, b, s, l, 1)
 
 static int
 core_memory_read_write (int core, uint32_t addr, uint8_t *buf, int size,
@@ -3136,7 +4136,7 @@ core_memory_read_write (int core, uint32_t addr, uint8_t *buf, int size,
 	return memory_read (core, addr, buf, size);
     }
   else
-    return sram_read_write (core, addr, buf, size, 1, w);
+    return sram_read_write (core, addr, buf, size, local, w);
 }
 #define core_memory_read(c, a, b, s, l) core_memory_read_write(c, a, b, s, l, 0)
 #define core_memory_write(c, a, b, s, l) core_memory_read_write(c, a, b, s, l, 1)
@@ -3266,6 +4266,9 @@ core_single_step (int core)
     core_dbgctl_bit_set_esstep (core, UPDATE);
   core_emuir_set (core, INSN_RTE, RUNTEST);
   core_check_emuready (core);
+  /* Get the RTE out of EMUIR so we don't execute it more than once.
+     This is for working around an issue of ICE-100B.  */
+  core_emuir_set (core, INSN_NOP, UPDATE);
   if (!cpu->cores[core].is_stepping)
     core_dbgctl_bit_clear_esstep (core, UPDATE);
 }
@@ -3283,9 +4286,8 @@ core_cache_status_get (int core)
      If the core has a core fault or is running, we cannot get
      its current cache status. Assume its cache status isn't changed
      since last get.  */
-  if (cpu->cores[core].is_locked
-      || cpu->cores[core].is_corefault
-      || cpu->cores[core].is_running)
+  core_dbgstat_get (core);
+  if (!core_dbgstat_is_emuready (core))
     return;
 
   /* Instead of calling mmr_read twice, we save one of context save
@@ -3621,6 +4623,150 @@ bfin_urjtag_vprintf(const char *fmt, va_list ap)
 }
 
 
+static int
+core_is_locked (int core)
+{
+  if (cpu->sdu != -1)
+    return core_dbgstat_is_in_reset (core);
+  else
+    return (core_dbgstat_is_emuack (core)
+	    && !core_dbgstat_is_in_reset (core));
+}
+
+static void
+core_unlock (int core)
+{
+  bfin_log (RP_VAL_LOGLEVEL_INFO,
+	    "%s: [%d] unlocking...", bfin_target.name, cpu->first_core + core);
+
+  core_dbgstat_show (core, "before");
+
+  if (cpu->sdu == -1)
+    {
+      uint16_t sica_syscr;
+
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: [%d] unlock by clearing COREB_SRAM_INIT in SICA_SYSCR",
+		bfin_target.name, cpu->first_core + core);
+
+      sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
+      sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
+      mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
+    }
+  else
+    {
+      uint32_t rcu0_cn_res;
+      uint32_t rcu0_cn_stat;
+      uint32_t rcu0_stat;
+
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: [%d] unlock by clear bit %d of RCU0_CN_RES",
+		bfin_target.name, core, cpu->core_num - core - 1);
+
+      rcu0_stat = mmr_read (cpu->core_a, RCU0_STAT, 4);
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: RCU0_STAT  0x%x <before>", bfin_target.name, rcu0_stat);
+
+      rcu0_cn_res = mmr_read (cpu->core_a, RCU0_CN_RES, 4);
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: RCU0_CN_RES  0x%x <before>", bfin_target.name, rcu0_cn_res);
+
+      rcu0_cn_stat = mmr_read (cpu->core_a, RCU0_CN_STAT, 4);
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: RCU0_CN_STAT 0x%x <before>", bfin_target.name, rcu0_cn_stat);
+
+      /* Only unlocking Core 1 is supported */
+      /* This does not work.  It seems we have to set RETE directly.
+      if (core == 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		    "%s: set RCU0_CN_CTL1 0xff60", bfin_target.name);
+	  mmr_write (cpu->core_a, RCU0_CN_CTL1, 0xff60, 4);
+	}  */
+
+      /* Trigger halt first. So when it's released from reset,
+	 it will be just halted at the first address.  */
+      sdu_halt_trigger (cpu->chain, cpu->sdu,
+			SDU_CTL_EHLT_CORE (cpu->core_num - core - 1));
+
+      /* Release it from reset.  */
+      rcu0_cn_res &= ~(1 << (cpu->core_num - core - 1));
+      mmr_write (cpu->core_a, RCU0_CN_RES, rcu0_cn_res, 4);
+
+      /* Wait for halt to happen.  */
+      sdu_halt_wait (cpu->chain, cpu->sdu);
+
+      /* Only unlocking Core 1 is supported */
+      /* set RETE directly since setting RCU0_CN_CTL1 does not work.  */
+      if (core == 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		    "%s: [%d] set PC to 0xff600000", bfin_target.name, core);
+	  core_register_set (core, REG_RETE, 0xff600000);
+	}
+
+      rcu0_stat = mmr_read (cpu->core_a, RCU0_STAT, 4);
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: RCU0_STAT  0x%x", bfin_target.name, rcu0_stat);
+
+      rcu0_cn_stat = mmr_read (cpu->core_a, RCU0_CN_STAT, 4);
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: RCU0_CN_STAT 0x%x <after>", bfin_target.name, rcu0_cn_stat);
+
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: clear all bit in RCU0_CN_STAT", bfin_target.name);
+      mmr_write (cpu->core_a, RCU0_CN_STAT, rcu0_cn_stat, 4);
+
+      rcu0_cn_stat = mmr_read (cpu->core_a, RCU0_CN_STAT, 4);
+      bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+		"%s: RCU0_CN_STAT 0x%x <after clear>", bfin_target.name, rcu0_cn_stat);
+    }
+
+  core_dbgstat_show (core, "after");
+
+  core_check_emuready (core);
+  cpu->cores[core].is_locked = 0;
+  core_wpu_init (core);
+
+  bfin_log (RP_VAL_LOGLEVEL_INFO,
+	    "%s: [%d] done", bfin_target.name, cpu->first_core + core);
+}
+
+static void
+core_lock (int core)
+{
+  uint32_t rcu0_cn_res;
+
+  bfin_log (RP_VAL_LOGLEVEL_INFO,
+	    "%s: [%d] locking...", bfin_target.name, cpu->first_core + core);
+
+  if (cpu->sdu == -1)
+    {
+      bfin_log (RP_VAL_LOGLEVEL_ERR,
+		"%s: [%d] does not support being relocked",
+		bfin_target.name, cpu->first_core + core);
+      return;
+    }
+
+  core_dbgstat_show (core, "before");
+
+  rcu0_cn_res = mmr_read (cpu->core_a, RCU0_CN_RES, 4);
+  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+	    "%s: RCU0_CN_RES  0x%x <before>", bfin_target.name, rcu0_cn_res);
+
+  /* Put it in reset.  */
+  rcu0_cn_res |= 1 << (cpu->core_num - core - 1);
+  mmr_write (cpu->core_a, RCU0_CN_RES, rcu0_cn_res, 4);
+
+  core_dbgstat_show (core, "after");
+
+  cpu->cores[core].is_locked = 1;
+
+  bfin_log (RP_VAL_LOGLEVEL_INFO,
+	    "%s: [%d] done", bfin_target.name, cpu->first_core + core);
+}
+
+
 /* Target method */
 static void
 bfin_help (const char *prog_name)
@@ -3660,6 +4806,8 @@ bfin_help (const char *prog_name)
   printf (" --jc-port=PORT          use specified port for JTAG communication\n");
   printf (" --wait-clocks=NUM       wait the specified number of clocks in Run-Test/Idle\n");
   printf ("                         so instruction in EMUIR could be completed\n");
+  printf (" --debug-boot-code       stop processor at the start address of boot ROM\n");
+  printf ("                         after reset.  Only for BF609\n");
   printf ("\n");
 
   return;
@@ -3677,7 +4825,7 @@ bfin_open (int argc,
   int sdram_size;
   int flash_size;
   int usec;
-  int cpu_num, first_core, core_num;
+  int cpu_num, first_core, core_num, sdu;
 
   char *connect_string = default_jtag_connect;
   char *cmd_detect[2] = {"detect", NULL};
@@ -3704,6 +4852,15 @@ bfin_open (int argc,
     {"frequency", required_argument, 0, 18},
     {"processor", required_argument, 0, 19},
     {"wait-clocks", required_argument, 0, 20},
+    {"debug-boot-code", no_argument, 0, 21},
+    {"bf609-bmode1-workaround", no_argument, 0, 22},
+    {"bf609-sdu-mac-read", no_argument, 0, 23},
+    {"bf609-sdu-mac-write", no_argument, 0, 24},
+    {"bf609-check-macrdy", no_argument, 0, 25},
+    {"bf609-cclk", required_argument, 0, 26},
+    {"bf609-sclk", required_argument, 0, 27},
+    {"bf609-dclk", required_argument, 0, 28},
+    {"bf609-ddrcl", required_argument, 0, 29},
     {NULL, 0, 0, 0}
   };
 
@@ -3753,6 +4910,8 @@ bfin_open (int argc,
 	    board = BF548_EZKIT;
 	  else if (strcmp (optarg, "bf561-ezkit") == 0)
 	    board = BF561_EZKIT;
+	  else if (strcmp (optarg, "bf609-ezkit") == 0)
+	    board = BF609_EZKIT;
 	  else
 	    bfin_log (RP_VAL_LOGLEVEL_ERR,
 		      "%s: unknown board  %s", bfin_target.name, optarg);
@@ -3910,6 +5069,70 @@ bfin_open (int argc,
 	    }
 	  break;
 
+	case 21:
+	  bfin_debug_boot_code = 1;
+	  break;
+
+	case 22:
+	  bfin_bf609_bmode1_workaround = 1;
+	  break;
+
+	case 23:
+	  bfin_bf609_sdu_mac_read = 1;
+	  break;
+
+	case 24:
+	  bfin_bf609_sdu_mac_write = 1;
+	  break;
+
+	case 25:
+	  bfin_bf609_check_macrdy = 1;
+	  break;
+
+	case 26:
+	  bfin_bf609_cclk = atol (optarg);
+	  if (bfin_bf609_cclk < 0)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad CCLK %d",
+			bfin_target.name, bfin_bf609_cclk);
+	      exit (1);
+	    }
+	  break;
+
+	case 27:
+	  bfin_bf609_sclk = atol (optarg);
+	  if (bfin_bf609_sclk < 0)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad SCLK %d",
+			bfin_target.name, bfin_bf609_sclk);
+	      exit (1);
+	    }
+	  break;
+
+	case 28:
+	  bfin_bf609_dclk = atol (optarg);
+	  if (bfin_bf609_dclk < 0)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad DCLK %d",
+			bfin_target.name, bfin_bf609_dclk);
+	      exit (1);
+	    }
+	  break;
+
+	case 29:
+	  bfin_bf609_ddrcl = atol (optarg);
+	  if (bfin_bf609_ddrcl < 2 || bfin_bf609_ddrcl > 6)
+	    {
+	      bfin_log (RP_VAL_LOGLEVEL_ERR,
+			"%s: bad DDR CL %d, should be 2, 3, 4, 5, or 6.",
+			bfin_target.name, bfin_bf609_ddrcl);
+	      exit (1);
+	    }
+	  break;
+
 	default:
 	  bfin_log (RP_VAL_LOGLEVEL_NOTICE,
 		    "%s: Use `%s --help %s' to see a complete list of options",
@@ -3965,8 +5188,31 @@ bfin_open (int argc,
       return RP_VAL_TARGETRET_ERR;
     }
 
+  /* Enable core scan path if an SDU is found.  */
+  /* TODO We blindly enable core scan path for all SDUs for now.
+	  Invent some options to control this behavior.  */
+  for (i = 0; i < chain->parts->len; i++)
+    if (!strcmp (chain->parts->parts[i]->part, "SDU")
+	/* TODO && !sdu_core_scan_path_is_enabled (chain, i) */)
+      {
+	sdu_enable_core_scan_path (chain, i);
+
+	/* Since the cores enabled by SDU don't have IDCODE register,
+	   we need to set up configurations for them.
+
+	   We assume SDU controls two cores and they come before it
+	   in the scan chain.  */
+
+	urj_tap_manual_add_at (chain, i++, "BF609", 5);
+	urj_tap_manual_init (chain, "analog/bf609/bf609");
+
+	urj_tap_manual_add_at (chain, i++, "BF609", 5);
+	urj_tap_manual_init (chain, "analog/bf609/bf609");
+      }
+
   first_core = -1;
   cpu_num = 0;
+  sdu = -1;
   for (i = 0; i < chain->parts->len; i++)
     {
       /* If user does not specify a Blackfin processor for debugging,
@@ -3975,12 +5221,16 @@ bfin_open (int argc,
 	  || cpu_num == bfin_processor)
 	{
 	  first_core = i;
-	  if (!strcmp (chain->parts->parts[i]->part, "BF561"))
+	  if (!strcmp (chain->parts->parts[i]->part, "BF561") ||
+	      !strcmp (chain->parts->parts[i]->part, "BF609"))
 	    i++;
+	  if (!strcmp (chain->parts->parts[i]->part, "BF609"))
+	    sdu = i + 1;
 	}
       else
 	{
-	  if (!strcmp (chain->parts->parts[i]->part, "BF561"))
+	  if (!strcmp (chain->parts->parts[i]->part, "BF561") ||
+	      !strcmp (chain->parts->parts[i]->part, "BF609"))
 	    i++;
 	}
       cpu_num++;
@@ -3994,10 +5244,39 @@ bfin_open (int argc,
     }
 
 
-  if (!strcmp (chain->parts->parts[first_core]->part, "BF561"))
+  if (!strcmp (chain->parts->parts[first_core]->part, "BF561") ||
+      !strcmp (chain->parts->parts[first_core]->part, "BF609"))
     core_num = 2;
   else
     core_num = 1;
+
+  if (strcmp (chain->parts->parts[first_core]->part, "BF609"))
+    {
+      if (bfin_debug_boot_code)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: --debug-boot-code only valid for BF609, will be ignored",
+		  bfin_target.name);
+
+      if (bfin_bf609_bmode1_workaround)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: --bf609-bmode1-workaround only valid for BF609, will be ignored",
+		  bfin_target.name);
+
+      if (bfin_bf609_sdu_mac_read)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: --bf609-sdu-mac-read only valid for BF609, will be ignored",
+		  bfin_target.name);
+
+      if (bfin_bf609_sdu_mac_write)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: --bf609-sdu-mac-write only valid for BF609, will be ignored",
+		  bfin_target.name);
+
+      if (bfin_bf609_check_macrdy)
+	bfin_log (RP_VAL_LOGLEVEL_WARNING,
+		  "%s: --bf609-check-macrdy only valid for BF609, will be ignored",
+		  bfin_target.name);
+    }
 
   /* TODO initbus */
 
@@ -4018,6 +5297,7 @@ bfin_open (int argc,
   cpu->swbps = NULL;
   cpu->first_core = first_core;
   cpu->core_num = core_num;
+  cpu->sdu = sdu;
 
   /* BF531/2/3
 
@@ -4039,11 +5319,15 @@ bfin_open (int argc,
      #define IMDMA_D0_NEXT_DESC_PTR     0xFFC01800
    */
 
+  /* We need to set cores[n].is_dead here since later FOR_EACH_ALIVE_CORE
+     will use is_dead.  We can use it to turn off a specific core.  */
+
   if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF506"))
     {
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf50x_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf50x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF518"))
@@ -4051,6 +5335,7 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf52x_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf51x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF526") ||
@@ -4059,6 +5344,7 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf52x_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf52x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF533"))
@@ -4066,6 +5352,7 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00e00;
       cpu->mdma_s0 = 0xffc00e40;
       cpu->mem_map = bf533_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf533_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF534") ||
@@ -4074,6 +5361,7 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf537_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf537_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF538"))
@@ -4081,6 +5369,7 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00e00;
       cpu->mdma_s0 = 0xffc00e40;
       cpu->mem_map = bf538_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf538_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF548") ||
@@ -4089,6 +5378,7 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf54x_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf54x_l1_map;
     }
   else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF561"))
@@ -4096,6 +5386,8 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc01800;
       cpu->mdma_s0 = 0xffc01840;
       cpu->mem_map = bf561_mem_map;
+      cpu->cores[1].is_dead = 0;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[1].l1_map = &bf561_a_l1_map;
       cpu->cores[0].l1_map = &bf561_b_l1_map;
     }
@@ -4104,7 +5396,18 @@ bfin_open (int argc,
       cpu->mdma_d0 = 0xffc00f00;
       cpu->mdma_s0 = 0xffc00f40;
       cpu->mem_map = bf59x_mem_map;
+      cpu->cores[0].is_dead = 0;
       cpu->cores[0].l1_map = &bf59x_l1_map;
+    }
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF609"))
+    {
+      cpu->mdma_d0 = 0;
+      cpu->mdma_s0 = 0;
+      cpu->mem_map = bf609_mem_map;
+      cpu->cores[1].is_dead = 0;
+      cpu->cores[0].is_dead = 0;
+      cpu->cores[1].l1_map = &bf609_0_l1_map;
+      cpu->cores[0].l1_map = &bf609_1_l1_map;
     }
   else
     {
@@ -4124,6 +5427,10 @@ bfin_open (int argc,
 		bfin_target.name);
       use_dma = 0;
     }
+
+  cpu->sdram_config = NULL;
+  cpu->ddr_config = NULL;
+  cpu->ddr2 = 0;
 
   switch (board)
     {
@@ -4145,7 +5452,6 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
       cpu->sdram_config = &bf527_ezkit_sdram_config;
-      cpu->ddr_config = NULL;
       break;
 
     case BF533_EZKIT:
@@ -4166,7 +5472,6 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x200000;
       cpu->sdram_config = &bf533_ezkit_sdram_config;
-      cpu->ddr_config = NULL;
       break;
 
     case BF533_STAMP:
@@ -4187,7 +5492,6 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x8000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
       cpu->sdram_config = &bf533_stamp_sdram_config;
-      cpu->ddr_config = NULL;
       break;
 
     case BF537_EZKIT:
@@ -4213,7 +5517,6 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
       cpu->sdram_config = &bf537_ezkit_sdram_config;
-      cpu->ddr_config = NULL;
       break;
 
     case BF538F_EZKIT:
@@ -4235,7 +5538,6 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
       cpu->sdram_config = &bf538f_ezkit_sdram_config;
-      cpu->ddr_config = NULL;
       break;
 
     case BF548_EZKIT:
@@ -4255,7 +5557,6 @@ bfin_open (int argc,
 	}
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x1000000;
-      cpu->sdram_config = NULL;
       cpu->ddr_config = &bf548_ezkit_ddr_config;
       break;
 
@@ -4277,7 +5578,26 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x4000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x800000;
       cpu->sdram_config = &bf561_ezkit_sdram_config;
-      cpu->ddr_config = NULL;
+      break;
+
+    case BF609_EZKIT:
+      if (chain->parts->len != 3)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF609 EZKIT board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
+      if (strcmp (chain->parts->parts[0]->part, "BF609") != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %s on BF609 EZKIT board",
+		    bfin_target.name, chain->parts->parts[0]->part);
+	  exit (1);
+	}
+      cpu->mem_map.sdram_end = 0x8000000;
+      cpu->mem_map.flash_end = cpu->mem_map.flash + 0x2000000;
+      cpu->ddr2 = 1;
       break;
 
     case UNKNOWN_BOARD:
@@ -4292,7 +5612,7 @@ bfin_open (int argc,
 	  size_t len = 0;
 
 	  bfin_log (RP_VAL_LOGLEVEL_WARNING,
-		    "%s: no board selected, %d cores are detected",
+		    "%s: no board selected, %d parts are detected",
 		    bfin_target.name, chain->parts->len);
 	  for (i = 0; i < chain->parts->len; i++)
 	    {
@@ -4303,10 +5623,8 @@ bfin_open (int argc,
 		len += sprintf (buf + len, "]");
 	      len += sprintf (buf + len, " ");
 	    }
-	  bfin_log (RP_VAL_LOGLEVEL_WARNING, "%s:   cores: %s", bfin_target.name, buf);
+	  bfin_log (RP_VAL_LOGLEVEL_WARNING, "%s:   parts: %s", bfin_target.name, buf);
 	}
-      cpu->sdram_config = NULL;
-      cpu->ddr_config = NULL;
       break;
 
     default:
@@ -4314,7 +5632,7 @@ bfin_open (int argc,
     }
 
   /* Assume only 32-bit instruction are used in gdbproxy.  */
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       int tmp;
       tmp = (c->l1_map->l1_code_end - c->l1_map->l1_code) / 8;
@@ -4334,6 +5652,12 @@ bfin_open (int argc,
       cpu->core_a = 1;
       cpu->cores[1].name = "Core A";
       cpu->cores[0].name = "Core B";
+    }
+  else if (!strcmp (chain->parts->parts[cpu->first_core]->part, "BF609"))
+    {
+      cpu->core_a = 1;
+      cpu->cores[1].name = "Core 0";
+      cpu->cores[0].name = "Core 1";
     }
   else
     {
@@ -4360,7 +5684,8 @@ bfin_close (void)
   assert (cpu);
 
   for (i = 0; i < cpu->core_num; i++)
-    core_emulation_disable (i);
+    if (!cpu->cores[i].is_dead)
+      core_emulation_disable (i);
 
   urj_tap_chain_free (cpu->chain);
   free (cpu);
@@ -4395,7 +5720,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   assert (cpu->swbps == NULL);
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       /* We won't use IDCODE_SCAN in debugging. Set it as
          default, such that new scan will be selected.  */
@@ -4404,6 +5729,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
       c->is_running = 1;
       c->is_interrupted = 0;
       c->is_stepping = 0;
+      /* c->is_dead should be initialized in bfin_open.  */
       c->is_locked = 0;
       c->is_corefault = 0;
       c->status_pending_p = 0;
@@ -4431,7 +5757,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
   dbgstat_get ();
 
   need_reset = 0;
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
@@ -4446,31 +5772,206 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
       /* If emulator is not ready after emulation_trigger (),
 	 we have to give it a reset, too.  */
       else if (!core_dbgstat_is_emuready (i)
+	       && !core_is_locked (i)
 	       && (!core_dbgstat_is_emuack (i)
 		   || core_dbgstat_is_in_reset (i)))
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_INFO,
 		    "[%d] emulator not ready: DBGSTAT [0x%04X]",
 		    cpu->first_core + i, BFIN_PART_DBGSTAT (part));
-	  need_reset = 1;
+	  if (!(cpu->sdu != -1 && core_dbgstat_is_in_reset (i)))
+	    need_reset = 1;
 	}
     }
 
   if (need_reset || bfin_reset)
     {
       bfin_log (RP_VAL_LOGLEVEL_INFO, "Resetting ...");
+      if (cpu->sdu != -1)
+	{
+	  emulation_disable ();
 
-      core_reset ();
+	  sdu_reset_assert (cpu->chain, cpu->sdu);
 
-      /* FIXME  Find a better way to identify if the system exists.  */
-      if (cpu->mdma_d0)
-	system_reset ();
+	  emulation_enable ();
+	  sdu_halt_trigger (cpu->chain, cpu->sdu, SDU_CTL_EHLT_CORE_0);
+	  sdu_reset_deassert (cpu->chain, cpu->sdu);
+	  sdu_halt_wait (cpu->chain, cpu->sdu);
+
+	  if (!bfin_debug_boot_code)
+	    {
+	      sdu_msg_set_haltonerror (cpu->core_a);
+	      sdu_msg_set_haltoncall (cpu->core_a);
+	      sdu_msg_set_haltoninit (cpu->core_a);
+	      sdu_msg_set_haltonapp (cpu->core_a);
+
+	      /* Work around a bug in boot rom code to boot from parallel
+		 flash.
+		 - set a hardware breakpoint at 0xc8000a32
+		 - resume
+		 - when halted, check R0 is 0x1003001
+		 - change R0 to 0x1001001  */
+
+#define BF609_BMODE1_WA_ADDR	0xc8000a32
+#define BF609_BMODE1_WA_R0_BAD	0x01003001
+#define BF609_BMODE1_WA_R0_GOOD	0x01001001
+
+	      if (bfin_bf609_bmode1_workaround)
+		{
+		  int bootmode;
+
+		  /* Check if it's Mode 1 */
+		  bootmode = bfin_bootmode (cpu->core_a);
+		  if (bootmode != 1)
+		    {
+		      bfin_log (RP_VAL_LOGLEVEL_WARNING,
+				"%s: --bf609-bmode1-workaround will be ignored since boot mode is %d",
+				bfin_target.name, bootmode);
+		      bfin_bf609_bmode1_workaround = 0;
+		    }
+		}
+
+	      if (bfin_bf609_bmode1_workaround)
+		{
+		  int ret;
+		  uint32_t pc, r0;
+
+		  core_wpu_init (cpu->core_a);
+		  ret = bfin_add_break (1, BF609_BMODE1_WA_ADDR, 2);
+		  if (ret != RP_VAL_TARGETRET_OK)
+		    {
+		      bfin_log (RP_VAL_LOGLEVEL_ERR,
+				"%s: boot mode 1 workaround failed",
+				bfin_target.name);
+		      return ret;
+		    }
+
+		  core_emulation_return (cpu->core_a);
+		  do
+		    {
+		      core_dbgstat_get (cpu->core_a);
+		    }
+		  while (!core_dbgstat_is_emuready (cpu->core_a));
+
+		  pc = core_register_get (cpu->core_a, REG_RETE);
+		  if (pc != BF609_BMODE1_WA_ADDR)
+		    {
+		      bfin_log (RP_VAL_LOGLEVEL_ERR,
+				"%s: [%d] didn't halt at 0x%08x",
+				bfin_target.name, cpu->core_a,
+				BF609_BMODE1_WA_ADDR);
+		      bfin_remove_break (1, BF609_BMODE1_WA_ADDR, 2);
+		      return ret;
+		    }
+		  r0 = core_register_get (cpu->core_a, REG_R0);
+		  if (r0 != BF609_BMODE1_WA_R0_BAD)
+		    {
+		      bfin_log (RP_VAL_LOGLEVEL_ERR,
+				"%s: [%d] R0 is 0x%08x, not expected 0x%08x",
+				bfin_target.name, cpu->core_a, r0,
+				BF609_BMODE1_WA_R0_BAD);
+		      bfin_remove_break (1, BF609_BMODE1_WA_ADDR, 2);
+		      return ret;
+		    }
+
+		  bfin_log (RP_VAL_LOGLEVEL_DEBUG,
+			    "%s: [%d] set R0 to 0x%08x",
+			    bfin_target.name, cpu->core_a,
+			    BF609_BMODE1_WA_R0_GOOD);
+		  core_register_set (cpu->core_a, REG_R0, BF609_BMODE1_WA_R0_GOOD);
+
+		  bfin_remove_break (1, BF609_BMODE1_WA_ADDR, 2);
+
+#undef BF609_BMODE1_WA_ADDR
+#undef BF609_BMODE1_WA_R0_BAD
+#undef BF609_BMODE1_WA_R0_GOOD
+		}
+
+		{
+		  int count = 0;
+
+		  core_emulation_return (cpu->core_a);
+		  do
+		    {
+		      core_dbgstat_get (cpu->core_a);
+		      count++;
+		      /* A rather random limit */
+		      if (count == 100)
+			break;
+		    }
+		  while (!core_dbgstat_is_emuready (cpu->core_a));
+		}
+
+	      if (core_dbgstat_is_emuready (cpu->core_a))
+		{
+		  if (sdu_msg_is_callapp (cpu->core_a))
+		    {
+		      sdu_msg_clear_haltonapp (cpu->core_a);
+		      sdu_msg_clear_callapp (cpu->core_a);
+
+		      core_single_step (cpu->core_a);
+		      bfin_log (RP_VAL_LOGLEVEL_INFO,
+				"[%d] halted on application",
+				cpu->first_core + cpu->core_a);
+		    }
+		  else if (sdu_msg_is_callerror (cpu->core_a))
+		    {
+		      sdu_msg_clear_haltonerror (cpu->core_a);
+		      sdu_msg_clear_callerror (cpu->core_a);
+
+		      bfin_log (RP_VAL_LOGLEVEL_INFO,
+				"[%d] halted on callerror",
+				cpu->first_core + cpu->core_a);
+		    }
+		  else if (sdu_msg_is_callback (cpu->core_a))
+		    {
+		      sdu_msg_clear_haltoncall (cpu->core_a);
+		      sdu_msg_clear_callback (cpu->core_a);
+
+		      bfin_log (RP_VAL_LOGLEVEL_INFO,
+				"[%d] halted on callback",
+				cpu->first_core + cpu->core_a);
+		    }
+		  else if (sdu_msg_is_callinit (cpu->core_a))
+		    {
+		      sdu_msg_clear_haltoninit (cpu->core_a);
+		      sdu_msg_clear_callinit (cpu->core_a);
+
+		      bfin_log (RP_VAL_LOGLEVEL_INFO,
+				"[%d] halted on callinit",
+				cpu->first_core + cpu->core_a);
+		    }
+		  else
+		    {
+		      bfin_log (RP_VAL_LOGLEVEL_INFO,
+				"[%d] halted on unknown reason",
+				cpu->first_core + cpu->core_a);
+		    }
+		}
+	      else
+		{
+		  core_emulation_trigger (cpu->core_a);
+		  bfin_log (RP_VAL_LOGLEVEL_INFO,
+			    "[%d] forced to halt",
+			    cpu->first_core + cpu->core_a);
+		}
+	    }
+	}
+      else
+	{
+	  core_reset ();
+
+	  /* FIXME  Find a better way to identify if the system exists.  */
+	  if (cpu->mdma_d0)
+	    system_reset ();
+	}
     }
 
   dbgstat_get ();
 
-  for_each_core (i, c)
-    if (core_dbgstat_is_emuack (i)
+  FOR_EACH_ALIVE_CORE (i, c)
+    if (core_is_locked (i)
+    && core_dbgstat_is_emuack (i)
 	&& !core_dbgstat_is_in_reset (i))
       {
 	urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
@@ -4481,22 +5982,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 	c->is_running = 0;
 
 	if (bfin_unlock_on_connect)
-	  {
-	    uint16_t sica_syscr;
-
-	    bfin_log (RP_VAL_LOGLEVEL_INFO,
-		      "%s: [%d] unlocking...", bfin_target.name, cpu->first_core + i);
-
-	    sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
-	    sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
-	    mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
-	    core_check_emuready (i);
-	    c->is_locked = 0;
-	    core_wpu_init (i);
-
-	    bfin_log (RP_VAL_LOGLEVEL_INFO,
-		      "%s: [%d] done", bfin_target.name, cpu->first_core + i);
-	  }
+	  core_unlock (i);
       }
     else
       {
@@ -4518,6 +6004,39 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
       return RP_VAL_TARGETRET_ERR;
     }
 
+  /* If any bf609 clock option is specified, initialize PLL.  If
+     SDRAM initialization option is specified, we also need initialize
+     PLL since the default DCLK is too low on BF609 EZKIT.  */
+
+  if (cpu->sdu
+      && (bfin_bf609_cclk || bfin_bf609_sclk || bfin_bf609_dclk
+          || bfin_init_sdram))
+    {
+      if (calculate_clocks () != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: Calculate clocks failed", bfin_target.name);
+	  return RP_VAL_TARGETRET_ERR;
+	}
+
+      if (pll_init () != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: PLL init failed", bfin_target.name);
+	  return RP_VAL_TARGETRET_ERR;
+	}
+    }
+
+  if (bfin_init_sdram && cpu->ddr2)
+    {
+      if (ddr2_init () != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: DDR2 init failed", bfin_target.name);
+	  return RP_VAL_TARGETRET_ERR;
+	}
+    }
+
   if (bfin_enable_dcache)
     dcache_enable (bfin_enable_dcache);
 
@@ -4530,7 +6049,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
       dbgstat_get ();
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	{
 	  urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
@@ -4560,6 +6079,7 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
     {
       cp = &status_string[3];
       for (i = cpu->core_num - 1; i >= 0; i--)
+	if (!cpu->cores[i].is_dead)
 	{
 	  sprintf (cp, "thread:%x;", THREAD_ID (i));
 	  cp += strlen (cp);
@@ -4584,7 +6104,7 @@ bfin_disconnect (void)
 
   wpu_disable ();
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (c->is_stepping)
       {
 	core_dbgctl_bit_clear_esstep (i, UPDATE);
@@ -4593,7 +6113,7 @@ bfin_disconnect (void)
 
   emulation_return ();
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     c->is_running = 1;
 
   return RP_VAL_TARGETRET_OK;
@@ -4631,7 +6151,7 @@ bfin_stop (void)
 
   assert (cpu);
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (c->is_stepping)
       {
 	core_dbgctl_bit_clear_esstep (i, UPDATE);
@@ -4640,7 +6160,7 @@ bfin_stop (void)
 
   emulation_trigger ();
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       c->is_interrupted = 1;
       c->is_running = 0;
@@ -4688,14 +6208,14 @@ bfin_set_ctrl_thread (rp_thread_ref *thread)
   if (thread->val == ALL_THREADS)
     {
       cpu->continue_core = ALL_CORES;
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	c->leave_stopped = 0;
     }
   else if (thread->val == ANY_THREAD)
     {
       if (cpu->continue_core == INVALID_CORE)
 	cpu->continue_core = cpu->core_a;
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	c->leave_stopped = 0;
     }
   else
@@ -4706,7 +6226,7 @@ bfin_set_ctrl_thread (rp_thread_ref *thread)
 	return RP_VAL_TARGETRET_ERR;
 
       cpu->continue_core = core;
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	if (i == core)
 	  c->leave_stopped = 0;
 	else
@@ -4917,7 +6437,7 @@ bfin_write_single_register (unsigned int reg_no,
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	if (IN_MAP (value, c->l1_map->l1_code) ||
 	    IN_MAP (value, c->l1_map->l1_code_cache) ||
 	    IN_MAP (value, c->l1_map->l1_code_rom))
@@ -5043,9 +6563,10 @@ bfin_read_mem (uint64_t addr,
   avail_core = cpu->general_core;
 
   if (cpu->cores[avail_core].is_locked || cpu->cores[avail_core].is_corefault)
-    for_each_core (i, c)
+    FOR_EACH_ALIVE_CORE (i, c)
       {
-	if (!c->is_locked && !c->is_corefault && !c->is_running)
+	core_dbgstat_get (i);
+	if (core_dbgstat_is_emuready (i))
 	  {
 	    avail_core = i;
 	    break;
@@ -5065,10 +6586,11 @@ bfin_read_mem (uint64_t addr,
   if (!IN_MAP (addr, cpu->mem_map.l1))
     goto skip_l1;
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       /* Use the core for its L1 memory if possible.  */
-      if (!c->is_locked && !c->is_corefault && !c->is_running)
+      core_dbgstat_get (i);
+      if (core_dbgstat_is_emuready (i))
 	core = i;
       else
 	core = avail_core;
@@ -5089,8 +6611,7 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > end)
 	    req_size = end - addr;
 
-	  ret = sram_read (core, addr, buf, req_size, i != core);
-	  goto done;
+	  ret = sram_read (core, addr, buf, req_size, i == core);
 	}
       else if (!c->l1_code_cache_enabled &&
 	       IN_MAP (addr, c->l1_map->l1_code_cache))
@@ -5098,16 +6619,14 @@ bfin_read_mem (uint64_t addr,
 	  if (addr + req_size > c->l1_map->l1_code_cache_end)
 	    req_size = c->l1_map->l1_code_cache_end - addr;
 
-	  ret = sram_read (core, addr, buf, req_size, i != core);
-	  goto done;
+	  ret = sram_read (core, addr, buf, req_size, i == core);
 	}
       else if (IN_MAP (addr, c->l1_map->l1_code_rom))
 	{
 	  if (addr + req_size > c->l1_map->l1_code_rom_end)
 	    req_size = c->l1_map->l1_code_rom_end - addr;
 
-	  ret = sram_read (core, addr, buf, req_size, i != core);
-	  goto done;
+	  ret = sram_read (core, addr, buf, req_size, i == core);
 	}
       else if (IN_MAP (addr, c->l1_map->l1_data_a))
 	{
@@ -5121,7 +6640,6 @@ bfin_read_mem (uint64_t addr,
 	    req_size = end - addr;
 
 	  ret = core_memory_read (core, addr, buf, req_size, i == core);
-	  goto done;
 	}
       else if (!c->l1_data_a_cache_enabled &&
 	       IN_MAP (addr, c->l1_map->l1_data_a_cache))
@@ -5130,7 +6648,6 @@ bfin_read_mem (uint64_t addr,
 	    req_size = c->l1_map->l1_data_a_cache_end - addr;
 
 	  ret = core_memory_read (core, addr, buf, req_size, i == core);
-	  goto done;
 	}
       else if (IN_MAP (addr, c->l1_map->l1_data_b))
 	{
@@ -5145,7 +6662,6 @@ bfin_read_mem (uint64_t addr,
 	    req_size = end - addr;
 
 	  ret = core_memory_read (core, addr, buf, req_size, i == core);
-	  goto done;
 	}
       else if (!c->l1_data_b_cache_enabled &&
 	       IN_MAP (addr, c->l1_map->l1_data_b_cache))
@@ -5154,7 +6670,6 @@ bfin_read_mem (uint64_t addr,
 	    req_size = c->l1_map->l1_data_b_cache_end - addr;
 
 	  ret = core_memory_read (core, addr, buf, req_size, i == core);
-	  goto done;
 	}
       else if (i == core && IN_MAP (addr, c->l1_map->l1_scratch))
 	{
@@ -5162,13 +6677,13 @@ bfin_read_mem (uint64_t addr,
 	    req_size = c->l1_map->l1_scratch_end - addr;
 
 	  ret = memory_read (core, addr, buf, req_size);
-	  goto done;
 	}
-      else if (IN_MAP (addr, c->l1_map->l1))
+      else
 	{
 	  ret = bfin_read_inv_mem (core, addr, buf, &req_size);
-	  goto done;
 	}
+
+      goto done;
     }
 
  skip_l1:
@@ -5277,6 +6792,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
   int avail_core, core;
   uint32_t value;
   uint32_t end;
+  int was_locked;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_write_mem (0x%08llX, ptr, %d)",
@@ -5309,9 +6825,10 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
   if (cpu->cores[avail_core].is_locked
       || cpu->cores[avail_core].is_corefault)
-    for_each_core (i, c)
+    FOR_EACH_ALIVE_CORE (i, c)
       {
-	if (!c->is_locked && !c->is_corefault && !c->is_running)
+	core_dbgstat_get (i);
+	if (core_dbgstat_is_emuready (i))
 	  {
 	    avail_core = i;
 	    break;
@@ -5328,21 +6845,45 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 
   emupc_reset ();
 
+  was_locked = 0;
+
   if (!IN_MAP (addr, cpu->mem_map.l1))
     goto skip_l1;
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
+      if (!IN_MAP (addr, c->l1_map->l1))
+	continue;
+
+      if (c->is_locked
+	  && (cpu->sdu != -1
+	      || bfin_unlock_on_load))
+	{
+	  was_locked = c->is_locked;
+
+	  core_unlock (i);
+
+	  if (bfin_enable_dcache)
+	    {
+	      core_dcache_enable (i, bfin_enable_dcache);
+	      c->l1_data_a_cache_enabled = 1;
+	      c->l1_data_b_cache_enabled = 1;
+	    }
+	  if (bfin_enable_icache)
+	    {
+	      core_icache_enable (i);
+	      c->l1_code_cache_enabled = 1;
+	    }
+	}
+      else
+	core_cache_status_get (i);
+
       /* Use the core for its L1 memory if possible.  */
-      if (!c->is_locked && !c->is_corefault && !c->is_running)
+      core_dbgstat_get (i);
+      if (core_dbgstat_is_emuready (i))
 	core = i;
       else
 	core = avail_core;
-
-      if (IN_MAP (addr, c->l1_map->l1))
-	core_cache_status_get (i);
-      else
-	continue;
 
       if (IN_MAP (addr, c->l1_map->l1_code) &&
 	  ((!c->l1_code_cache_enabled &&
@@ -5351,42 +6892,10 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	   || (end = c->l1_map->l1_code_end))
 	  && addr + write_size <= end)
 	{
-	  ret = sram_write (core, addr, buf, write_size, i != core);
+	  ret = sram_write (core, addr, buf, write_size, i == core);
 
 	  if (i == core)
 	    icache_flush (i, addr, write_size);
-
-	  if (addr == c->l1_map->l1_code
-	      && bfin_unlock_on_load && c->is_locked)
-	    {
-	      uint16_t sica_syscr;
-
-	      bfin_log (RP_VAL_LOGLEVEL_INFO,
-			"%s: [%d] unlocking...", bfin_target.name, cpu->first_core + i);
-
-	      sica_syscr = mmr_read (cpu->core_a, SICA_SYSCR, 2);
-	      sica_syscr &= ~SICA_SYSCR_COREB_SRAM_INIT;
-	      mmr_write (cpu->core_a, SICA_SYSCR, sica_syscr, 2);
-	      core_check_emuready (i);
-	      c->is_locked = 0;
-	      core_wpu_init (i);
-	      if (bfin_enable_dcache)
-		{
-		  core_dcache_enable (i, bfin_enable_dcache);
-		  c->l1_data_a_cache_enabled = 1;
-		  c->l1_data_b_cache_enabled = 1;
-		}
-	      if (bfin_enable_icache)
-		{
-		  core_icache_enable (i);
-		  c->l1_code_cache_enabled = 1;
-		}
-
-	      bfin_log (RP_VAL_LOGLEVEL_INFO,
-			"%s: [%d] done", bfin_target.name, cpu->first_core + i);
-	    }
-
-	  goto done;
 	}
       else if (IN_MAP (addr, c->l1_map->l1_code_cache) &&
 	       addr + write_size <= c->l1_map->l1_code_cache_end)
@@ -5399,8 +6908,7 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	      return RP_VAL_TARGETRET_ERR;
 	    }
 
-	  ret = sram_write (core, addr, buf, write_size, i != core);
-	  goto done;
+	  ret = sram_write (core, addr, buf, write_size, i == core);
 	}
       else if (IN_MAP (addr, c->l1_map->l1_data_a) &&
 	       ((!c->l1_data_a_cache_enabled &&
@@ -5410,7 +6918,6 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	       && addr + write_size <= end)
 	{
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
-	  goto done;
 	}
       else if (IN_MAP (addr, c->l1_map->l1_data_a_cache) &&
 	       addr + write_size <= c->l1_map->l1_data_a_cache_end)
@@ -5424,7 +6931,6 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	    }
 
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
-	  goto done;
 	}
       else if (IN_MAP (addr, c->l1_map->l1_data_b) &&
 	       ((!c->l1_data_b_cache_enabled &&
@@ -5434,7 +6940,6 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	       && addr + write_size <= end)
 	{
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
-	  goto done;
 	}
       else if (IN_MAP (addr, c->l1_map->l1_data_b_cache) &&
 	       addr + write_size <= c->l1_map->l1_data_b_cache_end)
@@ -5448,21 +6953,26 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	    }
 
 	  ret = core_memory_write (core, addr, buf, write_size, i == core);
-	  goto done;
 	}
       else if (i == core && IN_MAP (addr, c->l1_map->l1_scratch) &&
 	       addr + write_size <= c->l1_map->l1_scratch_end)
 	{
 	  ret = memory_write (core, addr, buf, write_size);
-	  goto done;
 	}
-      else if (IN_MAP (addr, c->l1_map->l1))
+      else
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: [%d] cannot write reserved L1 [0x%08llX] size %d",
 		    bfin_target.name, cpu->first_core + i, addr, write_size);
 	  return RP_VAL_TARGETRET_ERR;
 	}
+
+      core_check_emuready (core);
+
+      if (cpu->sdu != -1 && was_locked && !bfin_unlock_on_load)
+	core_lock (i);
+
+      goto done;
     }
 
  skip_l1:
@@ -5511,22 +7021,22 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
 	}
       mmr_write (core, addr, value, write_size);
       ret = 0;
-      goto done;
     }
-
-  if ((IN_MAP (addr, cpu->mem_map.sdram) &&
-       addr + write_size <= cpu->mem_map.sdram_end)
-      || (IN_MAP (addr, cpu->mem_map.async_mem) &&
-	  addr + write_size <= cpu->mem_map.async_mem_end)
-      || (IN_MAP (addr, cpu->mem_map.l2_sram) &&
-	  addr + write_size <= cpu->mem_map.l2_sram_end))
+  else if ((IN_MAP (addr, cpu->mem_map.sdram) &&
+	    addr + write_size <= cpu->mem_map.sdram_end)
+	   || (IN_MAP (addr, cpu->mem_map.async_mem) &&
+	       addr + write_size <= cpu->mem_map.async_mem_end)
+	   || (IN_MAP (addr, cpu->mem_map.l2_sram) &&
+	       addr + write_size <= cpu->mem_map.l2_sram_end))
     {
       ret = memory_write (core, addr, buf, write_size);
 
-      for_each_core (i, c)
-	if (!c->is_locked && !c->is_corefault && !c->is_running)
-	  icache_flush (i, addr, write_size);
-
+      FOR_EACH_ALIVE_CORE (i, c)
+	{
+	  core_dbgstat_get (i);
+	  if (core_dbgstat_is_emuready (i))
+	    icache_flush (i, addr, write_size);
+	}
     }
   else
     {
@@ -5536,6 +7046,8 @@ bfin_write_mem (uint64_t addr, uint8_t *buf, int write_size)
       return RP_VAL_TARGETRET_ERR;
     }
 
+  core_check_emuready (core);
+
 done:
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
@@ -5544,8 +7056,6 @@ done:
 
   if (ret < 0)
     return RP_VAL_TARGETRET_ERR;
-
-  core_check_emuready (core);
 
   return RP_VAL_TARGETRET_OK;
 }
@@ -5568,7 +7078,7 @@ bfin_resume_from_current (int step, int sig)
 
   emupc_reset ();
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       if (c->is_locked)
 	continue;
@@ -5597,7 +7107,7 @@ bfin_resume_from_current (int step, int sig)
 	return RP_VAL_TARGETRET_OK;
     }
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       if (c->is_locked)
 	continue;
@@ -5713,7 +7223,7 @@ bfin_wait_partial (int first,
 
   /* If we have any interesting pending event,
      report it instead of resume.  */
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (!c->is_locked
 	&& !c->leave_stopped && c->status_pending_p)
       {
@@ -5760,7 +7270,7 @@ bfin_wait_partial (int first,
 
   *more = TRUE;
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       if (c->leave_stopped)
 	continue;
@@ -5841,7 +7351,7 @@ bfin_wait_partial (int first,
   else
     {
       emulation_trigger ();
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	c->is_running = 0;
     }
 
@@ -5851,7 +7361,7 @@ bfin_wait_partial (int first,
   emupc_reset ();
   dbgstat_get ();
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
@@ -5947,7 +7457,7 @@ bfin_wait_partial (int first,
 	}
     }
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     {
       if (c->leave_stopped)
 	continue;
@@ -5985,7 +7495,7 @@ bfin_wait_partial (int first,
       cpu->continue_core = i;
 
       /* Consume all interrupts.  */
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	if (c->status_pending_p && c->is_interrupted &&
 	    c->pending_signal == RP_SIGNAL_INTERRUPT)
 	  c->status_pending_p = 0;
@@ -6130,7 +7640,7 @@ bfin_raw_query (char *in_buf, char *out_buf, int out_buf_size)
       if (ret < 0)
 	return RP_VAL_TARGETRET_ERR;
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	{
 	  const bfin_l1_map *l1 = c->l1_map;
 	  /* XXX: Maybe label the caches as ROM ?  */
@@ -6227,7 +7737,7 @@ bfin_supported_query (char *out_buf, int out_buf_size)
 
   /* 0x4000 is the largest packet size GDB would like.  */
   size = MIN (0x4000, RP_PARAM_INOUTBUF_SIZE - 1);
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     size = MIN (size, MAP_LEN (c->l1_map->l1_data_a));
 
   i = snprintf (out_buf, out_buf_size,
@@ -6273,7 +7783,7 @@ bfin_add_break (int type, uint64_t addr, int len)
     case 1:
       if (IN_MAP (addr, cpu->mem_map.l1))
 	{
-	  for_each_core (i, c)
+	  FOR_EACH_ALIVE_CORE (i, c)
 	    if (IN_MAP (addr, c->l1_map->l1))
 	      {
 		for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
@@ -6297,7 +7807,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	{
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	    if (c->hwbps[j] == -1)
@@ -6315,7 +7825,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	  if (c->hwbps[j] == -1)
 	    {
@@ -6345,7 +7855,7 @@ bfin_add_break (int type, uint64_t addr, int len)
 
   if (IN_MAP (addr, cpu->mem_map.l1))
     {
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	if (IN_MAP (addr, c->l1_map->l1))
 	  {
 	    if (!bfin_force_range_wp
@@ -6388,7 +7898,7 @@ bfin_add_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (!bfin_force_range_wp
 	&& len <= 4
 	&& c->hwwps[0].addr != -1
@@ -6407,7 +7917,7 @@ bfin_add_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (!bfin_force_range_wp && len <= 4)
       {
 	j = c->hwwps[0].addr == -1 ? 0 : 1;
@@ -6461,7 +7971,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
     case 1:
       if (IN_MAP (addr, cpu->mem_map.l1))
 	{
-	  for_each_core (i, c)
+	  FOR_EACH_ALIVE_CORE (i, c)
 	    if (IN_MAP (addr, c->l1_map->l1))
 	      {
 		for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
@@ -6485,7 +7995,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	{
 	  for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	    if (c->hwbps[j] == addr)
@@ -6503,7 +8013,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 	  return RP_VAL_TARGETRET_ERR;
 	}
 
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	for (j = 0; j < RP_BFIN_MAX_HWBREAKPOINTS; j++)
 	  if (c->hwbps[j] == addr)
 	    {
@@ -6533,7 +8043,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
 
   if (IN_MAP (addr, cpu->mem_map.l1))
     {
-      for_each_core (i, c)
+      FOR_EACH_ALIVE_CORE (i, c)
 	if (IN_MAP (addr, c->l1_map->l1))
 	  {
 	    if (!bfin_force_range_wp
@@ -6584,7 +8094,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (!bfin_force_range_wp
 	&& len <= 4
 	&& (c->hwwps[0].addr != addr
@@ -6611,7 +8121,7 @@ bfin_remove_break (int type, uint64_t addr, int len)
       return RP_VAL_TARGETRET_ERR;
     }
 
-  for_each_core (i, c)
+  FOR_EACH_ALIVE_CORE (i, c)
     if (!bfin_force_range_wp && len <= 4)
       {
 	j = (c->hwwps[0].addr == addr
