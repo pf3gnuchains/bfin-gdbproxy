@@ -7276,12 +7276,26 @@ bfin_wait_partial (int first,
   else
     nanosleep (&bfin_loop_wait_ts, NULL);
 
+  *more = TRUE;
+
+  /* If the processor is in deep sleep mode, we cannot get more information.  */
+
+  if (cpu->sdu != -1)
+    {
+      sdu_stat_get (cpu->chain, cpu->sdu);
+      if (sdu_stat_is_deepsleep (cpu->chain, cpu->sdu))
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_INFO,
+		    "%s: [%d] processor in deep sleep mode",
+		    bfin_target.name, cpu->sdu);
+	  return RP_VAL_TARGETRET_OK;
+	}
+    }
+
   dbgstat_get ();
 
   /* Quickly check if there is any core stopped.
      If so, stop others.  */
-
-  *more = TRUE;
 
   FOR_EACH_ALIVE_CORE (i, c)
     {
