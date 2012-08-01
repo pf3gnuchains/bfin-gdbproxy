@@ -2022,8 +2022,19 @@ emulation_trigger (void)
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: emulation_trigger ()", bfin_target.name);
 
+  dbgstat_get ();
   for (i = 0; i < cpu->core_num; i++)
-    core_emulation_trigger (i);
+    {
+      /* Triggerring emulation on a core which has already been in
+	 emulation mode will cause unexpected effect.
+
+	 For example, if the core is executing IDLE instruction.
+	 The first trigger will bring the core out of the IDLE mode
+	 and halt it at the next instruction.  But a consecutive
+	 second trigger will cause the core to resume execution.  */
+      if (!core_dbgstat_is_emuready (i))
+	core_emulation_trigger (i);
+    }
 }
 
 static void
