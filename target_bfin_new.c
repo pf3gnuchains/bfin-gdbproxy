@@ -2008,7 +2008,8 @@ core_emulation_trigger (int core)
   else
     {
       sdu_stat_show (cpu->chain, cpu->sdu, "before");
-      sdu_halt (cpu->chain, cpu->sdu, SDU_CTL_EHLT_CORE (core));
+      sdu_halt (cpu->chain, cpu->sdu,
+		SDU_CTL_EHLT_CORE (cpu->core_num - core - 1));
       sdu_stat_show (cpu->chain, cpu->sdu, "after");
     }    
   core_dbgstat_show (core, "after");
