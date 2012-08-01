@@ -5982,8 +5982,9 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 
   FOR_EACH_ALIVE_CORE (i, c)
     if (core_is_locked (i)
-    && core_dbgstat_is_emuack (i)
-	&& !core_dbgstat_is_in_reset (i))
+	&& (cpu->sdu != -1
+	    || (core_dbgstat_is_emuack (i)
+		&& !core_dbgstat_is_in_reset (i))))
       {
 	urj_part_t *part = cpu->chain->parts->parts[cpu->first_core + i];
 
