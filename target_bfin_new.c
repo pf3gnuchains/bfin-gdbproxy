@@ -7290,6 +7290,7 @@ bfin_wait_partial (int first,
 		    bfin_target.name, cpu->sdu);
 	  return RP_VAL_TARGETRET_OK;
 	}
+      sdu_stat_clear_deepsleep (cpu->chain, cpu->sdu);
     }
 
   dbgstat_get ();
