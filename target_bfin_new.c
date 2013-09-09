@@ -5207,6 +5207,10 @@ bfin_open (int argc,
     if (!strcmp (chain->parts->parts[i]->part, "SDU")
 	/* TODO && !sdu_core_scan_path_is_enabled (chain, i) */)
       {
+	/* Workaround for BF609 anomaly 16000040.
+	   Do a TRST reset to reload the correct value of SDU_IDCODE.  */
+	urj_tap_trst_reset (chain);
+
 	sdu_enable_core_scan_path (chain, i);
 
 	/* Since the cores enabled by SDU don't have IDCODE register,
