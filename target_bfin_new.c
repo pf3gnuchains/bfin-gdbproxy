@@ -412,6 +412,7 @@ typedef enum _bfin_board
   BF527_EZKIT,
   BF533_EZKIT,
   BF533_STAMP,
+  BF533CB,
   BF537_EZKIT,
   BF537_STAMP,
   BF538F_EZKIT,
@@ -1152,6 +1153,12 @@ static const bfin_sdram_config bf533_stamp_sdram_config = {
   .sdrrc = 0x01a0,
   .sdbctl = 0x0025,
   .sdgctl = 0x0091998d,
+};
+
+static const bfin_sdram_config bf533cb_sdram_config = {
+  .sdrrc = 0x0406,
+  .sdbctl = 0x0013,
+  .sdgctl = 0x0191998d,
 };
 
 static const bfin_sdram_config bf537_ezkit_sdram_config = {
@@ -4912,6 +4919,8 @@ bfin_open (int argc,
 	    board = BF533_STAMP;
 	  else if (strcmp (optarg, "bf533-ezkit") == 0)
 	    board = BF533_EZKIT;
+	  else if (strcmp (optarg, "bf533cb") == 0)
+	    board = BF533CB;
 	  else if (strcmp (optarg, "bf537-stamp") == 0)
 	    board = BF537_STAMP;
 	  else if (strcmp (optarg, "bf537-ezkit") == 0)
@@ -5508,6 +5517,25 @@ bfin_open (int argc,
       cpu->mem_map.sdram_end = 0x8000000;
       cpu->mem_map.flash_end = cpu->mem_map.flash + 0x400000;
       cpu->sdram_config = &bf533_stamp_sdram_config;
+      break;
+
+    case BF533CB:
+      if (chain->parts->len != 1)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %d cores on BF533CB board",
+		    bfin_target.name, chain->parts->len);
+	  exit (1);
+	}
+      if (strcmp (chain->parts->parts[0]->part, "BF533") != 0)
+	{
+	  bfin_log (RP_VAL_LOGLEVEL_ERR,
+		    "%s: found %s on BF533CB board",
+		    bfin_target.name, chain->parts->parts[0]->part);
+	  exit (1);
+	}
+      cpu->mem_map.sdram_end = 0x8000000;
+      cpu->sdram_config = &bf533cb_sdram_config;
       break;
 
     case BF537_EZKIT:
