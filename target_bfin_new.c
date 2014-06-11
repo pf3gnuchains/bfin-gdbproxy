@@ -509,6 +509,7 @@ enum gdb_regnum
 
   /* Pseudo Registers */
   BFIN_PC_REGNUM,
+#if 0
   BFIN_CC_REGNUM,
   BFIN_TEXT_ADDR,		/* Address of .text section.  */
   BFIN_TEXT_END_ADDR,		/* Address of the end of .text section.  */
@@ -519,7 +520,7 @@ enum gdb_regnum
 
   /* MMRs */
   BFIN_IPEND_REGNUM,
-
+#endif
   /* LAST ENTRY SHOULD NOT BE CHANGED.  */
   BFIN_NUM_REGS			/* The number of all registers.  */
 };
@@ -5059,13 +5060,6 @@ bfin_open (int argc,
 
 	case 18:
 	  bfin_frequency = atol (optarg);
-	  if (bfin_frequency < 0)
-	    {
-	      bfin_log (RP_VAL_LOGLEVEL_ERR,
-			"%s: bad frequency %d",
-			bfin_target.name, bfin_frequency);
-	      exit (1);
-	    }
 	  break;
 
 	case 19:
@@ -6298,7 +6292,8 @@ static int
 bfin_read_registers (uint8_t *data_buf,
 		     uint8_t *avail_buf, int buf_size, int *read_size)
 {
-  int ret, reg_no;
+  int ret;
+  unsigned int reg_no;
 
   bfin_log (RP_VAL_LOGLEVEL_DEBUG,
 	    "%s: bfin_read_registers ()", bfin_target.name);
@@ -6360,7 +6355,7 @@ bfin_read_single_register (unsigned int reg_no,
   assert (buf_size >= reg_size);
   assert (read_size != NULL);
 
-  if (reg_no < 0 || reg_no >= BFIN_NUM_REGS)
+  if (reg_no >= BFIN_NUM_REGS)
     return RP_VAL_TARGETRET_ERR;
 
   if (cpu->cores[core].is_locked)
@@ -6377,6 +6372,7 @@ bfin_read_single_register (unsigned int reg_no,
 		bfin_target.name, cpu->first_core + core, reg_no);
       memset (avail_buf, 0, reg_size);
     }
+#if 0
   /* The CC register is a pseudo register that is part of ASTAT (bit 5).  */
   else if (reg_no == BFIN_CC_REGNUM)
     {
@@ -6390,6 +6386,7 @@ bfin_read_single_register (unsigned int reg_no,
       data_buf[3] = (val >> 24) & 0xff;
       memset (avail_buf, 1, reg_size);
     }
+#endif
   /* In GDB testsuite, we have to pretend these registers have value 0
      to get some tests PASS.  */
   else if (map_gdb_core[reg_no] == -1)
@@ -6444,7 +6441,7 @@ bfin_write_single_register (unsigned int reg_no,
 
   assert (write_size == reg_size);
 
-  if (reg_no < 0 || reg_no >= BFIN_NUM_REGS)
+  if (reg_no >= BFIN_NUM_REGS)
     return RP_VAL_TARGETRET_ERR;
 
   /* GDB don't like reporting error for these registers.  */
@@ -7662,8 +7659,8 @@ static int
 __bfin_raw_query_append_mem (char **out_buf, int *out_buf_size, const char *type,
 			     uint32_t start, uint32_t len)
 {
-  if (start == 0)
-    return RP_VAL_TARGETRET_OK;
+//  if (start == 0)
+//    return RP_VAL_TARGETRET_OK;
   return _bfin_raw_query_append (out_buf, out_buf_size,
 	"<memory type=\"%s\" start=\"%#x\" length=\"%#x\"/>",
 	type, start, len);
