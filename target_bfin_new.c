@@ -6057,13 +6057,13 @@ bfin_connect (char *status_string, int status_string_len, int *can_restart)
 		    "%s: Calculate clocks failed", bfin_target.name);
 	  return RP_VAL_TARGETRET_ERR;
 	}
-
+      /*
       if (pll_init () != 0)
 	{
 	  bfin_log (RP_VAL_LOGLEVEL_ERR,
 		    "%s: PLL init failed", bfin_target.name);
 	  return RP_VAL_TARGETRET_ERR;
-	}
+	  }*/
     }
 
   if (bfin_init_sdram && cpu->ddr2)
