@@ -1157,7 +1157,7 @@ static const bfin_sdram_config bf533_stamp_sdram_config = {
 };
 
 static const bfin_sdram_config bf533cb_sdram_config = {
-  .sdrrc = 0x0406,
+  .sdrrc = 0x0268,
   .sdbctl = 0x0013,
   .sdgctl = 0x0191998d,
 };
